@@ -1,0 +1,204 @@
+/* General Page Styling */
+.admin-register-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, #4b6cb7 0%, #253b68 100%);
+  min-height: 100vh;
+  padding: 0 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+  /*change font color*/
+}
+
+/* Form Container Styling */
+.admin-register-form {
+  background: linear-gradient(90deg, #bcbcbd 0%, #bcbcbd 100%);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 1000px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Animation for Form Appearance */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header Styling */
+.admin-register-page h1 {
+  font-size: 2.5rem;
+  color: #bb6262;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 20px;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Form Group Styling */
+.admin-register-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Label Styling */
+.admin-register-form label {
+  font-size: 1rem;
+  color: #555;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.admin-register-form label:hover {
+  color: #007bff;
+}
+
+/* Input Fields Styling */
+.admin-register-form input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #333;
+  transition: all 0.3s ease;
+  background-color: #f9f9f9;
+}
+
+.admin-register-form input:focus {
+  border-color: #6c63ff;
+  outline: none;
+  box-shadow: 0 0 8px rgba(108, 99, 255, 0.5);
+  background-color: #fff;
+}
+
+/* Button Styling */
+.btn-submit {
+  padding: 14px;
+  background: linear-gradient(90deg, #007bff, #6c63ff);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-submit:hover {
+  background: linear-gradient(90deg, #0056b3, #4b3ce8);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn-submit:active {
+  transform: translateY(0);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Error Message Styling */
+.error-message {
+  color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 600px) {
+  .admin-register-form {
+    padding: 30px;
+  }
+
+  .admin-register-page h1 {
+    font-size: 2rem;
+  }
+
+  .btn-submit {
+    font-size: 1rem;
+  }
+}
+
+/* Input Field Hover Effect */
+.admin-register-form input:hover {
+  background-color: #f0f4ff;
+  border-color: #6c63ff;
+}
+
+/* Add Subtle Background Effects */
+.admin-register-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.admin-register-form {
+  position: relative;
+  z-index: 1;
+}
+.form-group.has-error input,
+.form-group.has-error select {
+  border: 1px solid red;
+}
+
+.error-text {
+  color: red;
+  font-size: 0.875rem;
+  margin-top: 5px;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+.modal-content {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.modal-body p {
+  margin-bottom: 10px;
+}
+
+.modal-body strong {
+  font-weight: bold;
+}
+.admin-register-page h1 {
+  color: #d3f056; /* Change to any color you prefer */
+}
+.password-warning {
+  color: red; /* Draw attention to the warning */
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-left: 5px;
+}

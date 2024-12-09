@@ -1,0 +1,176 @@
+/* Main container styling */
+.signin-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Set to full viewport height */
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 60%
+  ); /* Adjust gradient for smoother effect */
+  flex-direction: column; /* Stack content vertically */
+  padding: 20px; /* Adjusted padding for better spacing */
+  box-sizing: border-box; /* Include padding in the container’s total width and height */
+}
+
+.signin-container .signin-card {
+  width: 100%;
+  max-width: 400px; /* Ensure content doesn't stretch too wide */
+  background-color: #fff; /* White background for the form */
+  border-radius: 8px; /* Smooth corners */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Light shadow for better visibility */
+  padding: 20px; /* Padding inside the card */
+  box-sizing: border-box; /* Ensure padding is included in total width */
+}
+
+/* Role card styling */
+.role-card {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  width: 280px; /* Default width of the card */
+  height: 280px; /* Default height of the card */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+  margin: 20px; /* Margin between cards */
+  text-align: center;
+  color: white;
+  transition: all 0.3s ease-in-out; /* Smooth transition for hover effects */
+}
+
+.role-card:hover {
+  transform: scale(1.05); /* Slightly increase size on hover */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); /* Deep shadow on hover */
+}
+
+/* Icon size */
+.role-card .role-icon {
+  color: white;
+  font-size: 50px; /* Larger icon size */
+}
+
+/* Text styling for the role name */
+.role-card h5 {
+  font-size: 22px; /* Slightly larger font size */
+  font-weight: bold;
+  color: white;
+  margin-top: 10px;
+}
+
+/* Heading styling */
+.signin-container h2 {
+  text-align: center;
+  margin-bottom: 40px;
+  font-size: 2.2rem; /* Larger font size */
+  color: #333;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px; /* Adds elegance */
+  position: relative; /* For the underline effect */
+}
+
+/* Decorative underline for h2 */
+h2::before {
+  content: "";
+  position: absolute;
+  width: 80px;
+  height: 3px;
+  background-color: #5c8dff; /* Blue underline */
+  bottom: -10px; /* Positions the underline below the text */
+  left: 50%;
+  transform: translateX(-50%); /* Centers the underline */
+  border-radius: 2px;
+}
+
+/* Keyframes for sliding effect on heading */
+h2 span {
+  display: inline-block;
+  animation: slideIn 1s ease-out; /* Animates the text */
+}
+
+@keyframes slideIn {
+  0% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive styles for smaller screens */
+@media (max-width: 991px) {
+  .signin-container {
+    height: auto; /* Allows content to fit comfortably */
+    padding: 10px; /* Reduce padding on medium screens */
+  }
+
+  .role-card {
+    width: 250px; /* Reduced width for medium screens */
+    height: 250px; /* Reduced height */
+    margin: 15px; /* Reduced margin */
+  }
+
+  .role-card .role-icon {
+    font-size: 45px; /* Slightly smaller icon */
+  }
+
+  .role-card h5 {
+    font-size: 20px; /* Smaller font size for medium screens */
+  }
+
+  h2 {
+    font-size: 1.8rem; /* Slightly smaller font for medium screens */
+  }
+}
+
+@media (max-width: 767px) {
+  .signin-container {
+    height: auto; /* Let content flow naturally */
+    padding: 10px; /* Padding for mobile screens */
+  }
+
+  .role-card {
+    width: 200px; /* Further reduced width for small screens */
+    height: 200px; /* Reduced height */
+    margin: 10px; /* Reduced margin for better spacing */
+  }
+
+  .role-card .role-icon {
+    font-size: 40px; /* Smaller icon size for mobile */
+  }
+
+  .role-card h5 {
+    font-size: 18px; /* Smaller text size for mobile */
+  }
+
+  h2 {
+    font-size: 1.6rem; /* Even smaller font size for mobile */
+    margin-bottom: 20px; /* Reduced margin for mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .role-card {
+    width: 180px; /* Very small width for extra small screens */
+    height: 180px; /* Reduced height */
+    margin: 10px; /* Reduced margin for tight spacing */
+  }
+
+  .role-card .role-icon {
+    font-size: 35px; /* Smaller icon for mobile */
+  }
+
+  .role-card h5 {
+    font-size: 16px; /* Smaller text for extra small screens */
+  }
+
+  h2 {
+    font-size: 1.4rem; /* Adjust heading font for small devices */
+  }
+}

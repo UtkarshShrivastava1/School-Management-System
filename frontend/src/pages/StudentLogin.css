@@ -1,0 +1,41 @@
+/* Similar styles as AdminLogin and TeacherLogin, but customized for Student */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(90deg, #ffffff 0%, #f7f7f7 100%);
+}
+
+.login-card {
+  width: 400px;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+h3 {
+  text-align: center;
+  color: #333;
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+button {
+  background-color: #4b6cb7;
+  color: white;
+  font-weight: bold;
+  border: none;
+}
+
+button:disabled {
+  background-color: #a7a7a7;
+}
+
+button:hover:not(:disabled) {
+  background-color: #3b5a88;
+}
+
+.alert {
+  margin-top: 10px;
+}

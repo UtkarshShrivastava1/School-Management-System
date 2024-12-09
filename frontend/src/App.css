@@ -1,0 +1,68 @@
+/* Ensure no global margin or padding interference from Bootstrap */
+* {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+}
+
+/* Remove unwanted margins from body, container, and row */
+body,
+.container,
+.row {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Custom styles for the app */
+.App {
+  text-align: center;
+  font-family: "Arial", sans-serif;
+  background-color: #f0f4f8;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.App-header {
+  background-color: #282c34;
+  color: white;
+  padding: 2rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem; /* Fix any margin issue */
+}
+
+.App-logo {
+  height: 10rem;
+  pointer-events: none;
+  transition: transform 0.3s ease-in-out;
+  margin-bottom: 1.5rem;
+}
+
+/* Custom margins and paddings for mobile responsiveness */
+@media (max-width: 768px) {
+  .App-logo {
+    height: 8rem;
+    margin-bottom: 1rem;
+  }
+
+  .App-header h1 {
+    font-size: 2.5rem;
+  }
+
+  .App-header p {
+    font-size: 1rem;
+  }
+
+  .App-link {
+    font-size: 1rem;
+  }
+}

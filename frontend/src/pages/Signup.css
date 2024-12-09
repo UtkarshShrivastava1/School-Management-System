@@ -1,0 +1,114 @@
+/* SignUp.css */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0; /* Remove any default margin */
+  padding: 0; /* Remove any default padding */
+  font-family: "Roboto", sans-serif;
+}
+
+.signup-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f4f7fb; /* Light background for the page */
+  margin: 0; /* Ensure no margin from the parent elements */
+  padding: 0; /* Remove padding */
+}
+
+.signup-card {
+  width: 100%;
+  max-width: 400px;
+  background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 0; /* Ensure no margin */
+}
+
+.signup-card h3 {
+  text-align: center;
+  font-family: "Roboto", sans-serif;
+  font-size: 1.8rem;
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.signup-card .form-label {
+  font-family: "Roboto", sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.signup-card .form-control {
+  font-family: "Roboto", sans-serif;
+  font-size: 1rem;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.signup-card .form-control:focus {
+  border-color: #4b6cb7;
+  box-shadow: 0 0 5px rgba(75, 108, 183, 0.5);
+}
+
+button {
+  background-color: #1a237e;
+  color: white;
+  border: none;
+  padding: 10px;
+  font-family: "Roboto", sans-serif;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #3f51b5;
+}
+
+button:disabled {
+  background-color: #a1b2d3;
+  cursor: not-allowed;
+}
+
+button:focus {
+  outline: none;
+}
+
+.signup-card .form-select {
+  font-family: "Roboto", sans-serif;
+  font-size: 1rem;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.signup-card .form-select:focus {
+  border-color: #4b6cb7;
+  box-shadow: 0 0 5px rgba(75, 108, 183, 0.5);
+}
+
+.alert {
+  font-family: "Roboto", sans-serif;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
