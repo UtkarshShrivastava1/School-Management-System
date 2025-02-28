@@ -1,0 +1,135 @@
+/* Container for the whole form */
+.create-class-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 30px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Back button styling */
+.back-button {
+  cursor: pointer;
+}
+
+/* Error message styling */
+.error-message {
+  color: #d9534f;
+  background: #f2dede;
+  border: 1px solid #ebccd1;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Success message styling */
+.success-message {
+  color: #3c763d;
+  background: #dff0d8;
+  border: 1px solid #d6e9c6;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* General form group styling */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #5cb85c;
+}
+
+/* Subject card styling */
+.subject-card {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.subject-card hr {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid #e5e5e5;
+}
+
+/* Buttons */
+.remove-subject-btn {
+  background: #d9534f;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+  transition: background 0.3s ease;
+}
+
+.remove-subject-btn:hover {
+  background: #c9302c;
+}
+
+.add-subject-btn {
+  background: #5bc0de;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-bottom: 20px;
+  transition: background 0.3s ease;
+}
+
+.add-subject-btn:hover {
+  background: #31b0d5;
+}
+
+.submit-btn {
+  background: #5cb85c;
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s ease;
+}
+
+.submit-btn:hover {
+  background: #4cae4c;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .create-class-container {
+    padding: 20px;
+    margin: 20px;
+  }
+}

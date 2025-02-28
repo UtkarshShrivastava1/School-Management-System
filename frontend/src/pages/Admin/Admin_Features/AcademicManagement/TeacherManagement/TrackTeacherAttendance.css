@@ -1,0 +1,121 @@
+.track-attendance-container {
+  padding: 20px;
+  max-width: 900px; /* Increased width for better spacing */
+  margin: 20px auto;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.date-picker-container,
+.filter-container > div {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px; /* Add spacing between filters */
+}
+
+.date-picker {
+  padding: 10px;
+  font-size: 16px;
+  margin-top: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.filter-container {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(200px, 1fr)
+  ); /* Responsive grid layout */
+  gap: 20px; /* Gap between filter inputs */
+  margin-bottom: 20px;
+}
+
+.attendance-records {
+  margin-top: 20px;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 10px; /* Add gap between rows */
+  margin-top: 20px;
+}
+
+.attendance-table th,
+.attendance-table td {
+  border: 1px solid #ddd;
+  padding: 12px;
+  text-align: center;
+  background-color: white;
+}
+
+.attendance-table th {
+  background-color: #007bff;
+  color: white;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.attendance-table td {
+  color: #555;
+}
+
+.attendance-table tr td:not(:last-child) {
+  border-right: 1px solid #ddd; /* Add vertical gaps */
+}
+
+.attendance-table tr th:not(:last-child) {
+  border-right: 1px solid #ddd;
+}
+
+.attendance-table tr:hover {
+  background-color: #f1f1f1; /* Highlight row on hover */
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  cursor: pointer;
+  color: #007bff;
+}
+
+.back-button:hover {
+  color: #0056b3;
+}
+
+.current-date-time h3 {
+  text-align: center;
+  color: #555;
+  margin-top: 20px;
+}
+
+.toastify-container {
+  font-size: 14px;
+}
+
+/* Media query for responsiveness */
+@media (max-width: 768px) {
+  .filter-container {
+    grid-template-columns: 1fr; /* Make filters stack on smaller screens */
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+}

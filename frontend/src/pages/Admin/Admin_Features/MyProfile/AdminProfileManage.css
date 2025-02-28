@@ -1,0 +1,109 @@
+/* AdminProfileManage.css */
+
+/* Centering utility */
+.textCenter {
+  text-align: center;
+}
+
+/* Main container for the profile management page */
+.admin-profile-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 2rem;
+  /* Subtle gradient background for a modern look */
+  background: linear-gradient(135deg, #f2f2f2, #ffffff);
+  min-height: 100vh;
+}
+
+/* Card styling for the profile display/edit section */
+.profile-card {
+  background-color: #fff;
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  max-width: 900px; /* Increased container width */
+  width: 100%;
+  margin: 2rem auto;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.profile-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Title styling for headings inside the card */
+.profile-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+/* Form label styling (overriding Bootstrap if needed) */
+.form-label {
+  font-weight: 600;
+  color: #444;
+}
+
+/* Optional override for input fields (react-bootstrap Form.Control) */
+.form-control {
+  border-radius: 4px;
+  box-shadow: none;
+  border: 1px solid #ced4da;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* General button styling override */
+button,
+.btn {
+  border-radius: 4px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+/* Button hover effect */
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Back button container styling */
+.back-button-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  color: #007bff;
+}
+
+/* Spinner container (used when loading) */
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profile-card {
+    padding: 1.5rem;
+  }
+  .profile-title {
+    font-size: 1.75rem;
+  }
+}
+.toggle-eye {
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  vertical-align: middle;
+  color: #007bff;
+}

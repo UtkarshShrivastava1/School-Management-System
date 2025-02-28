@@ -1,5 +1,3 @@
-/* Navbar.css */
-
 /* General navbar styling */
 .custom-navbar {
   background: #000000; /* Solid black background */
@@ -9,6 +7,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 1rem;
+  position: fixed; /* Fix navbar at the top */
+  top: 0; /* Align navbar to the top of the viewport */
+  left: 0; /* Ensure it starts from the left */
+  right: 0; /* Ensure it stretches across the entire screen */
+  z-index: 9999; /* Ensure it's on top of other content */
+  overflow: hidden; /* Ensure no content exceeds the navbar container */
+  margin: 0; /* Ensure no margin */
 }
 
 /* Brand styling */
@@ -19,8 +24,13 @@
   color: #ffffff !important;
   text-transform: uppercase;
   margin: 0;
+  white-space: nowrap; /* Prevent brand name from wrapping */
+  overflow: hidden; /* Hide overflowing content */
+  text-overflow: ellipsis; /* Add ellipsis if the brand name overflows */
+  max-width: 100%; /* Prevent it from overflowing */
 }
 
+/* Brand highlight */
 .brand-highlight {
   color: #8888ff;
 }
@@ -75,7 +85,6 @@
   margin-left: 1rem;
   padding: 0.5rem 1rem;
   position: relative;
-  top: -10px; /* Shift buttons slightly upwards */
 }
 
 .login-btn:hover,
@@ -96,23 +105,38 @@
     flex-direction: column;
     align-items: flex-start;
     padding: 1rem;
-  }
-
-  .custom-nav-link {
-    font-size: 1rem;
-    margin: 0.5rem 0;
-  }
-
-  .brand {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .nav-container {
-    flex-direction: column;
+    position: fixed; /* Keep navbar fixed at the top */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999; /* Ensure it stays on top */
     width: 100%;
   }
 
+  /* Adjusting brand font size */
+  .brand {
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    max-width: 100%; /* Ensure the brand name doesn't overflow */
+  }
+
+  /* Navigation links styling for mobile */
+  .custom-nav-link {
+    font-size: 1.1rem;
+    margin: 0.5rem 0;
+    text-align: center; /* Center links on mobile */
+    width: 100%;
+  }
+
+  /* Adjust the nav container to be more mobile-friendly */
+  .nav-container {
+    flex-direction: column;
+    width: 100%;
+    align-items: center; /* Center items */
+  }
+
+  /* Styling buttons for mobile */
   .login-btn,
   .profile-btn,
   .logout-btn {
@@ -120,5 +144,78 @@
     text-align: center;
     margin: 0.5rem 0;
     top: 0; /* Reset the shift for mobile view */
+    padding: 0.6rem 1rem; /* Slightly larger padding for better touch targets */
+  }
+
+  /* Hamburger menu styling */
+  .hamburger-menu {
+    display: block;
+    cursor: pointer;
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    z-index: 10000;
+  }
+
+  .hamburger-menu span {
+    width: 25px;
+    height: 4px;
+    background-color: #ffffff;
+    margin: 5px 0;
+    display: block;
+    transition: 0.4s;
+  }
+
+  /* Open menu state for hamburger */
+  .hamburger-menu.open span:nth-child(1) {
+    transform: rotate(-45deg);
+    position: relative;
+    top: 9px;
+  }
+
+  .hamburger-menu.open span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .hamburger-menu.open span:nth-child(3) {
+    transform: rotate(45deg);
+    position: relative;
+    top: -9px;
+  }
+
+  /* Add some styles for dropdown when hamburger is active */
+  .navbar-menu {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    background-color: #000000;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    padding: 1rem 0;
+  }
+
+  .navbar-menu.open {
+    display: flex;
+  }
+
+  /* Make dropdown items take full width and align center */
+  .navbar-menu .custom-nav-link {
+    font-size: 1.2rem;
+    text-align: center;
+    padding: 0.8rem 0;
+    width: 100%;
+  }
+
+  /* Adjust dropdown for mobile */
+  #dashboard-dropdown {
+    width: 100%;
+    position: relative;
+  }
+
+  /* Mobile-friendly links for dropdown */
+  #dashboard-dropdown .dropdown-item {
+    width: 100%;
+    text-align: center;
   }
 }

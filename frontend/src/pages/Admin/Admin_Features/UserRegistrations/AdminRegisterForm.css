@@ -1,0 +1,267 @@
+.admin-register-form {
+  max-width: 800px;
+  margin: 20px auto;
+  margin-top: 100px; /* Adjusted top margin for navbar overlap */
+
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+}
+
+.admin-register-form h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #333;
+  font-weight: bold;
+}
+
+.admin-register-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.admin-register-form label {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.admin-register-form input,
+.admin-register-form select,
+.admin-register-form button {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+.admin-register-form input:focus,
+.admin-register-form select:focus,
+.admin-register-form button:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+.admin-register-form button {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.admin-register-form button:hover {
+  background-color: #0056b3;
+}
+
+.admin-register-form .error-messages p {
+  margin: 0;
+  font-size: 12px;
+  color: red;
+  font-weight: bold;
+}
+
+.admin-register-form .photo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-register-form .photo-section img {
+  border: 2px solid #ccc;
+  padding: 5px;
+}
+
+.admin-register-form .modal-content {
+  padding: 20px;
+}
+
+.admin-register-form .modal-content p {
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.admin-register-form .modal-content strong {
+  font-weight: bold;
+}
+
+.admin-register-form .modal-footer button {
+  padding: 8px 20px;
+  font-size: 14px;
+  border-radius: 5px;
+}
+
+.admin-register-form input[type="file"] {
+  border: none;
+}
+
+@media (max-width: 768px) {
+  .admin-register-form {
+    padding: 15px;
+  }
+
+  .admin-register-form h2 {
+    font-size: 20px;
+  }
+
+  .admin-register-form button {
+    font-size: 13px;
+    padding: 8px;
+  }
+}
+/* =====================================================================================================*/
+
+/* General Modal Styling */
+.modal-dialog {
+  max-width: 600px;
+  margin: 30px auto;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 80px; /* Adjust this value based on your navbar height */
+}
+
+.modal-content {
+  background-color: #f9f9f9;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+/* Example to prevent overflow when content height exceeds viewport */
+.modal-dialog-centered {
+  display: flex;
+  align-items: center;
+  min-height: calc(100% - 60px); /* Account for top margin */
+}
+.modal-header {
+  background-color: #00ff59;
+  color: #fff;
+  border-bottom: none;
+  padding: 15px 20px;
+  font-size: 1.25rem;
+}
+
+.modal-header .close {
+  color: #fff;
+  opacity: 0.8;
+}
+
+.modal-header .close:hover {
+  opacity: 1;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.photo-section {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.photo-section img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #007bff;
+}
+
+.modal-body p {
+  font-size: 1rem;
+  color: #333;
+  margin: 5px 0;
+}
+
+.modal-body strong {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.modal-body span {
+  color: #ff0000;
+  font-weight: bold;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  text-align: right;
+  border-top: none;
+}
+
+.modal-footer .btn-secondary {
+  background-color: #6c757d;
+  color: #fff;
+  border: none;
+}
+
+.modal-footer .btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.modal-footer .btn-primary {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+}
+
+.modal-footer .btn-primary:hover {
+  background-color: #0056b3;
+}
+
+/* Print Button Styling */
+.modal-body .btn-primary {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-dialog {
+    margin: 20px auto;
+    margin-top: 70px; /* Adjust for smaller screens if navbar height differs */
+  }
+
+  .modal-body p {
+    font-size: 0.9rem;
+  }
+
+  .modal-body .btn-primary {
+    font-size: 0.9rem;
+  }
+}
+
+/* =====================================================================================================*/
+/* Successful REgistration notification toast */
+
+/* Adjust the close button size for react-toastify */
+.Toastify__close-button {
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.Toastify__close-button > svg {
+  width: 4px;
+  height: 4px;
+}
+
+/* Optional: Adjust padding or margins around the button if needed */
+.Toastify__close-button {
+  padding: 4px;
+}
+/* =====================================================================================================*/

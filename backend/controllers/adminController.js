@@ -1,9 +1,8 @@
-//controllers/adminControllers.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
-const Admin = require("../models/AdminModel"); // Correct the casing of the file name
-const generateToken = require("../config/generateToken"); // Assuming you have a helper for JWT token generation
+const Admin = require("../models/AdminModel");
+const generateToken = require("../config/generateToken");
 
 // Function to generate a unique adminID
 const generateAdminID = async () => {
@@ -16,10 +15,48 @@ const generateAdminID = async () => {
   return newID;
 };
 
-//-----------------------------------------------------------------------------------------------
-// Public API functions
+// Helper function to format the admin data
+const formatAdminData = (admin) => {
+  return {
+    adminID: admin.adminID,
+    name: admin.name,
+    email: admin.email,
+    phone: admin.phone,
+    designation: admin.designation,
+    address: admin.address,
+    dob: admin.dob,
+    gender: admin.gender,
+    religion: admin.religion,
+    category: admin.category,
+    bloodgroup: admin.bloodgroup,
+    department: admin.department,
+    role: admin.role,
+    photo: admin.photo,
+    emergencyContact: admin.emergencyContact,
+    experience: admin.experience,
+    highestQualification: admin.highestQualification,
+    AADHARnumber: admin.AADHARnumber,
+    lastLogin: admin.lastLogin,
+    loginHistory: admin.loginHistory,
+    actionHistory: admin.actionHistory,
+    salary: admin.salary,
+    bankDetails: admin.bankDetails,
+    feedbackScore: admin.feedbackScore,
+    registeredBy: admin.registeredBy,
+    createdAt: admin.createdAt,
+    updatedAt: admin.updatedAt, // Include timestamps if required
+  };
+};
+
+//----------------------------------------------------------------------------------------------------
 // Controller for creating a new admin
 exports.createAdmin = async (req, res, next) => {
+  const loggedInAdmin = req.admin; // Access logged-in admin's data
+  console.log("Logged-in Admin:", loggedInAdmin, loggedInAdmin.name); // Add this line to log the admin data
+  if (!loggedInAdmin) {
+    return res.status(400).json({ message: "Logged-in admin not found" });
+  }
+
   const {
     name,
     email,
@@ -29,13 +66,23 @@ exports.createAdmin = async (req, res, next) => {
     dob,
     gender,
     department,
+    religion,
+    category,
+    bloodgroup,
     role,
+    emergencyContact,
+    experience,
+    highestQualification,
+    AADHARnumber,
+    salary,
+    bankDetails,
   } = req.body;
   const photo = req.file ? req.file.filename : null;
 
-  // Validate if required fields are present
-  if (!name || !email || !phone) {
-    return res.status(400).json({ message: "Missing required fields" });
+  // Use express-validator to check for validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
   }
 
   try {
@@ -64,43 +111,54 @@ exports.createAdmin = async (req, res, next) => {
       dob,
       gender,
       department,
+      religion,
+      category,
+      bloodgroup,
       role: role || "admin", // Default to 'admin' if no role provided
       adminID,
       password: hashedPassword,
       photo,
+      emergencyContact: emergencyContact
+        ? {
+            name: emergencyContact.name || "",
+            relation: emergencyContact.relation || "",
+            phone: emergencyContact.phone || "",
+          }
+        : undefined,
+      experience: experience || 0,
+      highestQualification: highestQualification || "",
+      AADHARnumber: AADHARnumber || "",
+      salary: salary || 0,
+      bankDetails: bankDetails
+        ? {
+            accountNumber: bankDetails.accountNumber || "",
+            bankName: bankDetails.bankName || "",
+            ifscCode: bankDetails.ifscCode || "",
+          }
+        : undefined,
+      registeredBy: {
+        adminID: loggedInAdmin.adminID, // Logged-in admin's ID
+        name: loggedInAdmin.name, // Logged-in admin's name
+      },
     });
 
     // Generate a JWT token for the newly created admin
-    const token = generateToken(newAdmin._id);
+    const token = generateToken(newAdmin._id, "admin");
 
     // Send the response back with the created admin's details
     res.status(201).json({
       message: "Admin created successfully",
       token,
-      data: {
-        adminID: newAdmin.adminID,
-        name: newAdmin.name,
-        email: newAdmin.email,
-        phone: newAdmin.phone,
-        role: newAdmin.role,
-        department: newAdmin.department,
-        designation: newAdmin.designation,
-        dob: newAdmin.dob,
-        photo: newAdmin.photo,
-        createdAt: newAdmin.createdAt,
-        gender: newAdmin.gender,
-        defaultPassword, // Include the default password
-        token, // Include the token in the response
-      },
+      data: formatAdminData(newAdmin),
     });
   } catch (error) {
+    console.error("Error creating admin:", error);
     next(error); // Use a global error handler middleware
   }
 };
 
 //-----------------------------------------------------------------------------------------------
-
-// Controller for logging in an admin
+// Controller for logging as an admin
 exports.loginAdmin = async (req, res) => {
   const { adminID, password } = req.body;
 
@@ -118,29 +176,14 @@ exports.loginAdmin = async (req, res) => {
     }
 
     // Generate a JWT token using the admin._id
-    const token = generateToken(admin._id); // Use admin._id for the token
-
-    // Log the generated token (for debugging purposes)
-    console.log("Generated JWT Token:", token);
-
+    const token = generateToken(admin._id, admin.role);
     // Respond with success, including the token and all the admin data
+    const decoded = jwt.decode(token);
+    console.log("Decoded token payload:", decoded);
     res.status(200).json({
       message: "Login successful",
       token,
-      data: {
-        adminID: admin.adminID,
-        name: admin.name,
-        email: admin.email,
-        phone: admin.phone,
-        designation: admin.designation,
-        department: admin.department,
-        address: admin.address,
-        photo: admin.photo,
-        dob: admin.dob,
-        gender: admin.gender,
-        role: admin.role, // Include the role in the response
-        createdAt: admin.createdAt,
-      },
+      data: formatAdminData(admin),
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -149,5 +192,3 @@ exports.loginAdmin = async (req, res) => {
       .json({ message: "Internal server error", error: error.message });
   }
 };
-
-//-----------------------------------------------------------------------------------------------

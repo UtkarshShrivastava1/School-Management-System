@@ -10,6 +10,10 @@ const ChangeAdminPassword = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const API_URL =
+    process.env.REACT_APP_NODE_ENV === "production"
+      ? process.env.REACT_APP_PRODUCTION_URL // Production API URL
+      : process.env.REACT_APP_DEVELOPMENT_URL; // Local development API URL
   /**
    * Handles the form submission for changing the admin password.
    * Validates token presence, sends the PUT request, and updates UI based on response.
@@ -36,7 +40,7 @@ const ChangeAdminPassword = () => {
 
       // Send PUT request to the backend API
       const response = await axios.put(
-        "http://localhost:5000/api/admin/auth/changeadminpassword",
+        `${API_URL}/api/admin/auth/changeadminpassword`, // Corrected URL with backticks
         {
           adminID,
           newPassword,
@@ -86,7 +90,7 @@ const ChangeAdminPassword = () => {
         id="changePasswordModal"
         tabIndex="-1"
         aria-labelledby="changePasswordModalLabel"
-        aria-hidden="true"
+        aria-hidden="false"
       >
         <div className="modal-dialog">
           <div className="modal-content">

@@ -1,0 +1,123 @@
+/* Student Management Base Styles */
+.student-management {
+  padding: 100px 20px 50px; /* Add top padding to account for navbar height */
+  background: linear-gradient(270deg, #d1e7f2, #f0f4f8, #d1e7f2);
+  background-size: 600% 600%;
+  animation: gradientBackground 10s ease infinite;
+  min-height: 70vh;
+  font-family: "Roboto", sans-serif;
+}
+
+/* Header Styles */
+h2 {
+  color: #2c3e50;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+  margin-bottom: 30px;
+  background: linear-gradient(to right, #4b6cb7, #182848);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Cards */
+.student-card {
+  width: 100%;
+  max-width: 300px;
+  padding: 20px;
+  height: auto;
+  background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  color: #fff;
+  text-align: center;
+  cursor: pointer;
+}
+
+.student-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* Card Icons */
+.card-icon {
+  font-size: 40px;
+  color: #f6eaea;
+  margin-bottom: 15px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0);
+}
+
+/* Card Title */
+.card-title {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  color: #f6eaea;
+}
+
+/* Buttons */
+.student-btn {
+  background: linear-gradient(90deg, #3c743c, #93e322);
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.student-btn:hover {
+  background: linear-gradient(90deg, #0d4b81, #21799f);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .student-card {
+    padding: 15px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  .card-title {
+    font-size: 14px;
+  }
+
+  .card-icon {
+    font-size: 35px;
+  }
+}
+
+/* Animations */
+.student-section {
+  opacity: 0;
+  transform: translateY(50px);
+  animation: fadeInUp 1s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.student-section:nth-child(even) {
+  animation-delay: 0.2s;
+}
+
+.student-section:nth-child(odd) {
+  animation-delay: 0.4s;
+}

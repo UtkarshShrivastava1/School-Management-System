@@ -1,0 +1,13 @@
+.student-dashboard {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #d9f4fb, #f1fcfc);
+  font-family: "Arial", sans-serif;
+  padding-top: 60px; /* Match navbar height */
+  margin: 0; /* Ensure no extra margin */
+  position: relative; /* Ensures correct stacking under navbar */
+  top: 0; /* Start at the top */
+  padding-top: 60px; /* Adjust based on navbar height */
+}

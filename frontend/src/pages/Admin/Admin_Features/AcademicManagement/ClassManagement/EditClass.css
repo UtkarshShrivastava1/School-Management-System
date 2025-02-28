@@ -1,0 +1,121 @@
+.editClass-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.editClass-container h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.editClass-back-button {
+  margin-bottom: 20px;
+}
+
+.editClass-back-icon {
+  cursor: pointer;
+  color: #007bff;
+}
+
+.editClass-form-group {
+  margin-bottom: 20px;
+}
+
+.editClass-form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+.editClass-form-group input,
+.editClass-form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333;
+  transition: border-color 0.3s ease;
+}
+
+.editClass-form-group input:focus,
+.editClass-form-group select:focus {
+  border-color: #5cb85c;
+  outline: none;
+}
+
+.editClass-subject-card {
+  background-color: #f8f9fa;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #e2e2e2;
+  border-radius: 4px;
+}
+
+.editClass-subject-card hr {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid #ccc;
+}
+
+.editClass-add-subject-btn,
+.editClass-submit-btn,
+.editClass-remove-subject-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s ease;
+}
+
+.editClass-add-subject-btn {
+  background-color: #007bff;
+  color: #fff;
+}
+
+.editClass-add-subject-btn:hover {
+  background-color: #0056b3;
+}
+
+.editClass-submit-btn {
+  background-color: #5cb85c;
+  color: #fff;
+}
+
+.editClass-submit-btn:hover {
+  background-color: #4cae4c;
+}
+
+.editClass-remove-subject-btn {
+  background-color: #d9534f;
+  color: #fff;
+}
+
+.editClass-remove-subject-btn:hover {
+  background-color: #c9302c;
+}
+
+.editClass-error-message {
+  background-color: #f2dede;
+  color: #a94442;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.editClass-loading {
+  text-align: center;
+  font-size: 18px;
+  padding: 20px;
+  color: #555;
+}

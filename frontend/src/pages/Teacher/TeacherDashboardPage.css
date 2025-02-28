@@ -1,0 +1,7 @@
+/* Main Container */
+.teacher-dashboard {
+  display: flex;
+  padding-top: 60px;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #f0f7da, #e3f2c1);
+}

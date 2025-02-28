@@ -1,0 +1,124 @@
+/* ClassManagement.css */
+
+/* Container & Header */
+.classManagement-container {
+  padding: 20px;
+  background-color: #f9f9f9;
+}
+
+.classManagement-header {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.classManagement-back-button {
+  cursor: pointer;
+}
+
+.classManagement-back-icon {
+  color: #007bff;
+  transition: color 0.2s;
+}
+
+.classManagement-back-icon:hover {
+  color: #0056b3;
+}
+
+.classManagement-add-btn {
+  margin-left: auto;
+}
+
+/* Status Messages */
+.classManagement-error-message,
+.classManagement-loading,
+.classManagement-no-classes {
+  text-align: center;
+  margin: 20px 0;
+  font-size: 1.1rem;
+}
+
+.classManagement-error-message {
+  color: red;
+}
+
+/* Grouping */
+.class-group {
+  margin-bottom: 30px;
+}
+
+.class-group-title {
+  margin-bottom: 15px;
+  font-size: 1.25rem;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 5px;
+  color: #333;
+}
+
+/* Card List Item */
+.class-item {
+  padding: 0;
+  border: none;
+}
+
+/* Card Styles */
+.class-card {
+  transition: transform 0.2s;
+  /* Constrain the height */
+  min-height: 150px;
+  max-height: 250px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* centers content vertically if there's extra space */
+  margin-bottom: 10px;
+}
+
+.class-card:hover {
+  transform: scale(1.02);
+}
+
+/* Card Content */
+.card-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.card-subtitle {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+  color: #120a0a;
+}
+
+.card-text {
+  font-size: 0.85rem;
+  color: #113048;
+}
+
+/* Card Actions */
+.classManagement-card-actions button {
+  font-size: 0.9rem;
+  padding: 5px 10px;
+  margin-right: 5px;
+}
+
+.classManagement-card-actions button:last-child {
+  margin-right: 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .class-card {
+    min-height: 150px;
+    max-height: none;
+  }
+}
+.classManagement-container .class-card .card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #094b31;
+  margin-bottom: 0.5rem;
+  text-transform: capitalize;
+}

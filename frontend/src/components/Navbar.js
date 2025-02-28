@@ -1,23 +1,69 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Navbar, Nav, Container, Button } from "react-bootstrap";
-import axios from "axios"; // Import axios
+import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./Navbar.css"; // Ensure custom CSS exists
+import "./Navbar.css";
 
 const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const API_URL = useMemo(() => {
+    return process.env.REACT_APP_NODE_ENV === "production"
+      ? process.env.REACT_APP_PRODUCTION_URL
+      : process.env.REACT_APP_DEVELOPMENT_URL;
+  }, []);
+
+  console.log("API_URL:", API_URL);
+
+  const handleLogoutClick = () => {
+    console.log("Logging out...");
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    handleLogout(); // Ensure any additional logout logic runs
+    navigate("/signin"); // Redirect to signin page
+  };
+
+  // Role configuration wrapped inside useMemo
+  const roleConfig = useMemo(
+    () => ({
+      admin: {
+        profileEndpoint: `${API_URL}/api/admin/auth/adminprofile`,
+        dashboardRoute: "/admin/admin-dashboard",
+        profileRoute: "/admin/profile",
+      },
+      teacher: {
+        profileEndpoint: `${API_URL}/api/teacher/auth/teacherprofile`,
+        dashboardRoute: "/teacher/teacher-dashboard",
+        profileRoute: "/teacher/profile",
+      },
+      student: {
+        profileEndpoint: `${API_URL}/api/student/auth/studentprofile`,
+        dashboardRoute: "/student/student-dashboard",
+        profileRoute: "/student/profile",
+      },
+      parent: {
+        profileEndpoint: `${API_URL}/api/parent/auth/parentprofile`,
+        dashboardRoute: "/parent/parent-dashboard",
+        profileRoute: "/parent/profile",
+      },
+    }),
+    [API_URL]
+  );
+
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!isLoggedIn) return; // If not logged in, no need to fetch data
+      if (!isLoggedIn || !userRole || !roleConfig[userRole]) {
+        console.log("User is not logged in or role is invalid.");
+        return;
+      }
 
-      console.log("Fetching user data...");
+      console.log("Fetching user data for role:", userRole);
       setLoading(true);
-      const token = localStorage.getItem("token");
 
+      const token = localStorage.getItem("token");
       if (!token) {
         console.error("Authentication token is missing.");
         setLoading(false);
@@ -25,48 +71,27 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
       }
 
       try {
-        let response;
-        if (userRole === "admin") {
-          response = await axios.get(
-            "http://localhost:5000/api/admin/auth/adminprofile", // Admin endpoint
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-        } else if (userRole === "teacher") {
-          response = await axios.get(
-            "http://localhost:5000/api/teacher/auth/teacherprofile", // Teacher endpoint
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-        } else if (userRole === "student") {
-          response = await axios.get(
-            "http://localhost:5000/api/student/auth/studentprofile", // Student endpoint
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-        } else if (userRole === "parent") {
-          response = await axios.get(
-            "http://localhost:5000/api/parent/auth/parentprofile", // Parent endpoint
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-        }
+        const endpoint = roleConfig[userRole].profileEndpoint;
+        console.log("API endpoint for userRole:", endpoint);
 
-        const fetchedData = response.data[userRole]; // Adjust based on the actual response format
-        console.log(`${userRole} data fetched successfully:`, fetchedData);
-        setUser(fetchedData);
+        const response = await axios.get(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`API response for ${userRole}:`, response.data);
+
+        // Map the correct name key based on userRole
+        const fetchedData = response.data[userRole] || response.data;
+
+        const nameKeyMap = {
+          admin: "name",
+          teacher: "name",
+          student: "studentName",
+          parent: "parentName",
+        };
+
+        const userName = fetchedData[nameKeyMap[userRole]] || "Profile";
+        setUser({ ...fetchedData, displayName: userName }); // Store a unified key
       } catch (err) {
         console.error("Error fetching user data:", err);
       } finally {
@@ -74,32 +99,19 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
       }
     };
 
-    fetchUserData(); // Fetch data when the component mounts
-  }, [isLoggedIn, userRole]); // Re-run if `isLoggedIn` or `userRole` changes
+    fetchUserData();
+  }, [isLoggedIn, userRole, roleConfig]);
 
-  // Handle login button
   const handleLoginClick = () => {
     navigate("/signin");
   };
 
-  // Handle profile button
   const handleProfileClick = () => {
-    switch (userRole) {
-      case "admin":
-        navigate("/admin/profile"); // Navigate to the admin profile page
-        break;
-      case "teacher":
-        navigate("/teacher/profile"); // Navigate to the teacher profile page
-        break;
-      case "student":
-        navigate("/student/profile"); // Navigate to the student profile page
-        break;
-      case "parent":
-        navigate("/parent/profile"); // Navigate to the parent profile page
-        break;
-      default:
-        navigate("/signin"); // Fallback to login if role is unknown
-        break;
+    if (userRole && roleConfig[userRole]?.profileRoute) {
+      navigate(roleConfig[userRole].profileRoute);
+    } else {
+      console.warn("Unknown or invalid userRole. Navigating to signin.");
+      navigate("/signin");
     }
   };
 
@@ -111,41 +123,23 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
       className="custom-navbar shadow fixed-top"
     >
       <Container>
-        {/* Branding */}
         <Navbar.Brand as={Link} to="/" className="brand">
           <span className="brand-highlight">Zager </span>Management System
         </Navbar.Brand>
 
-        {/* Navbar Toggle for mobile view */}
         <Navbar.Toggle aria-controls="navbar-nav" />
         <Navbar.Collapse id="navbar-nav">
-          {/* Navigation Links */}
           <Nav className="ms-auto align-items-center">
-            <Nav.Link as={Link} to="/" className="custom-nav-link">
-              Home
-            </Nav.Link>
-            <Nav.Link as={Link} to="/about-zms" className="custom-nav-link">
-              About ZMS
+            <Nav.Link as={Link} to="/about" className="custom-nav-link">
+              About
             </Nav.Link>
             <Nav.Link as={Link} to="/contact-us" className="custom-nav-link">
-              Contact Us
+              Connect
             </Nav.Link>
-            {/* Role-based Links */}
-            {/* Role-based Links */}
-            {isLoggedIn && (
+            {isLoggedIn && roleConfig[userRole]?.dashboardRoute && (
               <Nav.Link
                 as={Link}
-                to={
-                  userRole === "admin"
-                    ? "/admin-dashboard"
-                    : userRole === "teacher"
-                    ? "/teacher-dashboard"
-                    : userRole === "student"
-                    ? "/student-dashboard"
-                    : userRole === "parent"
-                    ? "/parent-dashboard"
-                    : "/signin" // Fallback if role is unknown
-                }
+                to={roleConfig[userRole].dashboardRoute}
                 className="custom-nav-link"
               >
                 Dashboard
@@ -153,7 +147,6 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
             )}
           </Nav>
 
-          {/* Authentication Buttons */}
           <div className="d-flex align-items-center">
             {!isLoggedIn ? (
               <Button
@@ -173,14 +166,13 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
                   {loading
                     ? "Loading..."
                     : `${userRole?.toUpperCase()}: ${
-                        user?.name || "Profile"
+                        user?.displayName || "Profile"
                       }`}{" "}
-                  {/* Safe to call toUpperCase() */}
                 </Button>
                 <Button
                   variant="outline-danger"
                   className="logout-btn"
-                  onClick={handleLogout}
+                  onClick={handleLogoutClick}
                 >
                   Logout
                 </Button>

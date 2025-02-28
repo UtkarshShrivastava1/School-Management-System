@@ -1,76 +1,181 @@
 import { useNavigate } from "react-router-dom";
-import { Card, Container, Row, Col } from "react-bootstrap";
+import { Form, Button, Alert, InputGroup } from "react-bootstrap";
+import { Card, Container } from "react-bootstrap";
+import { useState } from "react";
+import axios from "axios";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import {
   FaUserShield,
   FaChalkboardTeacher,
   FaUsers,
   FaUserGraduate,
-} from "react-icons/fa"; // Importing icons for each role
-import "./Signin.css"; // Custom styles for the Signin page
+} from "react-icons/fa";
+import "./Signin.css";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+const Signin = ({ setIsLoggedIn, setUserRole }) => {
+  const [loggingUser, setLoggingUser] = useState("Admin");
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("admin");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
-const Signin = () => {
-  const navigate = useNavigate(); // Hook for programmatic navigation
+  const API_URL =
+    process.env.REACT_APP_NODE_ENV === "production"
+      ? process.env.REACT_APP_PRODUCTION_URL
+      : process.env.REACT_APP_DEVELOPMENT_URL;
 
-  // Function to navigate to the respective login page based on role
-  const handleRoleClick = (role) => {
-    navigate(`/${role}-login`); // Dynamically navigates to the respective login page
+  const roleNames = {
+    admin: "Admin",
+    teacher: "Teacher",
+    student: "Student",
+    parent: "Parent",
+  };
+
+  const rolePrefixes = {
+    admin: "ADM",
+    teacher: "TCHR",
+    student: "STU",
+    parent: "PRNT",
+  };
+
+  const handleRoleChange = (e) => {
+    const selectedRole = e.target.value;
+    setRole(selectedRole);
+    setLoggingUser(roleNames[selectedRole] || "Admin");
+    setUserId("");
+  };
+
+  const validateUserId = (id) => {
+    const prefix = rolePrefixes[role];
+    const regex = new RegExp(
+      `^${prefix}\\d{${role === "student" || role === "parent" ? 5 : 4}}$`
+    );
+    return regex.test(id);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    if (!validateUserId(userId)) {
+      setError(`Invalid ${loggingUser} ID format.`);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const roleEndpoints = {
+        admin: "/api/admin/auth/login",
+        teacher: "/api/teacher/auth/login",
+        student: "/api/student/auth/login",
+        parent: "/api/parent/auth/login",
+      };
+
+      const loginEndpoint = roleEndpoints[role];
+      const response = await axios.post(`${API_URL}${loginEndpoint}`, {
+        [`${role}ID`]: userId,
+        password,
+      });
+
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem(`${role}Info`, JSON.stringify(response.data.data));
+
+      setIsLoggedIn(true);
+      setUserRole(role);
+      toast.success("Login successfull!", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "colored",
+      });
+      navigate(`/${role}/${role}-dashboard`);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Login failed. Please try again."
+      );
+      toast.error("Failed to Login.", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "colored",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Container className="signin-container">
-      {/* Page Heading */}
-      <h2 className="text-center mb-5">Select Your Role to Login as</h2>
+    <Container className="login-container">
+      <Card className="login-card">
+        <Card.Body>
+          <h3 className="text-center">Login</h3>
+          {error && <Alert variant="danger">{error}</Alert>}
 
-      {/* Row for displaying login role options */}
-      <Row className="justify-content-center">
-        {/* Admin Login Card */}
-        <Col xs={12} sm={6} md={3}>
-          <Card onClick={() => handleRoleClick("admin")} className="role-card">
-            <Card.Body className="text-center">
-              <FaUserShield size={50} className="role-icon mb-3" /> {/* Icon */}
-              <h5>Admin</h5>
-            </Card.Body>
-          </Card>
-        </Col>
+          <div className="role-icon-container text-center">
+            {role === "admin" && <FaUserShield size={60} />}
+            {role === "teacher" && <FaChalkboardTeacher size={60} />}
+            {role === "parent" && <FaUsers size={60} />}
+            {role === "student" && <FaUserGraduate size={60} />}
+          </div>
 
-        {/* Teacher Login Card */}
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            onClick={() => handleRoleClick("teacher")}
-            className="role-card"
-          >
-            <Card.Body className="text-center">
-              <FaChalkboardTeacher size={50} className="role-icon mb-3" />{" "}
-              {/* Icon */}
-              <h5>Teacher</h5>
-            </Card.Body>
-          </Card>
-        </Col>
+          <Form onSubmit={handleSubmit}>
+            <Form.Group controlId="formRole" className="mt-3">
+              <Form.Label>Role</Form.Label>
+              <Form.Select required value={role} onChange={handleRoleChange}>
+                <option value="admin">Admin</option>
+                <option value="teacher">Teacher</option>
+                <option value="parent">Parent</option>
+                <option value="student">Student</option>
+              </Form.Select>
+            </Form.Group>
 
-        {/* Parent Login Card */}
-        <Col xs={12} sm={6} md={3}>
-          <Card onClick={() => handleRoleClick("parent")} className="role-card">
-            <Card.Body className="text-center">
-              <FaUsers size={50} className="role-icon mb-3" /> {/* Icon */}
-              <h5>Parent</h5>
-            </Card.Body>
-          </Card>
-        </Col>
+            <Form.Group controlId="formUserId" className="mt-3">
+              <Form.Label>{loggingUser} ID</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder={`Enter ${loggingUser} ID (e.g., ${rolePrefixes[role]}1234)`}
+                value={userId}
+                onChange={(e) => setUserId(e.target.value.toUpperCase())}
+                required
+              />
+            </Form.Group>
 
-        {/* Student Login Card */}
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            onClick={() => handleRoleClick("student")}
-            className="role-card"
-          >
-            <Card.Body className="text-center">
-              <FaUserGraduate size={50} className="role-icon mb-3" />{" "}
-              {/* Icon */}
-              <h5>Student</h5>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            <Form.Group controlId="formPassword" className="mt-3">
+              <Form.Label>Password</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </Button>
+              </InputGroup>
+            </Form.Group>
+
+            <Button type="submit" disabled={loading} className="w-100 mt-3">
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+          </Form>
+        </Card.Body>
+      </Card>
     </Container>
   );
 };

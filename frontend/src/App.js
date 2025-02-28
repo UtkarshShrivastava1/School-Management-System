@@ -1,88 +1,95 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
-import Home from "./pages/Home"; // Import Home Page
-import Signin from "./pages/Signin"; // Import Signin Page
-import AdminLogin from "./pages/Admin/AdminLogin"; // Import Admin Login Page (if separate)
-import AdminDashboardPage from "./pages/Admin/AdminDashboardPage"; // Admin Dashboard Page
-import ProfilePage from "./pages/Admin/AdminProfileManage"; // Admin Profile Page (Ensure this is created)
-import RegisterAdminPage from "./pages/Admin/AdminRegisterForm"; // Admin Register Admin Page (Ensure this is created)
-import Navbar from "./components/Navbar"; // Import Navbar
-import Footer from "./components/Footer"; // Import Footer
+// Page imports
+import About from "./pages/About";
+
+import Signin from "./pages/Signin";
+import AdminRoutes from "./Routes/Admin/AdminRoutes";
+import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
+
+import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
+import ParentDashboardPage from "./pages/Parent/ParentDashboardPage";
+import Navbar from "./components/Navbar";
+import { ToastContainer } from "react-toastify";
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState(null); // To store user's role
+  const [userRole, setUserRole] = useState(null);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Add loading state to wait for token validation
+  const [loading, setLoading] = useState(true);
+
+  const API_URL =
+    process.env.REACT_APP_NODE_ENV === "production"
+      ? process.env.REACT_APP_PRODUCTION_URL
+      : process.env.REACT_APP_DEVELOPMENT_URL;
+
+  // Wrap validateToken in useCallback to avoid re-creation in useEffect
+  const validateToken = useCallback(
+    async (token) => {
+      console.log("Validating token...");
+      try {
+        const response = await fetch(`${API_URL}/api/admin/auth/validate`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          console.log("Token is valid.");
+          const data = await response.json();
+          setIsLoggedIn(true);
+          setUserRole(data.role);
+          setUser(data);
+        } else {
+          console.error("Token validation failed. Logging out.");
+          localStorage.removeItem("token");
+          setIsLoggedIn(false);
+          setUser(null);
+          setUserRole(null);
+        }
+      } catch (error) {
+        console.error("Error validating token:", error);
+        setIsLoggedIn(false);
+        setUser(null);
+        setUserRole(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [API_URL]
+  ); // Dependencies for useCallback
 
   useEffect(() => {
     console.log("Checking for token in local storage...");
     const token = localStorage.getItem("token");
     if (token) {
       console.log("Token found, validating...");
-      validateToken(token); // Validate token before assuming login
+      validateToken(token);
     } else {
       console.log("No token found, setting loading to false.");
       setIsLoggedIn(false);
-      setLoading(false); // No token, done loading
+      setLoading(false);
     }
-  }, []);
-
-  const validateToken = async (token) => {
-    console.log("Validating token...");
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/admin/auth/validate",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        console.log("Token is valid.");
-        const data = await response.json();
-        setIsLoggedIn(true);
-        setUserRole(data.role);
-        setUser(data);
-        console.log("User data set:", data);
-      } else {
-        console.error("Token validation failed. Logging out.");
-        localStorage.removeItem("token");
-        setIsLoggedIn(false);
-        setUser(null);
-        setUserRole(null);
-      }
-    } catch (error) {
-      console.error("Error validating token:", error);
-      setIsLoggedIn(false);
-      setUser(null);
-      setUserRole(null);
-    } finally {
-      console.log("Token validation complete.");
-      setLoading(false); // Finished loading
-    }
-  };
+  }, [validateToken]); // Now validateToken is stable
 
   const handleLogout = () => {
     console.log("Logging out...");
     localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
     setIsLoggedIn(false);
     setUser(null);
     setUserRole(null);
   };
 
   if (loading) {
-    console.log("Loading state: true");
-    return <div>Loading...</div>; // Show loading state while validating the token
+    return <div>Loading...</div>;
   }
 
   return (
@@ -90,63 +97,68 @@ const App = () => {
       <Navbar
         isLoggedIn={isLoggedIn}
         userRole={userRole}
-        user={user} // Pass user data to Navbar
+        user={user}
         handleLogout={handleLogout}
       />
       <Routes>
-        <Route path="/" element={<Navigate to="/homepage" replace />} />
-        <Route path="/homepage" element={<Home />} />
+        <Route
+          path="/"
+          element={
+            <Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />
+          }
+        />
         <Route
           path="/signin"
           element={
             <Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />
           }
         />
+
         <Route
-          path="/admin-login"
+          path="/about"
           element={
-            <AdminLogin
-              setIsLoggedIn={setIsLoggedIn}
-              setUserRole={setUserRole}
-            />
+            <About setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />
           }
-        />{" "}
-        {/* Admin Login route */}
-        {/* Admin Dashboard Route */}
+        />
+        {isLoggedIn && userRole === "admin" && (
+          <Route
+            path="/admin/*"
+            element={
+              <AdminRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
+            }
+          />
+        )}
+        {isLoggedIn && userRole === "teacher" && (
+          <Route
+            path="/teacher/*"
+            element={
+              <TeacherRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
+            }
+          />
+        )}
+
         <Route
-          path="/admin-dashboard"
+          path="/student/student-dashboard"
           element={
-            isLoggedIn && userRole === "admin" ? (
-              <AdminDashboardPage />
+            isLoggedIn && userRole === "student" ? (
+              <StudentDashboardPage />
             ) : (
               <Navigate to="/signin" replace />
             )
           }
         />
-        {/* Admin Profile Route */}
         <Route
-          path="/admin/profile"
+          path="/parent/parent-dashboard"
           element={
-            isLoggedIn && userRole === "admin" ? (
-              <ProfilePage />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-        {/* Admin Register Route */}
-        <Route
-          path="/admin/register-admin"
-          element={
-            isLoggedIn && userRole === "admin" ? (
-              <RegisterAdminPage />
+            isLoggedIn && userRole === "parent" ? (
+              <ParentDashboardPage />
             ) : (
               <Navigate to="/signin" replace />
             )
           }
         />
       </Routes>
-      <Footer />
+      <ToastContainer />
     </Router>
   );
 };

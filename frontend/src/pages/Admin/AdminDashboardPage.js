@@ -1,22 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   FaUserShield,
   FaChalkboardTeacher,
   FaUserGraduate,
   FaUsersCog,
   FaRegCalendarAlt,
-  FaCalendarCheck,
   FaBell,
-  FaMoneyBillWave,
-  FaUserAlt, // Icon for Profile
+  FaUserAlt,
+  FaBars,
 } from "react-icons/fa";
-import { Row, Col, Card, Button } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { Row, Col, Card, Nav } from "react-bootstrap";
+import { useNavigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "../../Styles/Dashboard.css";
 import "./AdminDashboardPage.css";
-
-// Dashboard sections and cards
+import {} from "react-router-dom";
 const dashboardSections = [
+  {
+    title: "My Profile",
+    description: "Manage your profile and personal details.",
+    cards: [
+      {
+        icon: <FaUserAlt size={50} />,
+        title: "Profile Management",
+        page: "profile",
+      },
+    ],
+  },
   {
     title: "User Registration",
     description: "Manage registrations for admins, teachers, and students.",
@@ -41,124 +51,179 @@ const dashboardSections = [
   {
     title: "Academic Management",
     description: "Manage classes, teacher assignments, and student details.",
-    cards: [
+    subTabs: [
       {
-        icon: <FaRegCalendarAlt size={50} />,
         title: "Class Management",
-        page: "class-management",
+        description: "Manage and organize classes.",
+        cards: [
+          {
+            icon: <FaRegCalendarAlt size={50} />,
+            title: "Class Management",
+            page: "class-management",
+          },
+        ],
       },
       {
-        icon: <FaUsersCog size={50} />,
         title: "Teacher Management",
-        page: "teacher-management",
+        description: "Assign teachers and manage their details.",
+        cards: [
+          {
+            icon: <FaUsersCog size={50} />,
+            title: "Teacher Management",
+            page: "teacher-management",
+          },
+        ],
       },
       {
-        icon: <FaUserGraduate size={50} />,
         title: "Student Management",
-        page: "student-management",
+        description: "Manage student records and details.",
+        cards: [
+          {
+            icon: <FaUserGraduate size={50} />,
+            title: "Student Management",
+            page: "student-management",
+          },
+        ],
       },
     ],
   },
   {
-    title: "Attendance Management",
-    description: "Track attendance for students and teachers.",
-    cards: [
-      {
-        icon: <FaCalendarCheck size={50} />,
-        title: "Attendance Management",
-        page: "attendance-management",
-      },
-    ],
-  },
-  {
-    title: "Salary Management",
-    description: "Manage teacher and staff salaries efficiently.",
-    cards: [
-      {
-        icon: <FaMoneyBillWave size={50} />,
-        title: "Salary Management",
-        page: "salary-management",
-      },
-    ],
-  },
-  {
-    title: "Notifications",
-    description:
-      "Send and manage important notifications to staff and students.",
+    title: "Notification Management",
+    description: "Send and manage important notifications.",
     cards: [
       {
         icon: <FaBell size={50} />,
-        title: "Notifications",
+        title: "Create Notification",
         page: "notifications",
       },
     ],
   },
 ];
 
-const AdminDashboard = () => {
+const AdminDashboardPage = () => {
   const navigate = useNavigate();
-
-  const handleCardClick = (page) => {
-    navigate(`/admin/${page}`);
+  const location = useLocation();
+  const initialActiveTab = location.state?.activeTab || "My Profile";
+  const [activeTab, setActiveTab] = useState(initialActiveTab);
+  const [activeSubTab, setActiveSubTab] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const handleCardClick = (page) => navigate(`/admin/${page}`);
+  const handleTabClick = (tab) => {
+    setActiveTab(tab);
+    setActiveSubTab(null);
   };
-
-  const handleProfileClick = () => {
-    navigate("/admin/profile"); // Navigate to the admin profile page
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);
   };
 
   return (
     <div className="admin-dashboard">
-      <h2 className="text-center mb-5 font-weight-bold text-primary">
-        Admin Dashboard
-      </h2>
+      {/* Mobile Hamburger Button */}
+      <div className="mobile-hamburger" onClick={toggleSidebar}>
+        <FaBars size={24} color="#1b2838" />
+      </div>
+      {/* Sidebar */}
+      <div className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <Nav className="flex-column">
+          {dashboardSections.map((section, index) => (
+            <Nav.Item key={index}>
+              <Nav.Link
+                href="#"
+                active={activeTab === section.title}
+                onClick={() => handleTabClick(section.title)}
+                className="sidebar-link"
+              >
+                {section.title}
+              </Nav.Link>
+            </Nav.Item>
+          ))}
+        </Nav>
+      </div>
 
-      <Row className="justify-content-center mb-4">
-        {/* Profile Management Card */}
-        <Col xs={12} sm={6} md={3}>
-          <Card
-            className="role-card shadow-lg rounded border-0"
-            onClick={handleProfileClick}
-            style={{ cursor: "pointer" }}
-          >
-            <Card.Body className="text-center py-4">
-              <div className="role-icon mb-3">
-                <FaUserAlt size={50} />
-              </div>
-              <h5 className="mb-3">Profile Management</h5>
-              <Button variant="primary" className="mt-2">
-                Go to Profile
-              </Button>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      {/* Main Content */}
+      <div className="main-content">
+        <h2 className="dashboard-title">Admin Dashboard</h2>
 
-      {dashboardSections.map((section, index) => (
-        <div key={index} className="category-section mb-5">
-          <h3 className="category-title text-info">{section.title}</h3>
-          <p className="category-description text-muted mb-4">
-            {section.description}
-          </p>
-          <Row className="justify-content-center">
-            {section.cards.map((card, cardIndex) => (
-              <Col key={cardIndex} xs={12} sm={6} md={3}>
-                <Card
-                  onClick={() => handleCardClick(card.page)}
-                  className="role-card shadow-lg rounded border-0 mb-4"
-                  style={{ cursor: "pointer" }}
+        {dashboardSections
+          .filter((section) => section.title === activeTab)
+          .map((section, index) => (
+            <div key={index} className="category-section">
+              <h3 className="category-title">{section.title}</h3>
+              <p className="category-description">{section.description}</p>
+
+              {/* Show Sub-Tabs for Academic Management */}
+              {section.subTabs && (
+                <Nav
+                  variant="tabs"
+                  activeKey={activeSubTab}
+                  className="sub-tabs"
                 >
-                  <Card.Body className="text-center py-4">
-                    <div className="role-icon mb-3">{card.icon}</div>
-                    <h5>{card.title}</h5>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </div>
-      ))}
+                  {section.subTabs.map((subTab, subIndex) => (
+                    <Nav.Item key={subIndex}>
+                      <Nav.Link
+                        eventKey={subTab.title}
+                        onClick={() => setActiveSubTab(subTab.title)}
+                        className="sub-tab-link"
+                      >
+                        {subTab.title}
+                      </Nav.Link>
+                    </Nav.Item>
+                  ))}
+                </Nav>
+              )}
+
+              {/* Show Cards for Active Sub-Tab */}
+              {section.subTabs && activeSubTab
+                ? section.subTabs
+                    .filter((subTab) => subTab.title === activeSubTab)
+                    .map((subTab, subIndex) => (
+                      <div key={subIndex}>
+                        <h4 className="category-title">{subTab.title}</h4>
+                        <p className="category-description">
+                          {subTab.description}
+                        </p>
+                        <Row className="justify-content-center">
+                          {subTab.cards.map((card, cardIndex) => (
+                            <Col key={cardIndex} xs={12} sm={6} md={3}>
+                              <Card
+                                className="dashboard-card shadow-sm"
+                                onClick={() => handleCardClick(card.page)}
+                              >
+                                <Card.Body className="text-center">
+                                  <div className="card-icon mb-3">
+                                    {card.icon}
+                                  </div>
+                                  <h5 className="card-title">{card.title}</h5>
+                                </Card.Body>
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                      </div>
+                    ))
+                : // Show cards for non-sub-tab sections
+                  !section.subTabs && (
+                    <Row className="justify-content-center">
+                      {section.cards.map((card, cardIndex) => (
+                        <Col key={cardIndex} xs={12} sm={6} md={3}>
+                          <Card
+                            className="dashboard-card shadow-sm"
+                            onClick={() => handleCardClick(card.page)}
+                          >
+                            <Card.Body className="text-center">
+                              <div className="card-icon mb-3">{card.icon}</div>
+                              <h5 className="card-title">{card.title}</h5>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  )}
+            </div>
+          ))}
+      </div>
     </div>
   );
 };
 
-export default AdminDashboard;
+export default AdminDashboardPage;

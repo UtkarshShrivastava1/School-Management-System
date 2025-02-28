@@ -1,0 +1,94 @@
+/* General Styling */
+body {
+  font-family: "Arial", sans-serif;
+  margin: 0;
+  padding: 0;
+  margin-top: 100px; /* Adjusted top margin for navbar overlap */
+
+  background-color: #f4f6f9;
+  color: #333;
+}
+
+/* Container */
+.assign-container {
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 20px 30px;
+  margin-top: 100px; /* Adjusted top margin for navbar overlap */
+
+  background-color: #ffffff;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+/* Header */
+.assign-container h1 {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #0056b3;
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: block;
+  color: #333;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #fafafa;
+  color: #333;
+  transition: border-color 0.3s;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: #0056b3;
+}
+
+/* Assign Button */
+.assign-btn {
+  display: inline-block;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+  background-color: #0056b3;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.assign-btn:hover {
+  background-color: #004094;
+  transform: translateY(-2px);
+}
+
+.assign-btn:active {
+  background-color: #00316e;
+  transform: translateY(0);
+}
+
+/* Toastify Styling */
+.Toastify__toast--success {
+  background-color: #28a745 !important;
+}
+
+.Toastify__toast--error {
+  background-color: #dc3545 !important;
+}
