@@ -13,8 +13,11 @@ dotenv.config();
 // Environment setup
 const app = express();
 const port = process.env.PORT || 5000;
-const mongoURI = process.env.MONGO_URI;
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env.NODE_ENV === "production"; // Declare first
+
+const mongoURI = isProduction
+  ? process.env.MONGO_ATLAS_URI
+  : process.env.MONGO_LOCAL_URI;
 
 // Middleware setup
 app.use(express.json());
@@ -23,16 +26,17 @@ app.use(express.json());
 if (isProduction) {
   app.use(
     cors({
-      origin: ["https://your-production-frontend.com"], // Replace with actual production frontend URL
+      origin: [process.env.FRONTEND_URL], // Use environment variable
       credentials: true,
     })
   );
-  console.log("🌍 CORS configured for production".green);
+  console.log(
+    `🌍 CORS configured for production: ${process.env.FRONTEND_URL}`.green
+  );
 } else {
   app.use(cors()); // Allow all origins in development
   console.log("🌍 CORS configured for local development".yellow);
 }
-
 // Security and performance optimizations
 if (isProduction) {
   app.use(compression()); // Compress response bodies for better performance
@@ -95,9 +99,9 @@ app.listen(port, () => {
   console.log(`🔌 Port: `.blue + `${port}`.brightYellow);
   console.log(`🔗 Backend URL: `.blue + `${backendURL}`.brightCyan.bold);
   console.log(
-    `📦 MongoDB: `.blue +
-      `${isProduction ? "Production" : "Development"} Database in use.`
-        .brightMagenta
+    `📦 MongoDB Connected: ${
+      isProduction ? "Atlas (Production)" : "Local (Development)"
+    }`.brightMagenta
   );
   console.log(`🟢 Node.js Version: `.blue + `${nodeVersion}`.brightGreen);
   console.log(`💻 Host Machine: `.blue + `${hostName}`.brightYellow);

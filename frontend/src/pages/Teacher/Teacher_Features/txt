@@ -1,4 +1,7 @@
-Lets make a class management controller or controllers which can do:
--first fetch all the classes in the system and allow user to modify its name, its subjects,
- its teachers etc
--user must have ability to delete/edit a class, view subjects and teachers of the selected class also delete/edit subjects or change/remove teachers. in short full possible control and ease to user.
+-assign students to the classes in most easy way.
+- On student schema and student registration for add a new feild class_registered_for(which will be  a intermideate information state before actualy asigning student a class).
+- add a functionality at student to the class assignment system to show the list of students of a given class that they registered for.
+
+for example if a student have class_registered_for= 10
+then while assigning a class to a student there will be a filter to select standard(lets say 10) and name of only those students will show who are class_registered_for= 10.
+
