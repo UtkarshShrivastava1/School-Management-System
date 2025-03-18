@@ -265,3 +265,15 @@
   padding: 4px;
 }
 /* =====================================================================================================*/
+.valid {
+  border: 1px solid green;
+}
+
+.invalid {
+  border: 1px solid red;
+}
+
+.error-text {
+  color: red;
+  font-size: 0.9em;
+}

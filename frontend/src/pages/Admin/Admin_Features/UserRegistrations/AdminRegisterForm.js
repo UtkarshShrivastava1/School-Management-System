@@ -5,7 +5,8 @@ import { Modal, Button, Image } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft } from "react-icons/fa"; // Importing the back arrow icon
+import { FaArrowLeft } from "react-icons/fa";
+
 const AdminRegisterForm = () => {
   const navigate = useNavigate();
 
@@ -38,92 +39,179 @@ const AdminRegisterForm = () => {
     photo: null,
   });
 
+  // Server-side errors
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [successData, setSuccessData] = useState(null);
 
-  //--------------------------------------------------------------------------------------------------------------------------------
-  //API URL controller
+  // Client-side field errors and touched state for validation feedback
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  // API URL controller
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
       ? process.env.REACT_APP_PRODUCTION_URL
       : process.env.REACT_APP_DEVELOPMENT_URL;
-  //--------------------------------------------------------------------------------------------------------------------------------
-  // Handle the back button click
+
+  // Navigate back to dashboard
   const handleBack = () => {
     navigate("/admin/admin-dashboard", {
       state: { activeTab: "User Registration" },
     });
   };
-  //------------------------------------------------------------------------------------------------------------
-  // Handles change
+
+  // Validate simple fields
+  const validateField = (name, value) => {
+    let error = "";
+    if (!value || value.trim() === "") {
+      error = "This field is required";
+    } else {
+      switch (name) {
+        case "email":
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            error = "Invalid email format";
+          }
+          break;
+        case "phone":
+          if (!/^[+\d]?(?:[\d\s\-().]*)$/.test(value)) {
+            error = "Invalid phone number";
+          }
+          break;
+        case "AADHARnumber":
+          if (!/^\d{12}$/.test(value)) {
+            error = "AADHAR number must be 12 digits";
+          }
+          break;
+        case "experience":
+        case "salary":
+          if (isNaN(value) || Number(value) < 0) {
+            error = "Invalid number";
+          }
+          break;
+        default:
+          break;
+      }
+    }
+    return error;
+  };
+
+  // Validate nested fields (e.g., emergencyContact, bankDetails)
+  const validateNestedField = (parent, name, value) => {
+    let error = "";
+    if (!value || value.trim() === "") {
+      error = "This field is required";
+    } else {
+      if (parent === "emergencyContact" && name === "phone") {
+        if (!/^[+\d]?(?:[\d\s\-().]*)$/.test(value)) {
+          error = "Invalid phone number";
+        }
+      }
+      // Additional nested validations can be added here.
+    }
+    return error;
+  };
+
+  // Validate the entire form and update fieldErrors state
+  const validateForm = () => {
+    const newErrors = {};
+
+    Object.keys(formData).forEach((key) => {
+      if (key === "emergencyContact" || key === "bankDetails") {
+        Object.keys(formData[key]).forEach((subKey) => {
+          const fieldName = `${key}.${subKey}`;
+          const error = validateNestedField(key, subKey, formData[key][subKey]);
+          if (error) {
+            newErrors[fieldName] = error;
+          }
+        });
+      } else if (key === "photo") {
+        if (formData.photo) {
+          const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+          if (!allowedTypes.includes(formData.photo.type)) {
+            newErrors.photo = "Only JPG, JPEG, and PNG files are allowed";
+          }
+        }
+      } else {
+        const error = validateField(key, formData[key]);
+        if (error) {
+          newErrors[key] = error;
+        }
+      }
+    });
+
+    setFieldErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle input change for both simple and nested fields
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name.startsWith("emergencyContact") || name.startsWith("bankDetails")) {
-      const fieldName = name.split(".")[1];
-      setFormData((prev) => {
-        const updatedData = {
-          ...prev,
-          [name.split(".")[0]]: {
-            ...prev[name.split(".")[0]],
-            [fieldName]: value,
-          },
-        };
-        console.log(`Form data updated: ${name} = ${value}`); // Log nested data change
-        return updatedData;
-      });
+    setTouched((prev) => ({ ...prev, [name]: true }));
+
+    if (name.includes(".")) {
+      const [parent, child] = name.split(".");
+      setFormData((prev) => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value,
+        },
+      }));
+      const error = validateNestedField(parent, child, value);
+      setFieldErrors((prev) => ({ ...prev, [name]: error }));
     } else {
-      setFormData((prev) => {
-        const updatedData = {
-          ...prev,
-          [name]: value,
-        };
-        console.log(`Form data updated: ${name} = ${value}`); // Log simple data change
-        return updatedData;
-      });
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      const error = validateField(name, value);
+      setFieldErrors((prev) => ({ ...prev, [name]: error }));
     }
   };
-  //------------------------------------------------------------------------------------------------------------
 
-  // Handles file change
+  // Handle file selection and validate file type
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    setFormData((prev) => {
-      const updatedData = {
-        ...prev,
-        photo: file,
-      };
-      console.log(`File uploaded: photo = ${file?.name}`); // Log file upload
-      return updatedData;
-    });
+    setTouched((prev) => ({ ...prev, photo: true }));
+    if (file) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+      if (!allowedTypes.includes(file.type)) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          photo: "Only JPG, JPEG, and PNG files are allowed",
+        }));
+        setFormData((prev) => ({ ...prev, photo: null }));
+        return;
+      } else {
+        setFieldErrors((prev) => ({ ...prev, photo: "" }));
+      }
+      setFormData((prev) => ({ ...prev, photo: file }));
+    }
   };
-  //--------------------------------------------------------------------------------------------------------------------------------
-  //Handles Form Submit and create new admin
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submission initiated."); // Log form submission start
+    if (!validateForm()) {
+      toast.error("Please fix the errors in the form.", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "colored",
+      });
+      return;
+    }
     setLoading(true);
 
     const formDataToSend = new FormData();
-
-    // Populate FormData with nested and array data
     Object.keys(formData).forEach((key) => {
       if (key === "emergencyContact" || key === "bankDetails") {
         Object.keys(formData[key]).forEach((subKey) => {
           formDataToSend.append(`${key}.${subKey}`, formData[key][subKey]);
-          console.log(
-            `FormData appended: ${key}.${subKey} = ${formData[key][subKey]}`
-          ); // Log nested data
-        });
-      } else if (Array.isArray(formData[key])) {
-        formData[key].forEach((item, index) => {
-          formDataToSend.append(`${key}[${index}]`, item);
-          console.log(`FormData appended: ${key}[${index}] = ${item}`); // Log array data
         });
       } else {
         formDataToSend.append(key, formData[key]);
-        console.log(`FormData appended: ${key} = ${formData[key]}`); // Log simple data
       }
     });
 
@@ -138,48 +226,41 @@ const AdminRegisterForm = () => {
           },
         }
       );
-      console.log("Form submission successful:", response.data); // Log success response
       setSuccessData(response.data);
-      setShowModal(true); // Trigger modal visibility on success
-
-      // Show success notification
+      setShowModal(true);
       toast.success("Admin created successfully!", {
         position: "top-center",
         autoClose: 5000,
         hideProgressBar: false,
-        closeOnClick: false,
         pauseOnHover: true,
         draggable: true,
         theme: "colored",
       });
     } catch (error) {
-      console.error("Form submission error:", error.response?.data || error); // Log error response
-      setErrors(error.response?.data?.errors || [{ msg: error.message }]);
-
-      // Show error notification
+      const errData = error.response?.data || {
+        errors: [{ msg: error.message }],
+      };
+      setErrors(errData.errors || [{ msg: error.message }]);
       toast.error("Failed to create admin. Please try again.", {
         position: "top-center",
         autoClose: 5000,
         hideProgressBar: false,
-        closeOnClick: true,
         pauseOnHover: true,
         draggable: true,
         theme: "colored",
       });
     } finally {
-      console.log("Form submission completed."); // Log form submission end
       setLoading(false);
     }
   };
 
-  //-------------------------------------------------------------------------------------------------
-  // Handles closing modal and navigation back to admin dashboard
+  // Close modal and navigate back to admin dashboard
   const handleCloseModal = () => {
     setShowModal(false);
-    setTimeout(() => navigate("/admin-dashboard"), 300);
+    setTimeout(() => navigate("/admin/admin-dashboard"), 300);
   };
-  //--------------------------------------------------------------------------------------------------------------------------------
-  //Handles Print Modal
+
+  // Print modal content
   const handlePrint = () => {
     const printContent = document.getElementById("modalContent");
     if (printContent) {
@@ -190,39 +271,17 @@ const AdminRegisterForm = () => {
         <head>
           <title>Print Details</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-            }
-            .photo-section {
-              text-align: center;
-              margin-bottom: 20px;
-            }
-            .photo-section img {
-              width: 150px;
-              height: 150px;
-              object-fit: cover;
-              border-radius: 50%;
-              border: 2px solid #007bff;
-              margin-bottom: 20px;
-            }
-            p {
-              margin: 10px 0;
-              font-size: 16px;
-            }
-            strong {
-              color: #007bff;
-            }
-            span {
-              color: red;
-            }
-            button {
-              display: none; /* Hide buttons in print view */
-            }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .photo-section { text-align: center; margin-bottom: 20px; }
+            .photo-section img { width: 150px; height: 150px; object-fit: cover; border-radius: 50%; border: 2px solid #007bff; margin-bottom: 20px; }
+            p { margin: 10px 0; font-size: 16px; }
+            strong { color: #007bff; }
+            span { color: red; }
+            button { display: none; }
           </style>
         </head>
         <body>
-          ${printContent.outerHTML} <!-- Use outerHTML to include the content and its wrapping element -->
+          ${printContent.outerHTML}
         </body>
       </html>
     `);
@@ -230,10 +289,17 @@ const AdminRegisterForm = () => {
       printWindow.print();
     }
   };
-  //------------------------------------------------------------------------------------------------------------
+
+  // Determine input class for visual feedback
+  const inputClass = (name) => {
+    if (touched[name]) {
+      return fieldErrors[name] ? "invalid" : "valid";
+    }
+    return "";
+  };
+
   return (
     <div className="admin-register-form">
-      {/* Back button with icon */}
       <div className="back-button" style={{ marginBottom: "20px" }}>
         <FaArrowLeft
           onClick={handleBack}
@@ -259,7 +325,7 @@ const AdminRegisterForm = () => {
         </span>
       </div>
       <h2>Create New Admin</h2>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         {errors.length > 0 && (
           <div className="error-messages">
             {errors.map((error, index) => (
@@ -271,77 +337,118 @@ const AdminRegisterForm = () => {
         )}
 
         <div>
-          <label>Name</label>
+          <label htmlFor="name">Name</label>
           <input
+            id="name"
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
+            className={inputClass("name")}
             required
           />
+          {touched.name && fieldErrors.name && (
+            <span className="error-text">{fieldErrors.name}</span>
+          )}
         </div>
 
         <div>
-          <label>Email</label>
+          <label htmlFor="email">Email</label>
           <input
+            id="email"
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
+            className={inputClass("email")}
             required
           />
+          {touched.email && fieldErrors.email && (
+            <span className="error-text">{fieldErrors.email}</span>
+          )}
         </div>
 
         <div>
-          <label>Phone</label>
+          <label htmlFor="phone">Phone</label>
           <input
+            id="phone"
             type="text"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+            className={inputClass("phone")}
             required
           />
+          {touched.phone && fieldErrors.phone && (
+            <span className="error-text">{fieldErrors.phone}</span>
+          )}
         </div>
 
         <div>
-          <label>Designation</label>
+          <label htmlFor="designation">Designation</label>
           <input
+            id="designation"
             type="text"
             name="designation"
             value={formData.designation}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({ ...prev, designation: true }))
+            }
+            className={inputClass("designation")}
             required
           />
+          {touched.designation && fieldErrors.designation && (
+            <span className="error-text">{fieldErrors.designation}</span>
+          )}
         </div>
 
         <div>
-          <label>Address</label>
+          <label htmlFor="address">Address</label>
           <input
+            id="address"
             type="text"
             name="address"
             value={formData.address}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
+            className={inputClass("address")}
             required
           />
+          {touched.address && fieldErrors.address && (
+            <span className="error-text">{fieldErrors.address}</span>
+          )}
         </div>
 
         <div>
-          <label>Date of Birth</label>
+          <label htmlFor="dob">Date of Birth</label>
           <input
+            id="dob"
             type="date"
             name="dob"
             value={formData.dob}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, dob: true }))}
+            className={inputClass("dob")}
             required
           />
+          {touched.dob && fieldErrors.dob && (
+            <span className="error-text">{fieldErrors.dob}</span>
+          )}
         </div>
 
         <div>
-          <label>Gender</label>
+          <label htmlFor="gender">Gender</label>
           <select
+            id="gender"
             name="gender"
             value={formData.gender}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, gender: true }))}
+            className={inputClass("gender")}
             required
           >
             <option value="">Select Gender</option>
@@ -349,165 +456,321 @@ const AdminRegisterForm = () => {
             <option value="Female">Female</option>
             <option value="Other">Other</option>
           </select>
+          {touched.gender && fieldErrors.gender && (
+            <span className="error-text">{fieldErrors.gender}</span>
+          )}
         </div>
 
         <div>
-          <label>Department</label>
+          <label htmlFor="department">Department</label>
           <input
+            id="department"
             type="text"
             name="department"
             value={formData.department}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, department: true }))}
+            className={inputClass("department")}
             required
           />
+          {touched.department && fieldErrors.department && (
+            <span className="error-text">{fieldErrors.department}</span>
+          )}
         </div>
 
         <div>
-          <label>Religion</label>
+          <label htmlFor="religion">Religion</label>
           <input
+            id="religion"
             type="text"
             name="religion"
             value={formData.religion}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, religion: true }))}
+            className={inputClass("religion")}
             required
           />
+          {touched.religion && fieldErrors.religion && (
+            <span className="error-text">{fieldErrors.religion}</span>
+          )}
         </div>
 
         <div>
-          <label>Category</label>
+          <label htmlFor="category">Category</label>
           <input
+            id="category"
             type="text"
             name="category"
             value={formData.category}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, category: true }))}
+            className={inputClass("category")}
             required
           />
+          {touched.category && fieldErrors.category && (
+            <span className="error-text">{fieldErrors.category}</span>
+          )}
         </div>
 
         <div>
-          <label>Blood Group</label>
+          <label htmlFor="bloodgroup">Blood Group</label>
           <input
+            id="bloodgroup"
             type="text"
             name="bloodgroup"
             value={formData.bloodgroup}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, bloodgroup: true }))}
+            className={inputClass("bloodgroup")}
             required
           />
+          {touched.bloodgroup && fieldErrors.bloodgroup && (
+            <span className="error-text">{fieldErrors.bloodgroup}</span>
+          )}
         </div>
 
         <div>
-          <label>Emergency Contact Name</label>
+          <label htmlFor="emergencyContact.name">Emergency Contact Name</label>
           <input
+            id="emergencyContact.name"
             type="text"
             name="emergencyContact.name"
             value={formData.emergencyContact.name}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({
+                ...prev,
+                "emergencyContact.name": true,
+              }))
+            }
+            className={inputClass("emergencyContact.name")}
             required
           />
+          {touched["emergencyContact.name"] &&
+            fieldErrors["emergencyContact.name"] && (
+              <span className="error-text">
+                {fieldErrors["emergencyContact.name"]}
+              </span>
+            )}
         </div>
 
         <div>
-          <label>Emergency Contact Relation</label>
+          <label htmlFor="emergencyContact.relation">
+            Emergency Contact Relation
+          </label>
           <input
+            id="emergencyContact.relation"
             type="text"
             name="emergencyContact.relation"
             value={formData.emergencyContact.relation}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({
+                ...prev,
+                "emergencyContact.relation": true,
+              }))
+            }
+            className={inputClass("emergencyContact.relation")}
             required
           />
+          {touched["emergencyContact.relation"] &&
+            fieldErrors["emergencyContact.relation"] && (
+              <span className="error-text">
+                {fieldErrors["emergencyContact.relation"]}
+              </span>
+            )}
         </div>
 
         <div>
-          <label>Emergency Contact Phone</label>
+          <label htmlFor="emergencyContact.phone">
+            Emergency Contact Phone
+          </label>
           <input
+            id="emergencyContact.phone"
             type="text"
             name="emergencyContact.phone"
             value={formData.emergencyContact.phone}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({
+                ...prev,
+                "emergencyContact.phone": true,
+              }))
+            }
+            className={inputClass("emergencyContact.phone")}
             required
           />
+          {touched["emergencyContact.phone"] &&
+            fieldErrors["emergencyContact.phone"] && (
+              <span className="error-text">
+                {fieldErrors["emergencyContact.phone"]}
+              </span>
+            )}
         </div>
 
         <div>
-          <label>Experience</label>
+          <label htmlFor="experience">Experience</label>
           <input
+            id="experience"
             type="number"
             name="experience"
             value={formData.experience}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, experience: true }))}
+            className={inputClass("experience")}
             required
           />
+          {touched.experience && fieldErrors.experience && (
+            <span className="error-text">{fieldErrors.experience}</span>
+          )}
         </div>
 
         <div>
-          <label>Highest Qualification</label>
+          <label htmlFor="highestQualification">Highest Qualification</label>
           <input
+            id="highestQualification"
             type="text"
             name="highestQualification"
             value={formData.highestQualification}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({ ...prev, highestQualification: true }))
+            }
+            className={inputClass("highestQualification")}
             required
           />
+          {touched.highestQualification && fieldErrors.highestQualification && (
+            <span className="error-text">
+              {fieldErrors.highestQualification}
+            </span>
+          )}
         </div>
 
         <div>
-          <label>AADHAR Number</label>
+          <label htmlFor="AADHARnumber">AADHAR Number</label>
           <input
+            id="AADHARnumber"
             type="text"
             name="AADHARnumber"
             value={formData.AADHARnumber}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({ ...prev, AADHARnumber: true }))
+            }
+            className={inputClass("AADHARnumber")}
             required
           />
+          {touched.AADHARnumber && fieldErrors.AADHARnumber && (
+            <span className="error-text">{fieldErrors.AADHARnumber}</span>
+          )}
         </div>
 
         <div>
-          <label>Salary</label>
+          <label htmlFor="salary">Salary</label>
           <input
+            id="salary"
             type="number"
             name="salary"
             value={formData.salary}
             onChange={handleChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, salary: true }))}
+            className={inputClass("salary")}
             required
           />
+          {touched.salary && fieldErrors.salary && (
+            <span className="error-text">{fieldErrors.salary}</span>
+          )}
         </div>
 
         <div>
-          <label>Bank Account Number</label>
+          <label htmlFor="bankDetails.accountNumber">Bank Account Number</label>
           <input
+            id="bankDetails.accountNumber"
             type="text"
             name="bankDetails.accountNumber"
             value={formData.bankDetails.accountNumber}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({
+                ...prev,
+                "bankDetails.accountNumber": true,
+              }))
+            }
+            className={inputClass("bankDetails.accountNumber")}
             required
           />
+          {touched["bankDetails.accountNumber"] &&
+            fieldErrors["bankDetails.accountNumber"] && (
+              <span className="error-text">
+                {fieldErrors["bankDetails.accountNumber"]}
+              </span>
+            )}
         </div>
 
         <div>
-          <label>Bank Name</label>
+          <label htmlFor="bankDetails.bankName">Bank Name</label>
           <input
+            id="bankDetails.bankName"
             type="text"
             name="bankDetails.bankName"
             value={formData.bankDetails.bankName}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({
+                ...prev,
+                "bankDetails.bankName": true,
+              }))
+            }
+            className={inputClass("bankDetails.bankName")}
             required
           />
+          {touched["bankDetails.bankName"] &&
+            fieldErrors["bankDetails.bankName"] && (
+              <span className="error-text">
+                {fieldErrors["bankDetails.bankName"]}
+              </span>
+            )}
         </div>
 
         <div>
-          <label>IFSC Code</label>
+          <label htmlFor="bankDetails.ifscCode">IFSC Code</label>
           <input
+            id="bankDetails.ifscCode"
             type="text"
             name="bankDetails.ifscCode"
             value={formData.bankDetails.ifscCode}
             onChange={handleChange}
+            onBlur={() =>
+              setTouched((prev) => ({
+                ...prev,
+                "bankDetails.ifscCode": true,
+              }))
+            }
+            className={inputClass("bankDetails.ifscCode")}
             required
           />
+          {touched["bankDetails.ifscCode"] &&
+            fieldErrors["bankDetails.ifscCode"] && (
+              <span className="error-text">
+                {fieldErrors["bankDetails.ifscCode"]}
+              </span>
+            )}
         </div>
 
         <div>
-          <label>Upload Photo</label>
-          <input type="file" name="photo" onChange={handleFileChange} />
+          <label htmlFor="photo">Upload Photo</label>
+          <input
+            id="photo"
+            type="file"
+            name="photo"
+            onChange={handleFileChange}
+            onBlur={() => setTouched((prev) => ({ ...prev, photo: true }))}
+            className={inputClass("photo")}
+            accept="image/jpeg,image/png,image/jpg"
+          />
+          {touched.photo && fieldErrors.photo && (
+            <span className="error-text">{fieldErrors.photo}</span>
+          )}
         </div>
 
         <button type="submit" disabled={loading}>
@@ -522,19 +785,15 @@ const AdminRegisterForm = () => {
         <Modal.Body id="modalContent">
           {successData?.data ? (
             <>
-              {/* Admin Photo */}
               <div
                 className="photo-section"
-                style={{
-                  textAlign: "center",
-                  marginBottom: "20px",
-                }}
+                style={{ textAlign: "center", marginBottom: "20px" }}
               >
                 <Image
                   src={`${API_URL}/uploads/Admin/${successData.data.photo}`}
                   alt="Admin Profile"
-                  onError={
-                    (e) => (e.target.src = "https://via.placeholder.com/150") // Fallback image
+                  onError={(e) =>
+                    (e.target.src = "https://via.placeholder.com/150")
                   }
                   style={{
                     width: "150px",
@@ -544,7 +803,6 @@ const AdminRegisterForm = () => {
                   }}
                 />
               </div>
-
               <div>
                 <h2>Admin Details</h2>
                 <div
@@ -580,7 +838,6 @@ const AdminRegisterForm = () => {
                     </span>
                   </p>
                 </div>
-
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
@@ -602,7 +859,6 @@ const AdminRegisterForm = () => {
                     {successData.data.highestQualification || "Not Provided"}
                   </p>
                 </div>
-
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
@@ -642,7 +898,6 @@ const AdminRegisterForm = () => {
                     {successData.data.AADHARnumber || "Not Provided"}
                   </p>
                 </div>
-
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
@@ -663,8 +918,6 @@ const AdminRegisterForm = () => {
                   </p>
                 </div>
               </div>
-
-              {/* Print Button */}
               <Button
                 variant="primary"
                 onClick={handlePrint}
@@ -688,7 +941,6 @@ const AdminRegisterForm = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      {/* Toast notifications container */}
       <ToastContainer />
     </div>
   );
