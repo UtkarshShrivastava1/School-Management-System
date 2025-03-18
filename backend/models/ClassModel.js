@@ -13,20 +13,19 @@ const classSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // Subjects associated with the class
+    // ✅ Change subjects to store ObjectId references
     subjects: [
       {
-        type: String, // Storing subjectId as a string instead of ObjectId
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Subject", // 🔥 Now references the Subject model
       },
     ],
-    // Students enrolled in the class
     students: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Student",
       },
     ],
-    // Teachers assigned to the class
     teachers: [
       {
         type: mongoose.Schema.Types.ObjectId,

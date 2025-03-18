@@ -4,7 +4,7 @@
   "description": "The School Management System is a web-based platform designed to streamline school administration and communication. It allows admins to manage students, teachers, classes, attendance, fees, and exam results. Teachers can track student performance and communicate with parents, while students and parents can access academic records, pay fees, and stay updated with school activities. Built with the MERN stack, the system provides a scalable, secure, and user-friendly solution for efficient school management.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "nodemon  server.js",
     "dev": "nodemon server.js"
   },
   "repository": {

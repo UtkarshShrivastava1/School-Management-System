@@ -27,10 +27,26 @@ const GetTeacherClassesAndSubjects = () => {
           }
         );
 
-        console.log("API Response:", response.data); // Debugging
+        console.log("Full API Response:", response.data); // Log full API response
 
         if (response.data?.assignedClasses?.length) {
           setAssignedClasses(response.data.assignedClasses);
+
+          response.data.assignedClasses.forEach((cls) => {
+            console.log(
+              `Class: ${cls.className}, ID: ${cls._id || cls.classID}`
+            );
+            if (cls.assignedSubjects) {
+              console.log("Assigned Subjects:", cls.assignedSubjects);
+              cls.assignedSubjects.forEach((sub) => {
+                console.log(
+                  `Subject ID: ${sub._id}, Subject Name: ${sub.subjectName}`
+                );
+              });
+            } else {
+              console.log("No subjects assigned for this class.");
+            }
+          });
         } else {
           toast.error("No assigned classes found.");
         }
@@ -50,23 +66,21 @@ const GetTeacherClassesAndSubjects = () => {
   return (
     <div className="teachers-assignment-container">
       <h1>Assigned Classes and Subjects</h1>
-      <div className="back-button">
-        <FaArrowLeft onClick={handleBack} size={24} className="back-icon" />
-        <span onClick={handleBack} className="back-text">
-          Back
-        </span>
+      <div className="back-button" onClick={handleBack}>
+        <FaArrowLeft size={24} className="back-icon" />
+        <span className="back-text">Back</span>
       </div>
 
       {assignedClasses.length > 0 ? (
         <div className="assigned-classes-to-teacher-list">
           {assignedClasses.map((cls) => (
-            <div key={cls.classID} className="class-card">
+            <div key={cls._id || cls.classID} className="class-card">
               <h3>{cls.className}</h3>
               {cls.assignedSubjects && cls.assignedSubjects.length > 0 ? (
                 <p>
                   <strong>Subjects:</strong>{" "}
                   {cls.assignedSubjects
-                    .map((sub) => sub.subjectName)
+                    .map((sub) => sub.subjectName || "(No Name)")
                     .join(", ")}
                 </p>
               ) : (
