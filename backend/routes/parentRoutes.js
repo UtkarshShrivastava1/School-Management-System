@@ -69,7 +69,7 @@ router.use((err, req, res, next) => {
 
 // Route for parent login
 router.post(
-  "/auth/login",
+  "/login",
   [
     body("parentID").trim().notEmpty().withMessage("Parent ID is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
@@ -80,7 +80,7 @@ router.post(
 
 //------------------------------------------------------------------------------------------------
 // Route: Get parent profile using GET "/api/parent/auth/parentprofile"
-router.get("/auth/parentprofile", verifyParentToken, async (req, res) => {
+router.get("/parentprofile", verifyParentToken, async (req, res) => {
   try {
     const parentID = req.parent?.id; // Ensure `parent` object is available in the request
     if (!parentID) {

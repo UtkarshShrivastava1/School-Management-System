@@ -80,7 +80,24 @@ const StudentRegisterForm = () => {
 
       setSuccessData(response.data);
       setShowModal(true);
-      toast.success("Student created successfully!", { theme: "colored" });
+
+      // Show success notification
+      toast.success("Student created successfully!", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "colored",
+      });
+
+      // Redirect to admin dashboard after 3 seconds
+      setTimeout(() => {
+        navigate("/admin/admin-dashboard", {
+          state: { activeTab: "User Registration" }
+        });
+      }, 3000);
     } catch (error) {
       setErrors(error.response?.data?.errors || [{ msg: error.message }]);
       toast.error("Failed to create student. Please try again.", {

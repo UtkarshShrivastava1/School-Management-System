@@ -73,7 +73,7 @@ const dashboardSections = [
   },
   {
     title: "Notifications",
-    description: "stay updated with notices.",
+    description: "Stay updated with notices.",
     cards: [
       {
         icon: <FaRegBell size={50} />,

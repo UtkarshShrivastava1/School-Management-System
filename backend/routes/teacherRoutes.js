@@ -70,7 +70,7 @@ const upload = multer({
 });
 // Route for teacher login
 router.post(
-  "/auth/login",
+  "/login",
   [
     body("teacherID").trim().notEmpty().withMessage("Teacher ID is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
@@ -96,8 +96,7 @@ router.post("/validate", verifyTeacherToken, async (req, res) => {
 //================================================================================================
 //------------------------------------------------------------------------------------------------
 // Route: Get teacher profile using GET "/api/teacher/auth/teacherprofile"
-// Route: Get teacher profile using GET "/api/teacher/auth/teacherprofile"
-router.get("/auth/teacherprofile", verifyTeacherToken, async (req, res) => {
+router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
   try {
     const teacherID = req.teacher?.id; // Extract teacher ID from middleware
 

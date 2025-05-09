@@ -50,49 +50,63 @@ const formatTeacherData = (teacher) => {
 //================================================================================================
 
 // Controller for creating a new teacher
-// Controller for creating a new teacher
 exports.createTeacher = async (req, res, next) => {
-  const loggedInAdmin = req.admin; // Access logged-in admin's data
-  console.log("Logged-in Admin:", loggedInAdmin, loggedInAdmin.name); // Add this line to log the teacher data
-  if (!loggedInAdmin) {
-    return res.status(400).json({ message: "Logged-in Admin not found" });
-  }
-
-  const {
-    name,
-    email,
-    phone,
-    designation,
-    address,
-    dob,
-    gender,
-    department,
-    religion,
-    category,
-    bloodgroup,
-    role,
-    emergencyContact,
-    experience,
-    highestQualification,
-    AADHARnumber,
-    salary,
-    bankDetails,
-  } = req.body;
-  const photo = req.file ? req.file.filename : null;
-
-  // Use express-validator to check for validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   try {
-    // Check if an teacher already exists with the same email
+    const loggedInAdmin = req.admin;
+    console.log("Logged-in Admin:", loggedInAdmin);
+    
+    if (!loggedInAdmin) {
+      return res.status(400).json({ message: "Logged-in Admin not found" });
+    }
+
+    // Log the incoming request data
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+
+    const {
+      name,
+      email,
+      phone,
+      designation,
+      address,
+      dob,
+      gender,
+      department,
+      religion,
+      category,
+      bloodgroup,
+      role,
+      emergencyContact,
+      experience,
+      highestQualification,
+      AADHARnumber,
+      salary,
+      bankDetails,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !designation || !address || !dob || !gender || !department || !salary) {
+      return res.status(400).json({ 
+        message: "Missing required fields",
+        required: ["name", "email", "phone", "designation", "address", "dob", "gender", "department", "salary"]
+      });
+    }
+
+    // Validate phone number format
+    if (!/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ message: "Phone number must be 10 digits" });
+    }
+
+    // Check if teacher already exists with the same email
     const existingTeacher = await Teacher.findOne({ email });
     if (existingTeacher) {
-      return res
-        .status(400)
-        .json({ message: "Teacher with this email already exists" });
+      return res.status(400).json({ message: "Teacher with this email already exists" });
+    }
+
+    // Check if teacher already exists with the same phone
+    const existingPhone = await Teacher.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({ message: "Teacher with this phone number already exists" });
     }
 
     // Generate a unique teacherID
@@ -115,31 +129,27 @@ exports.createTeacher = async (req, res, next) => {
       religion,
       category,
       bloodgroup,
-      role: role || "teacher", // Default to 'teacher' if no role provided
+      role: role || "teacher",
       teacherID,
       password: hashedPassword,
-      photo,
-      emergencyContact: emergencyContact
-        ? {
-            name: emergencyContact.name || "",
-            relation: emergencyContact.relation || "",
-            phone: emergencyContact.phone || "",
-          }
-        : undefined,
+      photo: req.file ? req.file.filename : null,
+      emergencyContact: emergencyContact ? {
+        name: emergencyContact.name || "",
+        relation: emergencyContact.relation || "",
+        phone: emergencyContact.phone || "",
+      } : undefined,
       experience: experience || 0,
       highestQualification: highestQualification || "",
       AADHARnumber: AADHARnumber || "",
       salary: salary || 0,
-      bankDetails: bankDetails
-        ? {
-            accountNumber: bankDetails.accountNumber || "",
-            bankName: bankDetails.bankName || "",
-            ifscCode: bankDetails.ifscCode || "",
-          }
-        : undefined,
+      bankDetails: bankDetails ? {
+        accountNumber: bankDetails.accountNumber || "",
+        bankName: bankDetails.bankName || "",
+        ifscCode: bankDetails.ifscCode || "",
+      } : undefined,
       registeredBy: {
-        adminID: loggedInAdmin.adminID, // Correctly use adminID
-        name: loggedInAdmin.name, // Logged-in admin's name
+        adminID: loggedInAdmin.adminID,
+        name: loggedInAdmin.name,
       },
     });
 
@@ -154,7 +164,12 @@ exports.createTeacher = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error creating teacher:", error);
-    next(error); // Use a global error handler middleware
+    // Send a more detailed error response
+    res.status(500).json({ 
+      message: "Internal Server Error", 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

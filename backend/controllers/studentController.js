@@ -210,26 +210,27 @@ exports.studentLogin = async (req, res) => {
     // Verify password
     const isPasswordValid = await bcrypt.compare(
       password,
-      student.studentPassword // Make sure this matches your model field
+      student.studentPassword
     );
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    // Generate JWT token
-    const token = generateToken(student._id, student.role); // Ensure `role` exists in your model
+    // Generate JWT token with explicit role
+    const token = generateToken(student._id, "student");
 
     // Return success response with token and student details
     res.json({
       message: "Login successful",
       token,
+      role: "student", // Explicitly include role in response
       student: {
         studentID: student.studentID,
         studentName: student.studentName,
         studentEmail: student.studentEmail,
-        photo: student.photo, // Ensure this field exists in your schema
-        role: student.role, // Include role explicitly here
+        photo: student.photo,
+        role: "student", // Ensure role is set in student object
       },
     });
   } catch (error) {

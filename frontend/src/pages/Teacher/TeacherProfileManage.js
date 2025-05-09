@@ -12,6 +12,7 @@ import {
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 const TeacherProfileManage = () => {
   const [formData, setFormData] = useState({
     name: "",
@@ -29,38 +30,45 @@ const TeacherProfileManage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchTeacherData = async () => {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setError("Authentication token is missing. Please log in.");
-        setLoading(false);
-        return;
-      }
-
       try {
-        const response = await axios.get(
-          `${API_URL}/api/teacher/auth/teacherprofile`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        setTeacherData(response.data.teacher);
-        setFormData(response.data.teacher);
+        setLoading(true);
         setError(null);
+        
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Authentication token is missing. Please log in.");
+        }
+
+        const response = await axios.get(`${API_URL}/api/teacher/auth/teacherprofile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.data || !response.data.teacher) {
+          throw new Error("Invalid response format from server");
+        }
+
+        const teacherData = response.data.teacher;
+        setTeacherData(teacherData);
+        setFormData({
+          name: teacherData.name || "",
+          email: teacherData.email || "",
+          phone: teacherData.phone || "",
+          designation: teacherData.designation || "",
+          subjects: teacherData.subjects || "",
+          experience: teacherData.experience || "",
+          photo: teacherData.photo || "",
+        });
       } catch (err) {
-        setError(
-          err.response?.data?.message || "Failed to fetch teacher data."
-        );
+        const errorMessage = err.response?.data?.message || err.message || "Failed to fetch teacher data";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        console.error("Error fetching teacher data:", err);
       } finally {
         setLoading(false);
       }
@@ -84,16 +92,22 @@ const TeacherProfileManage = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
+    setError(null);
+    setSuccess(null);
 
-    const formDataToSubmit = new FormData();
-    Object.keys(formData).forEach((key) => {
-      formDataToSubmit.append(key, formData[key]);
-    });
-
-    const token = localStorage.getItem("token");
     try {
-      await axios.put(
-        `${API_URL}/api/teacher/auth/teacherprofile`,
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in.");
+      }
+
+      const formDataToSubmit = new FormData();
+      Object.keys(formData).forEach((key) => {
+        formDataToSubmit.append(key, formData[key]);
+      });
+
+      const response = await axios.put(
+        `${API_URL}/api/teacher/auth/updateteacherinfo`,
         formDataToSubmit,
         {
           headers: {
@@ -102,14 +116,20 @@ const TeacherProfileManage = () => {
         }
       );
 
+      if (!response.data || !response.data.teacher) {
+        throw new Error("Invalid response format from server");
+      }
+
+      setTeacherData(response.data.teacher);
       setSuccess("Profile updated successfully!");
-      setError(null);
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update profile.");
-      setSuccess(null);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update profile";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsUpdating(false);
-      setIsEditing(false);
     }
   };
 
