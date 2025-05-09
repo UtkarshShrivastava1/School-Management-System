@@ -1,0 +1,53 @@
+.student-notifications {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.student-notifications h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.student-notifications ul {
+  list-style: none;
+  padding: 0;
+}
+
+.student-notifications li {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: #f9f9f9;
+}
+
+.student-notifications h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.student-notifications p {
+  margin: 10px 0;
+}
+
+.student-notifications a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.student-notifications a:hover {
+  text-decoration: underline;
+}
+
+.student-notifications small {
+  display: block;
+  color: #666;
+  margin-top: 10px;
+}
+
+.error {
+  color: red;
+  text-align: center;
+  margin: 20px 0;
+} 

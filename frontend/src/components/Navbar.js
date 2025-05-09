@@ -19,11 +19,25 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
   console.log("API_URL:", API_URL);
 
   const handleLogoutClick = () => {
-    console.log("Logging out...");
+    // Clear user state first
+    setUser(null);
+    setLoading(false);
+    
+    // Clear all authentication data
     localStorage.removeItem("token");
     localStorage.removeItem("userRole");
-    handleLogout(); // Ensure any additional logout logic runs
-    navigate("/signin"); // Redirect to signin page
+    localStorage.removeItem("adminInfo");
+    localStorage.removeItem("teacherInfo");
+    localStorage.removeItem("studentInfo");
+    localStorage.removeItem("parentInfo");
+    
+    // Call the parent's handleLogout function if provided
+    if (handleLogout) {
+      handleLogout();
+    }
+    
+    // Redirect to signin page
+    navigate("/signin", { replace: true });
   };
 
   // Role configuration wrapped inside useMemo
@@ -55,34 +69,37 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!isLoggedIn || !userRole || !roleConfig[userRole]) {
-        console.log("User is not logged in or role is invalid.");
+      // Clear user data if not logged in
+      if (!isLoggedIn) {
+        setUser(null);
+        setLoading(false);
         return;
       }
 
-      console.log("Fetching user data for role:", userRole);
-      setLoading(true);
+      if (!userRole || !roleConfig[userRole]) {
+        console.log("Invalid user role.");
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
+      setLoading(true);
       const token = localStorage.getItem("token");
+      
       if (!token) {
         console.error("Authentication token is missing.");
+        setUser(null);
         setLoading(false);
         return;
       }
 
       try {
         const endpoint = roleConfig[userRole].profileEndpoint;
-        console.log("API endpoint for userRole:", endpoint);
-
         const response = await axios.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        console.log(`API response for ${userRole}:`, response.data);
-
-        // Map the correct name key based on userRole
         const fetchedData = response.data[userRole] || response.data;
-
         const nameKeyMap = {
           admin: "name",
           teacher: "name",
@@ -91,9 +108,10 @@ const NavBar = ({ isLoggedIn, userRole, handleLogout }) => {
         };
 
         const userName = fetchedData[nameKeyMap[userRole]] || "Profile";
-        setUser({ ...fetchedData, displayName: userName }); // Store a unified key
+        setUser({ ...fetchedData, displayName: userName });
       } catch (err) {
         console.error("Error fetching user data:", err);
+        setUser(null);
       } finally {
         setLoading(false);
       }

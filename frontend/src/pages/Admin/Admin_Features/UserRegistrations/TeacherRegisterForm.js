@@ -103,8 +103,9 @@ const TeacherRegisterForm = () => {
   //Handles Form Submit and create new teacher
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submission initiated."); // Log form submission start
+    console.log("Form submission initiated.");
     setLoading(true);
+    setErrors([]); // Clear previous errors
 
     const formDataToSend = new FormData();
 
@@ -113,18 +114,13 @@ const TeacherRegisterForm = () => {
       if (key === "emergencyContact" || key === "bankDetails") {
         Object.keys(formData[key]).forEach((subKey) => {
           formDataToSend.append(`${key}.${subKey}`, formData[key][subKey]);
-          console.log(
-            `FormData appended: ${key}.${subKey} = ${formData[key][subKey]}`
-          ); // Log nested data
         });
       } else if (Array.isArray(formData[key])) {
         formData[key].forEach((item, index) => {
           formDataToSend.append(`${key}[${index}]`, item);
-          console.log(`FormData appended: ${key}[${index}] = ${item}`); // Log array data
         });
       } else {
         formDataToSend.append(key, formData[key]);
-        console.log(`FormData appended: ${key} = ${formData[key]}`); // Log simple data
       }
     });
 
@@ -139,36 +135,78 @@ const TeacherRegisterForm = () => {
           },
         }
       );
-      console.log("Form submission successful:", response.data); // Log success response
+      
       setSuccessData(response.data);
-      setShowModal(true); // Trigger modal visibility on success
+      setShowModal(true);
 
       // Show success notification
-      toast.success("teacher created successfully!", {
+      toast.success("Teacher created successfully!", {
         position: "top-center",
-        autoClose: 5000,
+        autoClose: 3000,
         hideProgressBar: false,
         closeOnClick: false,
         pauseOnHover: true,
         draggable: true,
         theme: "colored",
       });
-    } catch (error) {
-      console.error("Form submission error:", error.response?.data || error); // Log error response
-      setErrors(error.response?.data?.errors || [{ msg: error.message }]);
 
-      // Show error notification
-      toast.error("Failed to create teacher. Please try again.", {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "colored",
-      });
+      // Redirect to admin dashboard after 3 seconds
+      setTimeout(() => {
+        navigate("/admin/admin-dashboard", {
+          state: { activeTab: "User Registration" }
+        });
+      }, 3000);
+    } catch (error) {
+      console.error("Form submission error:", error.response?.data || error);
+      
+      // Handle validation errors
+      if (error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors;
+        setErrors(validationErrors);
+        
+        // Show the first validation error in the toast
+        if (validationErrors.length > 0) {
+          toast.error(validationErrors[0].msg, {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            theme: "colored",
+          });
+        }
+      } else {
+        // Handle other types of errors
+        let errorMessage = "Failed to create teacher. Please try again.";
+        
+        if (error.response?.data?.error?.includes("duplicate key error")) {
+          if (error.response.data.error.includes("AADHARnumber")) {
+            errorMessage = "A teacher with this AADHAR number already exists.";
+            setFormData(prev => ({ ...prev, AADHARnumber: "" }));
+          } else if (error.response.data.error.includes("phone")) {
+            errorMessage = "A teacher with this phone number already exists.";
+            setFormData(prev => ({ ...prev, phone: "" }));
+          } else if (error.response.data.error.includes("email")) {
+            errorMessage = "A teacher with this email already exists.";
+            setFormData(prev => ({ ...prev, email: "" }));
+          }
+        } else {
+          errorMessage = error.response?.data?.message || errorMessage;
+        }
+        
+        setErrors([{ msg: errorMessage }]);
+        toast.error(errorMessage, {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "colored",
+        });
+      }
     } finally {
-      console.log("Form submission completed."); // Log form submission end
       setLoading(false);
     }
   };

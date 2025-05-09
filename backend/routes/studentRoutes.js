@@ -74,7 +74,7 @@ router.use((err, req, res, next) => {
 
 // Route for student login
 router.post(
-  "/auth/login",
+  "/login",
   [
     body("studentID").trim().notEmpty().withMessage("Student ID is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
@@ -86,8 +86,7 @@ router.post(
 //------------------------------------------------------------------------------------------------
 // Route: Get student profile using GET "/api/student/auth/studentprofile"
 //------------------------------------------------------------------------------------------------
-// Route: Get student profile using GET "/api/student/auth/studentprofile"
-router.get("/auth/studentprofile", verifyStudentToken, async (req, res) => {
+router.get("/studentprofile", verifyStudentToken, async (req, res) => {
   try {
     const studentID = req.student?.id; // Ensure `student` object is available in the request
     if (!studentID) {

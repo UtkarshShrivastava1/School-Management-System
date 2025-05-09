@@ -52,11 +52,14 @@ const adminRoutes = require("./routes/adminRoutes");
 const parentRoutes = require("./routes/parentRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
+// Mount routes
 app.use("/api/admin/auth", adminRoutes);
-app.use("/api/teacher", teacherRoutes);
-app.use("/api/student", studentRoutes);
-app.use("/api/parent", parentRoutes);
+app.use("/api/parent/auth", parentRoutes);
+app.use("/api/student/auth", studentRoutes);
+app.use("/api/teacher/auth", teacherRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Serve static files from the "uploads" directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

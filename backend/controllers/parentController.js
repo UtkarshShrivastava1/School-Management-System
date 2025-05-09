@@ -6,8 +6,11 @@ const generateToken = require("../config/generateToken"); // Importing token gen
 exports.parentLogin = async (req, res) => {
   const { parentID, password } = req.body;
 
+  console.log("Parent login attempt:", { parentID });
+
   // Validate input
   if (!parentID || !password) {
+    console.log("Missing credentials:", { parentID: !!parentID, password: !!password });
     return res
       .status(400)
       .json({ message: "Both parent ID and password are required." });
@@ -16,6 +19,7 @@ exports.parentLogin = async (req, res) => {
   try {
     // Find parent by parentID
     const parent = await Parent.findOne({ parentID });
+    console.log("Parent lookup result:", parent ? "Found" : "Not found");
 
     if (!parent) {
       return res.status(404).json({ message: "Parent not found." });
@@ -26,6 +30,7 @@ exports.parentLogin = async (req, res) => {
       password,
       parent.parentPassword
     );
+    console.log("Password validation:", isPasswordValid ? "Valid" : "Invalid");
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials." });
@@ -33,6 +38,7 @@ exports.parentLogin = async (req, res) => {
 
     // Generate JWT token
     const token = generateToken(parent._id, "parent"); // Using "parent" as the role
+    console.log("Token generated successfully");
 
     // Return success response with token and parent details
     res.json({

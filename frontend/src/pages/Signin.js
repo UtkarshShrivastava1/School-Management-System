@@ -82,12 +82,27 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
         password,
       });
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem(`${role}Info`, JSON.stringify(response.data.data));
+      // Store token and role
+      const token = response.data.token;
+      if (!token) {
+        throw new Error("No token received from server");
+      }
 
+      // Store authentication data
+      localStorage.setItem("token", token);
+      localStorage.setItem("userRole", role);
+      
+      // Store user info
+      const userInfo = response.data[role] || response.data.data;
+      if (userInfo) {
+        localStorage.setItem(`${role}Info`, JSON.stringify(userInfo));
+      }
+
+      // Update app state
       setIsLoggedIn(true);
       setUserRole(role);
-      toast.success("Login successfull!", {
+
+      toast.success("Login successful!", {
         position: "top-center",
         autoClose: 5000,
         hideProgressBar: false,
@@ -96,8 +111,11 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
         draggable: true,
         theme: "colored",
       });
+
+      // Navigate to appropriate dashboard
       navigate(`/${role}/${role}-dashboard`);
     } catch (err) {
+      console.error("Login error:", err);
       setError(
         err.response?.data?.message || "Login failed. Please try again."
       );
