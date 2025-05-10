@@ -4,103 +4,135 @@ const Teacher = require("../models/TeacherModel");
 const Student = require("../models/StudentModel");
 const Parent = require("../models/ParentModel");
 
-// Helper function to verify JWT and role
-const verifyTokenAndRole = async (req, res, next, role) => {
-  const token = req.header("Authorization")?.replace("Bearer ", "");
-  console.log("Authorization Header:", req.header("Authorization"));
-  console.log("Token received:", token);
-
-  if (!token) {
-    console.error("No token provided. Authorization denied.");
-    return res.status(401).json({ message: "No token, authorization denied" });
-  }
-
+// Verify student token
+const verifyStudentToken = async (req, res, next) => {
   try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded Token:", decoded);
-
-    // Check if the role matches
-    if (decoded.role !== role) {
-      return res
-        .status(403)
-        .json({ message: `Unauthorized role, ${role} access required` });
+    if (decoded.role !== "student") {
+      return res.status(401).json({ message: "Invalid token role" });
     }
 
-    // Fetch specific fields based on role
-    let loggedInUser;
-    if (role === "admin") {
-      loggedInUser = await Admin.findById(decoded.id, "name adminID");
-    } else if (role === "teacher") {
-      loggedInUser = await Teacher.findById(decoded.id, "name teacherID");
-    } else if (role === "student") {
-      loggedInUser = await Student.findById(decoded.id, "name studentID");
-    } else if (role === "parent") {
-      loggedInUser = await Parent.findById(decoded.id, "name parentID");
-    } else {
-      return res.status(400).json({ message: "Role not supported" });
+    const student = await Student.findById(decoded.id).select("-password");
+    if (!student) {
+      return res.status(401).json({ message: "Student not found" });
     }
 
-    if (!loggedInUser) {
-      return res.status(404).json({
-        message: `${role.charAt(0).toUpperCase() + role.slice(1)} not found`,
-      });
-    }
-
-    req[role] = loggedInUser; // Attach the partial document with required fields
-    console.log(
-      `${
-        role.charAt(0).toUpperCase() + role.slice(1)
-      } data attached to request:`,
-      req[role]
-    );
+    req.student = student;
     next();
   } catch (error) {
-    handleTokenError(error, res);
+    console.error("Student token verification error:", error);
+    res.status(401).json({ message: "Invalid token" });
   }
 };
 
-// Middleware for admin verification
-const verifyAdminToken = (req, res, next) => {
-  verifyTokenAndRole(req, res, next, "admin");
-};
+// Verify parent token
+const verifyParentToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
 
-// Middleware for teacher verification
-const verifyTeacherToken = (req, res, next) => {
-  verifyTokenAndRole(req, res, next, "teacher");
-};
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "parent") {
+      return res.status(401).json({ message: "Invalid token role" });
+    }
 
-// Middleware for student verification
-const verifyStudentToken = (req, res, next) => {
-  verifyTokenAndRole(req, res, next, "student");
-};
+    const parent = await Parent.findById(decoded.id).select("-password");
+    if (!parent) {
+      return res.status(401).json({ message: "Parent not found" });
+    }
 
-// Middleware for parent verification
-const verifyParentToken = (req, res, next) => {
-  verifyTokenAndRole(req, res, next, "parent");
-};
-
-// Common error handler for JWT verification issues
-const handleTokenError = (error, res) => {
-  console.error("Error verifying token:", error);
-
-  if (error.name === "TokenExpiredError") {
-    console.error("Token has expired");
-    return res.status(401).json({ message: "Token has expired" });
+    req.parent = parent;
+    next();
+  } catch (error) {
+    console.error("Parent token verification error:", error);
+    res.status(401).json({ message: "Invalid token" });
   }
-  if (error.name === "JsonWebTokenError") {
-    console.error("Token is not valid");
-    return res.status(401).json({ message: "Token is not valid" });
-  }
+};
 
-  console.error("Token verification failed", error.message);
-  return res
-    .status(500)
-    .json({ message: "Token verification failed", error: error.message });
+// Verify teacher token
+const verifyTeacherToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "teacher") {
+      return res.status(401).json({ message: "Invalid token role" });
+    }
+
+    const teacher = await Teacher.findById(decoded.id).select("-password");
+    if (!teacher) {
+      return res.status(401).json({ message: "Teacher not found" });
+    }
+
+    req.teacher = teacher;
+    next();
+  } catch (error) {
+    console.error("Teacher token verification error:", error);
+    res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// Verify admin token
+const verifyAdminToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    console.log("Decoded token payload:", jwt.decode(token));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "admin") {
+      return res.status(401).json({ message: "Invalid token role: expected 'admin', got '" + decoded.role + "'" });
+    }
+
+    let admin = null;
+    
+    // First try to use the adminID from the token if available
+    if (decoded.adminID) {
+      console.log("Looking for admin with adminID from token:", decoded.adminID);
+      admin = await Admin.findOne({ adminID: decoded.adminID }).select("-password");
+    }
+    
+    // If admin not found or no adminID in token, try with MongoDB _id
+    if (!admin) {
+      console.log("Looking for admin with ID:", decoded.id);
+      admin = await Admin.findById(decoded.id).select("-password");
+    }
+    
+    // If admin still not found but the ID looks like an admin ID, try one more time
+    if (!admin && decoded.id && typeof decoded.id === 'string' && decoded.id.startsWith('ADM')) {
+      console.log("Admin not found by _id, trying with adminID:", decoded.id);
+      admin = await Admin.findOne({ adminID: decoded.id }).select("-password");
+    }
+    
+    if (!admin) {
+      console.error("Admin not found with ID:", decoded.id);
+      return res.status(401).json({ message: "Admin not found with the provided token" });
+    }
+
+    console.log("Admin found:", admin.adminID);
+    req.admin = admin;
+    next();
+  } catch (error) {
+    console.error("Admin token verification error:", error);
+    res.status(401).json({ message: "Invalid token: " + error.message });
+  }
 };
 
 module.exports = {
-  verifyAdminToken,
-  verifyTeacherToken,
   verifyStudentToken,
   verifyParentToken,
+  verifyTeacherToken,
+  verifyAdminToken
 };

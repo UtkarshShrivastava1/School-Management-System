@@ -2,17 +2,21 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { body, validationResult } = require("express-validator");
-const bcrypt = require("bcryptjs");
 const path = require("path");
-
-const mongoose = require("mongoose"); // Ensure mongoose is imported
 const fs = require("fs");
 const {
+  createStudent,
   studentLogin,
+  getAllStudents,
+  assignStudentToClass,
+  searchStudents,
   getStudentProfile,
+  updateStudentProfile,
+  changeStudentPassword
 } = require("../controllers/studentController");
 const { verifyStudentToken } = require("../middleware/authMiddleware");
-const Student = require("../models/StudentModel"); // Importing student model
+const Student = require("../models/StudentModel");
+const bcrypt = require("bcrypt");
 
 // Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
@@ -26,34 +30,27 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Set up multer for file storage (handling file uploads)
+// Set up multer for file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = "uploads/Student/";
-
-    // Ensure the 'uploads' directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    cb(null, uploadDir); // Store files in "uploads/Student" folder
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Generate a unique filename based on current timestamp
     cb(null, Date.now() + path.extname(file.originalname));
   },
 });
 
-// Configure multer to handle file type validation
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
+    const allowedTypes = /jpg|jpeg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
-    // Only allow images with specific file extensions and MIME types
     if (extname && mimetype) {
       return cb(null, true);
     } else {
@@ -63,14 +60,16 @@ const upload = multer({
 });
 
 // Middleware for handling Multer errors
-router.use((err, req, res, next) => {
+const multerErrorHandler = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ message: err.message });
   } else if (err) {
     return res.status(400).json({ message: err.message });
   }
   next();
-});
+};
+
+router.use(multerErrorHandler);
 
 // Route for student login
 router.post(
@@ -79,47 +78,113 @@ router.post(
     body("studentID").trim().notEmpty().withMessage("Student ID is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
   ],
-  handleValidationErrors, // Handle validation errors
-  studentLogin // Delegate to login controller
+  handleValidationErrors,
+  studentLogin
 );
 
-//------------------------------------------------------------------------------------------------
-// Route: Get student profile using GET "/api/student/auth/studentprofile"
-//------------------------------------------------------------------------------------------------
-// Route: Get student profile using GET "/api/student/auth/studentprofile"
-router.get("/auth/studentprofile", verifyStudentToken, async (req, res) => {
-  try {
-    const studentID = req.student?.id; // Ensure `student` object is available in the request
-    if (!studentID) {
-      return res
-        .status(400)
-        .json({ message: "Student ID is missing in token" });
+// Get student profile
+router.get(
+  "/auth/studentprofile",
+  verifyStudentToken,
+  getStudentProfile
+);
+
+// Update student profile - Fix for multipart boundary issue
+router.put(
+  "/auth/studentprofile", 
+  verifyStudentToken,
+  (req, res, next) => {
+    console.log("Student profile update request received");
+    console.log("Content-Type:", req.headers['content-type']);
+    
+    // Check if the content type is multipart/form-data
+    if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+      console.log("Processing as multipart form data");
+      upload.single("photo")(req, res, (err) => {
+        if (err) {
+          console.error("Multer error:", err);
+          return res.status(400).json({ message: err.message });
+        }
+        console.log("File upload processed successfully");
+        next();
+      });
+    } else {
+      // If not multipart, just continue
+      console.log("Not multipart, continuing with regular processing");
+      next();
     }
-
-    // Validate studentID format (optional but recommended)
-    if (!mongoose.Types.ObjectId.isValid(studentID)) {
-      return res.status(400).json({ message: "Invalid student ID format" });
+  },
+  [
+    body("studentID").notEmpty().withMessage("Student ID is required"),
+    body("studentEmail").optional().isEmail().withMessage("Invalid email format"),
+    body("studentPhone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone number must be 10 digits"),
+    body("studentName").optional().trim().notEmpty().withMessage("Name cannot be empty"),
+    body("studentAddress").optional().trim(),
+    body("studentDOB").optional().isISO8601().toDate().withMessage("Invalid DOB"),
+    body("studentGender").optional().isIn(['Male', 'Female', 'Other']).withMessage("Gender must be Male, Female, or Other"),
+    body("religion").optional().isString().withMessage("Religion must be a string"),
+    body("category").optional().isString().withMessage("Category must be a string"),
+    body("bloodgroup").optional().isString().withMessage("Blood group must be a string"),
+    body("studentFatherName").optional().trim(),
+    body("studentMotherName").optional().trim(),
+    // Modified emergencyContact validation to handle both string and object
+    body("emergencyContact").optional().custom((value, { req }) => {
+      // If it's a string, try to parse it as JSON
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (typeof parsed === 'object' && parsed !== null) {
+            return true;
+          }
+        } catch (e) {
+          throw new Error('Emergency contact must be a valid JSON object');
+        }
+      } 
+      // If it's already an object, it's valid
+      else if (typeof value === 'object' && value !== null) {
+        return true;
+      }
+      throw new Error('Emergency contact must be an object');
+    }),
+    body("emergencyContact.name").optional().notEmpty().withMessage("Emergency contact name cannot be empty"),
+    body("emergencyContact.relation").optional().notEmpty().withMessage("Emergency contact relation cannot be empty"),
+    body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
+  ], 
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.error("Validation errors:", errors.array());
+      return res.status(400).json({
+        message: "Validation error",
+        errors: errors.array(),
+      });
     }
+    console.log("Validation passed, proceeding to update profile");
+    next();
+  },
+  updateStudentProfile
+);
 
-    // Fetch student profile from the database using the student ID
-    const student = await Student.findById(studentID).lean();
-    if (!student) {
-      return res.status(404).json({ message: "Student not found" });
-    }
+// Change student password
+router.put("/auth/changestudentpassword", verifyStudentToken, [
+  body("studentID").notEmpty().withMessage("Student ID is required"),
+  body("currentPassword").trim().notEmpty().withMessage("Current password is required"),
+  body("newPassword")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long")
+    .matches(/\d/)
+    .withMessage("Password must contain at least one number")
+    .matches(/[!@#$%^&*]/)
+    .withMessage("Password must contain at least one special character"),
+  body("confirmNewPassword")
+    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage("Passwords do not match"),
+], handleValidationErrors, changeStudentPassword);
 
-    // Remove sensitive data (e.g., password) from the response
-    const { password, ...studentData } = student;
+// Admin routes
+router.post("/", createStudent);
+router.get("/", getAllStudents);
+router.put("/:id/assign-class", assignStudentToClass);
+router.get("/search", searchStudents);
 
-    // Return the student profile data
-    res.status(200).json({ student: studentData });
-  } catch (error) {
-    console.error("Error fetching student profile:", error.message);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-//------------------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------
-
-// Export the router
 module.exports = router;

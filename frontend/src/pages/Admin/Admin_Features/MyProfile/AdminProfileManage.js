@@ -1,23 +1,22 @@
-import React, { useEffect, useState } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
 import {
-  Button,
-  Form,
-  Spinner,
-  Card,
-  Table,
-  Row,
-  Col,
-  Image,
   Alert,
+  Button,
+  Card,
+  Col,
+  Form,
+  Image,
+  Row,
+  Spinner,
+  Table,
 } from "react-bootstrap";
-import ChangeAdminPassword from "../../../../components/Admin/ChangeAdminPassword";
+import { FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import ChangeAdminPassword from "../../../../components/Admin/ChangeAdminPassword";
 import "./AdminProfileManage.css";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
 const AdminProfileManage = ({ userRole = "admin" }) => {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -146,15 +145,15 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
       // Use FormData for the request
       const formDataToSubmit = new FormData();
 
-      // Append all form fields
+      // Ensure adminID is included
+      formDataToSubmit.append("adminID", adminData.adminID);
+      
       // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          // For nested objects (e.g., emergencyContact, bankDetails), flatten the structure using bracket notation
+          // For nested objects like emergencyContact and bankDetails
           if (typeof value === "object" && !Array.isArray(value)) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              formDataToSubmit.append(`${key}[${nestedKey}]`, nestedValue);
-            });
+            formDataToSubmit.append(key, JSON.stringify(value));
           } else {
             formDataToSubmit.append(key, value);
           }
@@ -166,8 +165,9 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
         formDataToSubmit.append("photo", photo);
       }
 
+      console.log("Sending admin profile update request");
       const response = await axios.put(
-        `${API_URL}/api/admin/auth/updateadmininfo`,
+        `${API_URL}/api/admin/auth/adminprofile`,
         formDataToSubmit,
         {
           headers: {

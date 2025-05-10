@@ -1,0 +1,18 @@
+/* Custom styling for react-toastify */
+.Toastify__toast {
+  color: white !important;
+}
+
+/* Ensure text color is white for all toast types */
+.Toastify__toast--success,
+.Toastify__toast--error,
+.Toastify__toast--info,
+.Toastify__toast--warning,
+.Toastify__toast--default {
+  color: white !important;
+}
+
+/* Ensure that the toast content (message) text is white */
+.Toastify__toast-body {
+  color: white !important;
+} 

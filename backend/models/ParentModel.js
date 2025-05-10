@@ -21,6 +21,19 @@ const parentSchema = new mongoose.Schema(
         },
       },
     ], // Array of references to Student with relationship type
+    photo: { type: String }, // Path to profile photo
+    parentAddress: { type: String },
+    parentOccupation: { type: String },
+    parentIncome: { type: Number },
+    parentEducation: { type: String },
+    emergencyContact: {
+      name: { type: String },
+      relation: { type: String },
+      phone: { type: String }
+    },
+    actionHistory: [{ type: String }], // Array to track user actions
+    lastLogin: { type: Date },
+    loginHistory: [{ type: Date }],
   },
   { timestamps: true }
 );

@@ -1,21 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
 } from "react-router-dom";
 // Page imports
 import About from "./pages/About";
 
-import Signin from "./pages/Signin";
-import AdminRoutes from "./Routes/Admin/AdminRoutes";
-import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
-
-import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
-import ParentDashboardPage from "./pages/Parent/ParentDashboardPage";
-import Navbar from "./components/Navbar";
 import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import Navbar from "./components/Navbar";
+import ParentDashboardPage from "./pages/Parent/ParentDashboardPage";
+import Signin from "./pages/Signin";
+import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
+import AdminRoutes from "./Routes/Admin/AdminRoutes";
+import ParentRoutes from "./Routes/Parent/ParentRoutes";
+import StudentRoutes from "./Routes/Student/StudentRoutes";
+import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
+import "./toast.css"; // Import custom toast styles
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -136,7 +139,22 @@ const App = () => {
             }
           />
         )}
-
+        {isLoggedIn && userRole === "student" && (
+          <Route
+            path="/student/*"
+            element={
+              <StudentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
+            }
+          />
+        )}
+        {isLoggedIn && userRole === "parent" && (
+          <Route
+            path="/parent/*"
+            element={
+              <ParentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
+            }
+          />
+        )}
         <Route
           path="/student/student-dashboard"
           element={
@@ -158,7 +176,19 @@ const App = () => {
           }
         />
       </Routes>
-      <ToastContainer />
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+        toastStyle={{ color: "white" }}
+      />
     </Router>
   );
 };

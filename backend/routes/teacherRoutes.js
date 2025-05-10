@@ -129,78 +129,145 @@ router.get("/auth/teacherprofile", verifyTeacherToken, async (req, res) => {
 });
 
 //------------------------------------------------------------------------------------------------
-// Route: Update teacher info using PUT "/api/teachers/auth/updateteacherinfo"
+// Route: Update teacher info using PUT "/api/teacher/auth/teacherprofile"
 router.put(
-  "/auth/updateteacherinfo",
-  verifyTeacherToken, // Middleware to verify teacher token
-  upload.single("photo"), // Middleware to handle photo upload
+  "/auth/teacherprofile",
+  verifyTeacherToken,
+  upload.single("photo"),
   [
-    body("teacherID").notEmpty().withMessage("Teacher ID is required"),
+    body("name").optional().trim(),
     body("email").optional().isEmail().withMessage("Invalid email format"),
-    body("phone")
-      .optional()
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Phone number must be 10 digits"),
-    body("name")
-      .optional()
-      .trim()
-      .notEmpty()
-      .withMessage("Name cannot be empty"),
+    body("phone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone must be 10 digits"),
     body("designation").optional().trim(),
     body("department").optional().trim(),
     body("address").optional().trim(),
+    body("religion").optional().trim(),
+    body("category").optional().trim(),
+    body("bloodgroup").optional().trim(),
+    body("emergencyContact").optional().isObject().withMessage("Emergency contact must be an object"),
+    body("emergencyContact.name").optional().trim(),
+    body("emergencyContact.relation").optional().trim(),
+    body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
+    body("experience").optional().isNumeric().withMessage("Experience must be a numeric value"),
+    body("highestQualification").optional().trim()
   ],
-  handleValidationErrors, // Middleware to handle validation errors
+  handleValidationErrors,
   async (req, res) => {
     try {
-      const {
-        teacherID,
-        email,
-        phone,
-        name,
-        designation,
-        department,
-        address,
-      } = req.body;
-      const photo = req.file ? req.file.filename : null; // Handle uploaded photo
+      const teacherID = req.teacher?.id;
+      if (!teacherID) {
+        return res.status(401).json({ message: "Unauthorized - Invalid token" });
+      }
 
-      // Fetch the teacher document using teacherID
-      const teacher = await Teacher.findOne({ teacherID });
+      const teacher = await Teacher.findById(teacherID);
       if (!teacher) {
         return res.status(404).json({ message: "Teacher not found" });
       }
 
-      // Update the fields if provided
+      // Log the request body for debugging
+      console.log("Update request body:", req.body);
+
+      const {
+        name,
+        email,
+        phone,
+        designation,
+        department,
+        address,
+        religion,
+        category,
+        bloodgroup,
+        emergencyContact,
+        experience,
+        highestQualification
+      } = req.body;
+
+      // Update fields if provided
+      if (name) teacher.name = name;
       if (email) teacher.email = email;
       if (phone) teacher.phone = phone;
-      if (name) teacher.name = name;
       if (designation) teacher.designation = designation;
       if (department) teacher.department = department;
       if (address) teacher.address = address;
-      if (photo) teacher.photo = photo; // Update photo if provided
+      if (religion) teacher.religion = religion;
+      if (category) teacher.category = category;
+      if (bloodgroup) teacher.bloodgroup = bloodgroup;
+      if (emergencyContact) {
+        try {
+          // Parse emergencyContact if it's a string
+          const contactData = typeof emergencyContact === 'string'
+            ? JSON.parse(emergencyContact)
+            : emergencyContact;
+            
+          teacher.emergencyContact = {
+            name: contactData.name || teacher.emergencyContact?.name || "",
+            relation: contactData.relation || teacher.emergencyContact?.relation || "",
+            phone: contactData.phone || teacher.emergencyContact?.phone || "",
+          };
+        } catch (err) {
+          console.error("Error processing emergencyContact:", err);
+        }
+      }
+      
+      // Handle numeric fields
+      if (experience !== undefined && experience !== null) {
+        // Ensure experience is stored as a number
+        teacher.experience = Number(experience);
+        console.log(`Setting experience to: ${typeof teacher.experience} - ${teacher.experience}`);
+      }
+      
+      if (highestQualification) {
+        teacher.highestQualification = highestQualification;
+      }
 
-      // Save the updated teacher document
-      const updatedTeacher = await teacher.save();
+      // Handle photo upload if present
+      if (req.file) {
+        teacher.photo = req.file.filename; // Store just the filename, not the full path
+        console.log("New photo set:", teacher.photo);
+      }
 
-      // Respond with the updated teacher data
-      res.status(200).json({
-        message: "Teacher information updated successfully",
-        teacher: updatedTeacher,
+      // Add to action history
+      if (!teacher.actionHistory) {
+        teacher.actionHistory = [];
+      }
+      teacher.actionHistory.push("Profile updated on " + new Date().toISOString());
+
+      console.log("Saving teacher updates:", {
+        name: teacher.name,
+        email: teacher.email,
+        experience: teacher.experience,
+        updatedFields: req.body
+      });
+      
+      await teacher.save();
+      console.log("Teacher saved successfully");
+
+      // Remove sensitive data
+      const { password, ...teacherData } = teacher.toObject();
+
+      res.json({
+        message: "Profile updated successfully",
+        teacher: teacherData
       });
     } catch (error) {
-      console.error("Error updating teacher info:", error);
-      res.status(500).json({ error: "Server error" });
+      console.error("Error updating teacher profile:", error);
+      res.status(500).json({ 
+        message: "Server error",
+        error: error.message 
+      });
     }
   }
 );
 
 //----------------------------------------------------------------
-// Route: Update/change teacher password using PUT "/api/teacher/auth/changeteacherpassword"
+// Route: Change teacher password using PUT "/api/teacher/auth/changeteacherpassword"
 router.put(
   "/auth/changeteacherpassword",
   verifyTeacherToken,
   [
-    body("teacherID").notEmpty().withMessage("Teacher ID is required"),
+    body("currentPassword")
+      .notEmpty()
+      .withMessage("Current password is required"),
     body("newPassword")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters long")
@@ -209,47 +276,241 @@ router.put(
       .matches(/[!@#$%^&*]/)
       .withMessage("Password must contain at least one special character"),
     body("confirmNewPassword")
-      .custom((value, { req }) => value === req.body.newPassword)
-      .withMessage("Passwords do not match"),
+      .custom((value, { req }) => {
+        if (value !== req.body.newPassword) {
+          throw new Error("Passwords do not match");
+        }
+        return true;
+      })
   ],
   handleValidationErrors,
   async (req, res) => {
     try {
-      console.log("Request received:", req.body); // Log incoming request body
+      // Log the request body for debugging
+      console.log("Password change request body:", req.body);
 
-      const { teacherID, newPassword } = req.body;
+      const teacherID = req.teacher?.id;
+      if (!teacherID) {
+        return res.status(401).json({ message: "Unauthorized - Invalid token" });
+      }
 
-      // Fetch the teacher document using teacherID
-      console.log("Fetching teacher from DB with teacherID:", teacherID);
-      const teacher = await Teacher.findOne({ teacherID });
+      const { currentPassword, newPassword } = req.body;
+
+      const teacher = await Teacher.findById(teacherID);
       if (!teacher) {
-        console.log("Teacher not found for teacherID:", teacherID); // Log if teacher is not found
         return res.status(404).json({ message: "Teacher not found" });
       }
 
-      console.log("Teacher found:", teacher); // Log the teacher document
+      // Verify current password
+      const isMatch = await bcrypt.compare(currentPassword, teacher.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
 
-      // Hash the new password and update it
-      console.log("Generating salt for password hashing...");
+      // Hash new password
       const salt = await bcrypt.genSalt(10);
-      console.log("Salt generated:", salt);
-
-      console.log("Hashing new password...");
       teacher.password = await bcrypt.hash(newPassword, salt);
 
-      console.log("Saving updated teacher document...");
+      // Add to action history
+      teacher.actionHistory.push("Password changed");
+
       await teacher.save();
 
-      // Respond with a success message
-      console.log("Password updated successfully for teacherID:", teacherID);
-      res.status(200).json({ message: "Password updated successfully" });
+      res.json({ message: "Password changed successfully" });
     } catch (error) {
-      console.error("Error updating password:", error); // Log the error details
-      res.status(500).json({ error: "An unexpected error occurred" });
+      console.error("Error changing password:", error);
+      res.status(500).json({ 
+        message: "Server error",
+        error: error.message 
+      });
     }
   }
 );
 
 // Route to fetch assigned classes for the logged-in teacher
 router.get("/auth/assigned-classes", verifyTeacherToken, getAssignedClasses);
+
+// Teacher Profile Routes
+router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
+  try {
+    const teacherID = req.teacher?.id;
+    if (!teacherID) {
+      return res.status(400).json({ message: "Teacher ID is missing in token" });
+    }
+
+    const teacher = await Teacher.findById(teacherID);
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    res.status(200).json({ teacher });
+  } catch (error) {
+    console.error("Error fetching teacher profile:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Update teacher profile
+router.put("/teacherprofile", verifyTeacherToken, upload.single("photo"), [
+  body("teacherID").notEmpty().withMessage("Teacher ID is required"),
+  body("email").optional().isEmail().withMessage("Invalid email format"),
+  body("phone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone number must be 10 digits"),
+  body("name").optional().trim().notEmpty().withMessage("Name cannot be empty"),
+  body("designation").optional().trim(),
+  body("department").optional().trim(),
+  body("address").optional().trim(),
+  body("dob").optional().isISO8601().toDate().withMessage("Invalid DOB"),
+  body("gender").optional().isString().withMessage("Gender must be a string"),
+  body("religion").optional().isString().withMessage("Religion must be a string"),
+  body("category").optional().isString().withMessage("Category must be a string"),
+  body("bloodgroup").optional().isString().withMessage("Blood group must be a string"),
+  body("emergencyContact").optional().isObject(),
+  body("emergencyContact.name").optional().notEmpty().withMessage("Emergency contact name cannot be empty"),
+  body("emergencyContact.relation").optional().notEmpty().withMessage("Emergency contact relation cannot be empty"),
+  body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
+  body("experience").optional().isNumeric().withMessage("Experience must be numeric"),
+  body("highestQualification").optional().notEmpty().withMessage("Highest qualification cannot be empty"),
+  body("AADHARnumber").optional().isLength({ min: 12, max: 12 }).withMessage("AADHAR number must be 12 digits"),
+  body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
+  body("bankDetails").optional().isObject(),
+  body("bankDetails.accountNumber").optional().notEmpty().withMessage("Bank account number cannot be empty"),
+  body("bankDetails.bankName").optional().notEmpty().withMessage("Bank name cannot be empty"),
+  body("bankDetails.ifscCode").optional().notEmpty().withMessage("IFSC code cannot be empty"),
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { teacherID } = req.body;
+    if (!teacherID) {
+      return res.status(400).json({ message: "Teacher ID is required" });
+    }
+
+    const teacher = await Teacher.findOne({ teacherID });
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    const {
+      email,
+      phone,
+      name,
+      designation,
+      department,
+      address,
+      dob,
+      gender,
+      religion,
+      category,
+      bloodgroup,
+      emergencyContact,
+      experience,
+      highestQualification,
+      AADHARnumber,
+      salary,
+      bankDetails,
+    } = req.body;
+    const photo = req.file ? req.file.filename : null;
+
+    // Update fields if provided
+    if (email) teacher.email = email;
+    if (phone) teacher.phone = phone;
+    if (name) teacher.name = name;
+    if (designation) teacher.designation = designation;
+    if (department) teacher.department = department;
+    if (address) teacher.address = address;
+    if (dob) teacher.dob = new Date(dob);
+    if (gender) teacher.gender = gender;
+    if (religion) teacher.religion = religion;
+    if (category) teacher.category = category;
+    if (bloodgroup) teacher.bloodgroup = bloodgroup;
+    if (emergencyContact) {
+      teacher.emergencyContact = {
+        name: emergencyContact.name || teacher.emergencyContact?.name || "",
+        relation: emergencyContact.relation || teacher.emergencyContact?.relation || "",
+        phone: emergencyContact.phone || teacher.emergencyContact?.phone || "",
+      };
+    }
+    if (experience) teacher.experience = experience;
+    if (highestQualification) teacher.highestQualification = highestQualification;
+    if (AADHARnumber) teacher.AADHARnumber = AADHARnumber;
+    if (salary) teacher.salary = salary;
+    if (bankDetails) {
+      teacher.bankDetails = {
+        accountNumber: bankDetails.accountNumber || teacher.bankDetails?.accountNumber || "",
+        bankName: bankDetails.bankName || teacher.bankDetails?.bankName || "",
+        ifscCode: bankDetails.ifscCode || teacher.bankDetails?.ifscCode || "",
+      };
+    }
+    if (photo) teacher.photo = photo;
+
+    // Add to action history
+    teacher.actionHistory.push("Profile updated");
+
+    await teacher.save();
+
+    // Remove sensitive data
+    const { password, ...teacherData } = teacher.toObject();
+
+    res.json({
+      message: "Profile updated successfully",
+      teacher: teacherData
+    });
+  } catch (error) {
+    console.error("Error updating teacher profile:", error);
+    res.status(500).json({ 
+      message: "Server error",
+      error: error.message 
+    });
+  }
+});
+
+// Change teacher password
+router.put("/changeteacherpassword", verifyTeacherToken, [
+  body("teacherID").notEmpty().withMessage("Teacher ID is required"),
+  body("currentPassword").trim().notEmpty().withMessage("Current password is required"),
+  body("newPassword")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long")
+    .matches(/\d/)
+    .withMessage("Password must contain at least one number")
+    .matches(/[!@#$%^&*]/)
+    .withMessage("Password must contain at least one special character"),
+  body("confirmNewPassword")
+    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage("Passwords do not match"),
+], handleValidationErrors, async (req, res) => {
+  try {
+    const { teacherID, currentPassword, newPassword } = req.body;
+    if (!teacherID) {
+      return res.status(400).json({ message: "Teacher ID is required" });
+    }
+
+    const teacher = await Teacher.findOne({ teacherID });
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, teacher.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    teacher.password = await bcrypt.hash(newPassword, salt);
+
+    // Add to action history
+    teacher.actionHistory.push("Password changed");
+
+    await teacher.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Error changing password:", error);
+    res.status(500).json({ 
+      message: "Server error",
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;
