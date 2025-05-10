@@ -32,11 +32,14 @@ const generateParentID = async () => {
 exports.createStudent = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('Validation errors in createStudent:', errors.array());
     return res.status(400).json({
       message: "Validation failed.",
-      errors: errors
-        .array()
-        .map((err) => ({ field: err.param, message: err.msg })),
+      errors: errors.array().map(err => ({
+        field: err.param,
+        message: err.msg,
+        value: err.value
+      }))
     });
   }
 
@@ -44,6 +47,7 @@ exports.createStudent = async (req, res, next) => {
     // Get logged-in admin data (assuming it's available in `req.admin`)
     const loggedInAdmin = req.admin;
     if (!loggedInAdmin) {
+      console.error('Logged-in admin not found in request');
       return res.status(400).json({ message: "Logged-in admin not found" });
     }
 
@@ -60,17 +64,35 @@ exports.createStudent = async (req, res, next) => {
       parentEmail,
       studentFatherName,
       studentMotherName,
-      relationship, // This is parentRelationship in the parent side
+      relationship,
       religion,
       category,
       bloodgroup,
+      className,
     } = req.body;
+
+    console.log('Received request body:', req.body);
+    console.log('Received file:', req.file);
 
     const photo = req.file ? req.file.filename : null;
 
     // Generate IDs for student and parent
     const studentID = await generateStudentID();
     const parentID = await generateParentID();
+
+    // Find or create the class
+    let classDoc = await Class.findOne({ className });
+    if (!classDoc) {
+      classDoc = new Class({
+        className,
+        classId: `CLASS${className.split(' ')[1]}`,
+        subjects: [],
+        students: [],
+        teachers: [],
+        attendanceHistory: []
+      });
+      await classDoc.save();
+    }
 
     // Plain text passwords (before hashing)
     const studentPlainPassword = "student@123";
@@ -94,43 +116,48 @@ exports.createStudent = async (req, res, next) => {
     // Automatically set today's date for studentDateOfAdmission
     const studentDateOfAdmission = new Date();
 
-    // Create new Student document (without parentRelationship field)
+    // Create new Student document
     const newStudent = new Student({
-      studentName, // Student name
-      photo, // Photo
-      studentID, // Student ID
-      studentPassword, //student Password
-      studentEmail, // student email
-      studentPhone, // student phone number
-      studentAddress, // student address
+      studentName,
+      photo,
+      studentID,
+      studentPassword,
+      studentEmail,
+      studentPhone,
+      studentAddress,
       studentDOB,
       studentGender,
-      studentDateOfAdmission, // Automatically set date
+      studentDateOfAdmission,
       studentFatherName,
       studentMotherName,
       religion,
       category,
       bloodgroup,
+      enrolledClasses: [classDoc._id], // Add the class to enrolledClasses
       registeredBy: {
-        adminID: loggedInAdmin.adminID, // Logged-in admin's ID
-        name: loggedInAdmin.name, // Logged-in admin's name
+        adminID: loggedInAdmin.adminID,
+        name: loggedInAdmin.name,
       },
     });
 
     // Save student to database
     const savedStudent = await newStudent.save();
 
-    // Create new Parent document and link it to the student
+    // Add student to class's students array
+    classDoc.students.push(savedStudent._id);
+    await classDoc.save();
+
+    // Create new Parent document
     const newParent = new Parent({
-      parentName, //Parent name
-      parentContactNumber, // Parent Contact number
+      parentName,
+      parentContactNumber,
       parentEmail,
       parentID,
       parentPassword,
       children: [
         {
-          student: savedStudent._id, // Linking the student to the parent
-          relationship: relationship, // Assigning the relationship (Father/Mother/Guardian)
+          student: savedStudent._id,
+          relationship: relationship,
         },
       ],
     });
@@ -140,11 +167,9 @@ exports.createStudent = async (req, res, next) => {
 
     // Update the student document to include the parent reference
     savedStudent.parent = savedParent._id;
-
-    // Save the updated student document
     await savedStudent.save();
 
-    // Respond with success message and all details, including plain text passwords
+    // Respond with success message and all details
     res.status(201).json({
       message: "Student and Parent profiles created successfully.",
       student: {
@@ -166,18 +191,18 @@ exports.createStudent = async (req, res, next) => {
         photo: savedStudent.photo,
         parentID: savedParent.parentID,
         registeredBy: savedStudent.registeredBy,
+        className: className, // Add className to the response
       },
-
       parent: {
         id: savedParent._id,
         parentID: savedParent.parentID,
         name: savedParent.parentName,
         contactNumber: savedParent.parentContactNumber,
-        parentPassword: parentPlainPassword, // Returning plain text password
+        parentPassword: parentPlainPassword,
         email: savedParent.parentEmail,
         children: savedParent.children.map((child) => ({
-          student: savedStudent.studentName, // The student reference
-          relationship: child.relationship, // The relationship to the student
+          student: savedStudent.studentName,
+          relationship: child.relationship,
         })),
       },
     });

@@ -21,6 +21,7 @@ const verifyTokenAndRole = async (req, res, next, role) => {
   console.log("Authorization Header:", authHeader);
   console.log("Token received:", token ? "Token exists" : "No token");
   console.log("Header Role:", headerRole);
+  console.log("Required Role:", role);
 
   if (!token) {
     console.error("No token provided. Authorization denied.");
@@ -74,7 +75,8 @@ const verifyTokenAndRole = async (req, res, next, role) => {
     
     console.log(`${role.charAt(0).toUpperCase() + role.slice(1)} authenticated successfully:`, {
       id: loggedInUser._id,
-      role: role
+      role: role,
+      name: loggedInUser.name || loggedInUser.studentName || loggedInUser.parentName || loggedInUser.teacherName
     });
     
     next();
