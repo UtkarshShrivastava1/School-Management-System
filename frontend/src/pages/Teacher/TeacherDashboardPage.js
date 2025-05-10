@@ -50,6 +50,11 @@ const dashboardSections = [
         title: "Take Class Attendance",
         page: "take-class-attendance",
       },
+      {
+        icon: <FaClipboardList size={50} />,
+        title: "View Attendance History",
+        page: "view-attendance-history",
+      },
     ],
   },
   {

@@ -88,9 +88,14 @@ const upload = multer({
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('Validation errors:', errors.array());
     return res.status(400).json({
       message: "Validation error",
-      errors: errors.array(),
+      errors: errors.array().map(err => ({
+        field: err.param,
+        message: err.msg,
+        value: err.value
+      }))
     });
   }
   next();
@@ -584,14 +589,18 @@ router.post(
       .isEmail()
       .withMessage("A valid student email is required."),
     body("studentPhone")
-      .isMobilePhone()
-      .withMessage("A valid student phone number is required."),
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone number must be 10 digits"),
     body("studentAddress")
       .notEmpty()
       .withMessage("Student address is required."),
     body("studentDOB").notEmpty().withMessage("Student DOB is required."),
     body("studentGender").isString().withMessage("Invalid student gender."), // Now accepts any string
-
+    body("className")
+      .notEmpty()
+      .withMessage("Class is required.")
+      .isIn(['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'])
+      .withMessage("Class must be in format 'Class X' where X is a number from 1 to 12."),
     body("religion").optional().isString().withMessage("Invalid religion."),
     body("category").optional().isString().withMessage("Invalid category."),
     body("bloodgroup")
@@ -601,8 +610,8 @@ router.post(
 
     body("parentName").notEmpty().withMessage("Parent name is required."),
     body("parentContactNumber")
-      .isMobilePhone()
-      .withMessage("A valid parent contact number is required."),
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Parent contact number must be 10 digits"),
     body("parentEmail")
       .isEmail()
       .withMessage("A valid parent email is required."),
@@ -616,6 +625,7 @@ router.post(
     // Validate relationship for the parent
     body("relationship").isString().withMessage("Invalid relationship."), // Now accepts any string
   ],
+  handleValidationErrors, // Add this line to handle validation errors
   createStudent
 );
 

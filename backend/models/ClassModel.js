@@ -7,6 +7,7 @@ const classSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
+      enum: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12']
     },
     classId: {
       type: String,
@@ -30,6 +31,28 @@ const classSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Teacher",
+      },
+    ],
+    attendanceHistory: [
+      {
+        date: {
+          type: Date,
+          required: true,
+        },
+        records: [
+          {
+            studentId: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Student",
+              required: true,
+            },
+            status: {
+              type: String,
+              enum: ["Present", "Absent"],
+              required: true,
+            },
+          },
+        ],
       },
     ],
   },

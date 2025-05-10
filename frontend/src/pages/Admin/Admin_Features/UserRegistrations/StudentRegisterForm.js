@@ -27,6 +27,7 @@ const StudentRegisterForm = () => {
     parentContactNumber: "",
     parentEmail: "",
     photo: null,
+    className: "", // Add this line for class selection
   });
 
   const [errors, setErrors] = useState([]);
@@ -74,6 +75,7 @@ const StudentRegisterForm = () => {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "X-User-Role": "admin"
           },
         }
       );
@@ -84,7 +86,7 @@ const StudentRegisterForm = () => {
       // Show success notification
       toast.success("Student created successfully!", {
         position: "top-center",
-        autoClose: 3000,
+        autoClose: 5000,
         hideProgressBar: false,
         closeOnClick: false,
         pauseOnHover: true,
@@ -92,15 +94,16 @@ const StudentRegisterForm = () => {
         theme: "colored",
       });
 
-      // Redirect to admin dashboard after 3 seconds
+      // Redirect to admin dashboard after 5 seconds
       setTimeout(() => {
         navigate("/admin/admin-dashboard", {
           state: { activeTab: "User Registration" }
         });
-      }, 3000);
+      }, 5000);
     } catch (error) {
-      setErrors(error.response?.data?.errors || [{ msg: error.message }]);
-      toast.error("Failed to create student. Please try again.", {
+      console.error('Error creating student:', error.response?.data || error);
+      setErrors(error.response?.data?.errors || [{ msg: error.response?.data?.message || error.message }]);
+      toast.error(error.response?.data?.message || "Failed to create student. Please try again.", {
         theme: "colored",
       });
     } finally {
@@ -217,6 +220,22 @@ const StudentRegisterForm = () => {
               onChange={handleChange}
               required
             />
+          </div>
+          <div>
+            <label>Class</label>
+            <select
+              name="className"
+              value={formData.className}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Select a class</option>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={`Class ${i + 1}`}>
+                  Class {i + 1}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label>Email</label>
@@ -432,6 +451,10 @@ const StudentRegisterForm = () => {
               <p>
                 <strong>Name:</strong>{" "}
                 {successData?.student?.name || "Not Provided"}
+              </p>
+              <p>
+                <strong>Class:</strong>{" "}
+                {successData?.student?.className || "Not Provided"}
               </p>
               <p>
                 <strong>Student ID:</strong>{" "}
