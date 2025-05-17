@@ -62,6 +62,8 @@ exports.createStudent = async (req, res, next) => {
       parentName,
       parentContactNumber,
       parentEmail,
+      parentAddress,
+      parentOccupation,
       studentFatherName,
       studentMotherName,
       relationship,
@@ -72,9 +74,16 @@ exports.createStudent = async (req, res, next) => {
     } = req.body;
 
     console.log('Received request body:', req.body);
-    console.log('Received file:', req.file);
+    console.log('Received files:', req.files);
 
-    const photo = req.file ? req.file.filename : null;
+    // Handle student photo
+    const photo = req.files && req.files.photo ? req.files.photo[0].filename : null;
+    
+    // Handle parent photo if it exists in req.files
+    let parentPhoto = null;
+    if (req.files && req.files.parentPhoto) {
+      parentPhoto = req.files.parentPhoto[0].filename;
+    }
 
     // Generate IDs for student and parent
     const studentID = await generateStudentID();
@@ -154,6 +163,10 @@ exports.createStudent = async (req, res, next) => {
       parentEmail,
       parentID,
       parentPassword,
+      address: parentAddress || "",
+      occupation: parentOccupation || "",
+      relationship: relationship || "Parent",
+      photo: parentPhoto || "",
       children: [
         {
           student: savedStudent._id,
@@ -200,6 +213,10 @@ exports.createStudent = async (req, res, next) => {
         contactNumber: savedParent.parentContactNumber,
         parentPassword: parentPlainPassword,
         email: savedParent.parentEmail,
+        address: savedParent.address,
+        occupation: savedParent.occupation,
+        relationship: savedParent.relationship,
+        photo: savedParent.photo,
         children: savedParent.children.map((child) => ({
           student: savedStudent.studentName,
           relationship: child.relationship,
@@ -462,16 +479,32 @@ exports.getStudentProfile = async (req, res) => {
       return res.status(400).json({ message: "Student not authenticated." });
     }
 
+    console.log("Fetching student profile for ID:", req.student._id);
+
     // Fetch student data from the database
     const student = await Student.findById(req.student._id)
       .populate("parent", "parentID parentName")
+      .populate("enrolledClasses", "className classId") // Populate enrolled classes to get class information
       .select("-studentPassword")
       .exec();
 
     // If student not found, return a 404 response
     if (!student) {
+      console.error("Student not found in database with ID:", req.student._id);
       return res.status(404).json({ message: "Student not found." });
     }
+
+    console.log("Found student:", {
+      id: student._id,
+      studentID: student.studentID,
+      name: student.studentName,
+      photo: student.photo || "No photo" 
+    });
+
+    // Get the class name from the first enrolled class (if any)
+    const className = student.enrolledClasses && student.enrolledClasses.length > 0 
+      ? student.enrolledClasses[0].className 
+      : "";
 
     // Format the student data
     const formattedStudent = {
@@ -489,15 +522,77 @@ exports.getStudentProfile = async (req, res) => {
       category: student.category,
       bloodgroup: student.bloodgroup,
       photo: student.photo,
+      className: className, // Include the class name
+      enrolledClasses: student.enrolledClasses, // Include all enrolled classes data
       parentID: student.parent ? student.parent.parentID : null,
       parentName: student.parent ? student.parent.parentName : null,
     };
+
+    console.log("Returning student profile with photo:", formattedStudent.photo);
+    
     res.status(200).json({
       message: "Student profile fetched successfully",
-      data: formattedStudent,
+      student: formattedStudent,
     });
   } catch (error) {
     console.error("Error fetching student profile:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+// Controller to update student profile info
+exports.updateStudentInfo = async (req, res) => {
+  try {
+    console.log("Updating student profile, request body:", req.body);
+    console.log("File received:", req.file);
+    
+    const studentId = req.student._id;
+    
+    // Extract updated fields from request body
+    const { 
+      studentName, 
+      studentEmail, 
+      studentPhone,
+      studentAddress
+    } = req.body;
+    
+    // Find student by ID
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+    
+    console.log("Found student to update:", {
+      id: student._id,
+      studentID: student.studentID,
+      name: student.studentName,
+      currentPhoto: student.photo || "No photo"
+    });
+    
+    // Handle photo upload if provided
+    let photoFilename = student.photo; // Default to existing photo
+    if (req.file) {
+      photoFilename = req.file.filename;
+      console.log("New photo will be saved:", photoFilename);
+    }
+    
+    // Update fields (only if they are provided)
+    if (studentName) student.studentName = studentName;
+    if (studentEmail) student.studentEmail = studentEmail;
+    if (studentPhone) student.studentPhone = studentPhone;
+    if (studentAddress !== undefined) student.studentAddress = studentAddress;
+    if (photoFilename) student.photo = photoFilename;
+    
+    // Save updated student
+    const updatedStudent = await student.save();
+    console.log("Student updated successfully with photo:", updatedStudent.photo);
+    
+    res.status(200).json({
+      message: "Student information updated successfully",
+      student: updatedStudent
+    });
+  } catch (error) {
+    console.error("Error updating student information:", error);
+    res.status(500).json({ message: "Server error. Please try again." });
   }
 };

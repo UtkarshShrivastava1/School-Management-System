@@ -427,7 +427,11 @@ exports.getAssignedClasses = async (req, res) => {
       })
       .populate({
         path: "assignedClasses",
-        select: "className classId",
+        select: "className classId subjects",
+        populate: {
+          path: "subjects",
+          select: "subjectName subjectId subjectCode"
+        }
       });
 
     if (!teacher) {
@@ -439,8 +443,10 @@ exports.getAssignedClasses = async (req, res) => {
     // Format the response to group subjects by class
     const assignedClasses = teacher.assignedClasses.map((cls) => {
       // Filter only subjects relevant to this class
-      const subjectsForClass = teacher.assignedSubjects.filter((sub) =>
-        cls.subjects?.includes(sub.subjectId)
+      const subjectsForClass = teacher.assignedSubjects.filter((sub) => 
+        cls.subjects?.some(classSubject => 
+          classSubject.subjectId === sub.subjectId
+        )
       );
 
       return {

@@ -14,32 +14,37 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
-import ChangeTeacherPassword from "../../components/Teacher/ChangeTeacherPassword";
+import ChangeParentPassword from "../../components/Parent/ChangeParentPassword";
 
-const TeacherProfileManage = () => {
+const ParentProfileManage = () => {
   const [formData, setFormData] = useState({
-    teacherID: "",
-    name: "",
-    email: "",
-    phone: "",
-    designation: "",
-    subjects: "",
-    experience: "",
-    photo: "",
+    parentName: "",
+    parentEmail: "",
+    parentContactNumber: "",
+    address: "",
+    occupation: "",
+    relationship: "",
   });
-  const [teacherData, setTeacherData] = useState(null);
+  const [parentData, setParentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [photo, setPhoto] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const navigate = useNavigate();
 
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  // Set default API URL with fallback
+  const API_URL =
+    process.env.REACT_APP_NODE_ENV === "production"
+      ? process.env.REACT_APP_PRODUCTION_URL
+      : process.env.REACT_APP_DEVELOPMENT_URL || "http://localhost:5000";
+      
+  console.log("Using API URL:", API_URL);
 
   useEffect(() => {
-    const fetchTeacherData = async () => {
+    const fetchParentData = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -49,56 +54,92 @@ const TeacherProfileManage = () => {
           throw new Error("Authentication token is missing. Please log in.");
         }
 
-        const response = await axios.get(`${API_URL}/api/teacher/auth/teacherprofile`, {
+        // Get parent info from localStorage for debugging
+        const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
+        console.log("Parent info from localStorage:", parentInfo);
+        
+        console.log("Fetching parent profile using token:", token ? "Token exists" : "No token");
+        
+        const response = await axios.get(`${API_URL}/api/parent/auth/parentprofile`, {
           headers: {
             Authorization: `Bearer ${token}`,
+            "X-User-Role": "parent", // Add role header for extra validation
           },
         });
 
-        if (!response.data || !response.data.teacher) {
+        console.log("Parent profile API response:", response.data);
+
+        if (!response.data || !response.data.parent) {
           throw new Error("Invalid response format from server");
         }
 
-        const teacherData = response.data.teacher;
-        setTeacherData(teacherData);
+        const parentData = response.data.parent;
+        console.log("Parent data received:", parentData);
+        
+        // Log photo information specifically
+        if (parentData.photo) {
+          console.log("Parent photo found:", parentData.photo);
+          console.log("Full photo URL:", `${API_URL}/uploads/Parent/${parentData.photo}`);
+        } else {
+          console.log("No parent photo available in the response");
+        }
+        
+        setParentData(parentData);
         setFormData({
-          teacherID: teacherData.teacherID || "",
-          name: teacherData.name || "",
-          email: teacherData.email || "",
-          phone: teacherData.phone || "",
-          designation: teacherData.designation || "",
-          subjects: teacherData.subjects || "",
-          experience: teacherData.experience || "",
-          photo: teacherData.photo || "",
+          parentID: parentData.parentID || parentInfo.parentID || "",
+          parentName: parentData.parentName || parentInfo.parentName || "",
+          parentEmail: parentData.parentEmail || parentInfo.parentEmail || "",
+          parentContactNumber: parentData.parentContactNumber || parentInfo.parentContactNumber || "",
+          address: parentData.address || "",
+          occupation: parentData.occupation || "",
+          relationship: parentData.relationship || "",
         });
       } catch (err) {
-        const errorMessage = err.response?.data?.message || err.message || "Failed to fetch teacher data";
-        setError(errorMessage);
-        toast.error(errorMessage);
-        console.error("Error fetching teacher data:", err);
+        console.error("Error fetching parent profile:", err);
+        
+        // Fallback to localStorage data if API fails
+        try {
+          const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
+          if (parentInfo && parentInfo.parentID) {
+            console.log("Using localStorage data as fallback:", parentInfo);
+            setParentData(parentInfo);
+            setFormData({
+              parentID: parentInfo.parentID || "",
+              parentName: parentInfo.parentName || "",
+              parentEmail: parentInfo.parentEmail || "",
+              parentContactNumber: parentInfo.parentContactNumber || "",
+              address: parentInfo.address || "",
+              occupation: parentInfo.occupation || "",
+              relationship: parentInfo.relationship || "",
+            });
+            setError("Using locally stored profile data. Some information may be limited.");
+          } else {
+            setError("Failed to fetch profile data and no local data available");
+          }
+        } catch (localStorageError) {
+          console.error("Error accessing localStorage:", localStorageError);
+          const errorMessage = err.response?.data?.message || err.message || "Failed to fetch parent data";
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTeacherData();
+    fetchParentData();
   }, [API_URL]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // Convert experience to a number
-    if (name === 'experience') {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value === '' ? '' : Number(value),
-      }));
-    } else {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
-    }
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handlePhotoChange = (e) => {
+    setPhoto(e.target.files[0]);
   };
 
   const handleEditToggle = () => {
@@ -117,39 +158,36 @@ const TeacherProfileManage = () => {
         throw new Error("Authentication token is missing. Please log in.");
       }
 
-      // Get teacherInfo from localStorage to ensure ID is included
-      const teacherInfo = JSON.parse(localStorage.getItem("teacherInfo") || "{}");
+      // Get parentInfo from localStorage to ensure ID is included
+      const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
       
       const formDataToSubmit = new FormData();
       
-      // Ensure teacherID is always included
-      formDataToSubmit.append("teacherID", formData.teacherID || teacherInfo.teacherID || teacherData.teacherID);
+      // Ensure parentID is always included
+      formDataToSubmit.append("parentID", formData.parentID || parentInfo.parentID || parentData.parentID);
       
       // Add other form fields
       Object.keys(formData).forEach((key) => {
-        if (key !== "teacherID" && formData[key] !== null && formData[key] !== undefined) { // Skip teacherID as we've already added it
-          // Convert experience to number before appending
-          if (key === 'experience' && formData[key] !== '') {
-            formDataToSubmit.append(key, Number(formData[key]));
-          } else {
-            formDataToSubmit.append(key, formData[key]);
-          }
+        if (key !== "parentID" && formData[key] !== null && formData[key] !== undefined) { // Skip parentID as we've already added it
+          formDataToSubmit.append(key, formData[key]);
         }
       });
 
+      // Add photo if it exists
+      if (photo) {
+        formDataToSubmit.append("photo", photo);
+      }
+      
       // Log what's being submitted
       console.log("Submitting form data:", {
-        teacherID: formData.teacherID || teacherInfo.teacherID || teacherData.teacherID,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        experience: formData.experience,
-        subjects: formData.subjects,
-        designation: formData.designation
+        parentID: formData.parentID || parentInfo.parentID || parentData.parentID,
+        parentName: formData.parentName,
+        parentEmail: formData.parentEmail,
+        parentContactNumber: formData.parentContactNumber
       });
 
       const response = await axios.put(
-        `${API_URL}/api/teacher/auth/updateteacherinfo`,
+        `${API_URL}/api/parent/auth/updateparentinfo`,
         formDataToSubmit,
         {
           headers: {
@@ -159,22 +197,22 @@ const TeacherProfileManage = () => {
         }
       );
 
-      if (!response.data || !response.data.teacher) {
+      if (!response.data || !response.data.parent) {
         throw new Error("Invalid response format from server");
       }
 
       // Update local state with the updated data
-      setTeacherData(response.data.teacher);
+      setParentData(response.data.parent);
       
       // Update the form data to reflect the changes
       setFormData({
-        teacherID: response.data.teacher.teacherID || "",
-        name: response.data.teacher.name || "",
-        email: response.data.teacher.email || "",
-        phone: response.data.teacher.phone || "",
-        designation: response.data.teacher.designation || "",
-        subjects: response.data.teacher.subjects || "",
-        experience: response.data.teacher.experience || "",
+        parentID: response.data.parent.parentID || "",
+        parentName: response.data.parent.parentName || "",
+        parentEmail: response.data.parent.parentEmail || "",
+        parentContactNumber: response.data.parent.parentContactNumber || "",
+        address: response.data.parent.address || "",
+        occupation: response.data.parent.occupation || "",
+        relationship: response.data.parent.relationship || "",
       });
       
       setSuccess("Profile updated successfully!");
@@ -212,7 +250,7 @@ const TeacherProfileManage = () => {
 
   return (
     <div className="container mt-5">
-      <h2 className="text-center mb-4">Manage Teacher Profile</h2>
+      <h2 className="text-center mb-4">Manage Parent Profile</h2>
       <ToastContainer />
       
       {/* Back button with icon */}
@@ -243,54 +281,57 @@ const TeacherProfileManage = () => {
           <Row>
             <Col md={4} className="text-center">
               <Image
-                src={teacherData?.photo 
-                  ? `${API_URL}/uploads/Teacher/${teacherData.photo}`
+                src={parentData?.photo 
+                  ? `${API_URL}/uploads/Parent/${parentData.photo}`
                   : "https://via.placeholder.com/150"}
-                alt="Teacher Profile"
+                alt="Parent Profile"
                 className="rounded-circle mb-3"
                 style={{
                   width: "150px",
                   height: "150px",
                   objectFit: "cover",
+                  border: "2px solid #007bff"
+                }}
+                onError={(e) => {
+                  console.error("Error loading parent image:", e);
+                  console.log("Failed image source:", e.target.src);
+                  e.target.src = "https://via.placeholder.com/150";
+                  e.target.onerror = null; // Prevent infinite loop
                 }}
               />
-              <h5 className="mt-2">{teacherData?.name || "N/A"}</h5>
-              <p className="text-muted">{teacherData?.designation || "N/A"}</p>
+              <h5 className="mt-2">{parentData?.parentName || "N/A"}</h5>
+              <p className="text-muted">{parentData?.relationship || "N/A"}</p>
             </Col>
             <Col md={8}>
               <Table bordered hover>
                 <tbody>
                   <tr>
-                    <th>Teacher ID</th>
-                    <td>{teacherData?.teacherID || "N/A"}</td>
+                    <th>Role</th>
+                    <td>Parent</td>
                   </tr>
                   <tr>
-                    <th>Role</th>
-                    <td>{teacherData?.role || "Teacher"}</td>
+                    <th>Parent ID</th>
+                    <td>{parentData?.parentID || "N/A"}</td>
                   </tr>
                   <tr>
                     <th>Email</th>
-                    <td>{teacherData?.email || "N/A"}</td>
+                    <td>{parentData?.parentEmail || "N/A"}</td>
                   </tr>
                   <tr>
                     <th>Phone</th>
-                    <td>{teacherData?.phone || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Department</th>
-                    <td>{teacherData?.department || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Designation</th>
-                    <td>{teacherData?.designation || "N/A"}</td>
+                    <td>{parentData?.parentContactNumber || "N/A"}</td>
                   </tr>
                   <tr>
                     <th>Address</th>
-                    <td>{teacherData?.address || "N/A"}</td>
+                    <td>{parentData?.address || "N/A"}</td>
                   </tr>
                   <tr>
-                    <th>Experience</th>
-                    <td>{teacherData?.experience ? `${teacherData.experience} years` : "N/A"}</td>
+                    <th>Occupation</th>
+                    <td>{parentData?.occupation || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <th>Relationship</th>
+                    <td>{parentData?.relationship || "N/A"}</td>
                   </tr>
                 </tbody>
               </Table>
@@ -320,8 +361,8 @@ const TeacherProfileManage = () => {
             <Form.Control
               type="text"
               placeholder="Enter name"
-              name="name"
-              value={formData.name || ""}
+              name="parentName"
+              value={formData.parentName || ""}
               onChange={handleInputChange}
             />
           </Form.Group>
@@ -331,8 +372,8 @@ const TeacherProfileManage = () => {
             <Form.Control
               type="email"
               placeholder="Enter email"
-              name="email"
-              value={formData.email || ""}
+              name="parentEmail"
+              value={formData.parentEmail || ""}
               onChange={handleInputChange}
             />
           </Form.Group>
@@ -342,56 +383,51 @@ const TeacherProfileManage = () => {
             <Form.Control
               type="text"
               placeholder="Enter phone number"
-              name="phone"
-              value={formData.phone || ""}
+              name="parentContactNumber"
+              value={formData.parentContactNumber || ""}
               onChange={handleInputChange}
             />
           </Form.Group>
 
-          <Form.Group controlId="formDesignation" className="mb-3">
-            <Form.Label>Designation</Form.Label>
+          <Form.Group controlId="formAddress" className="mb-3">
+            <Form.Label>Address</Form.Label>
             <Form.Control
               type="text"
-              placeholder="Enter designation"
-              name="designation"
-              value={formData.designation || ""}
+              placeholder="Enter address"
+              name="address"
+              value={formData.address || ""}
               onChange={handleInputChange}
             />
           </Form.Group>
 
-          <Form.Group controlId="formSubjects" className="mb-3">
-            <Form.Label>Subjects</Form.Label>
+          <Form.Group controlId="formOccupation" className="mb-3">
+            <Form.Label>Occupation</Form.Label>
             <Form.Control
               type="text"
-              placeholder="Enter subjects taught"
-              name="subjects"
-              value={formData.subjects || ""}
+              placeholder="Enter occupation"
+              name="occupation"
+              value={formData.occupation || ""}
               onChange={handleInputChange}
             />
           </Form.Group>
 
-          <Form.Group controlId="formExperience" className="mb-3">
-            <Form.Label>Experience (in years)</Form.Label>
+          <Form.Group controlId="formRelationship" className="mb-3">
+            <Form.Label>Relationship</Form.Label>
             <Form.Control
-              type="number"
-              placeholder="Enter experience in years"
-              name="experience"
-              value={formData.experience || ""}
+              type="text"
+              placeholder="Enter relationship"
+              name="relationship"
+              value={formData.relationship || ""}
               onChange={handleInputChange}
             />
           </Form.Group>
 
-          <Form.Group controlId="formFile" className="mb-3">
+          <Form.Group controlId="formPhoto" className="mb-3">
             <Form.Label>Profile Photo</Form.Label>
             <Form.Control
               type="file"
               name="photo"
-              onChange={(e) =>
-                setFormData((prevData) => ({
-                  ...prevData,
-                  photo: e.target.files[0],
-                }))
-              }
+              onChange={handlePhotoChange}
               accept="image/*"
             />
             <Form.Text className="text-muted">
@@ -415,7 +451,7 @@ const TeacherProfileManage = () => {
       )}
 
       {/* Password Change Modal */}
-      <ChangeTeacherPassword
+      <ChangeParentPassword
         show={showPasswordModal}
         handleClose={handleClosePasswordModal}
       />
@@ -423,4 +459,4 @@ const TeacherProfileManage = () => {
   );
 };
 
-export default TeacherProfileManage;
+export default ParentProfileManage; 

@@ -257,7 +257,7 @@ const AdminRegisterForm = () => {
   // Close modal and navigate back to admin dashboard
   const handleCloseModal = () => {
     setShowModal(false);
-    setTimeout(() => navigate("/admin/admin-dashboard"), 300);
+    navigate("/admin/admin-dashboard");
   };
 
   // Print modal content
@@ -790,11 +790,16 @@ const AdminRegisterForm = () => {
                 style={{ textAlign: "center", marginBottom: "20px" }}
               >
                 <Image
-                  src={`${API_URL}/uploads/Admin/${successData.data.photo}`}
-                  alt="Admin Profile"
-                  onError={(e) =>
-                    (e.target.src = "https://via.placeholder.com/150")
+                  src={successData?.data?.photo ? 
+                    `${API_URL}/uploads/admins/${successData.data.photo}` : 
+                    `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`
                   }
+                  alt="Admin Profile"
+                  onError={(e) => {
+                    console.log("Admin image load error, using data URI placeholder");
+                    // Using a simple data URI for a gray square with a person icon
+                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23cccccc'/%3E%3Cpath d='M75 75 Q95 45 115 75 L115 115 L35 115 L35 75 Q55 45 75 75' fill='%23888888'/%3E%3Ccircle cx='75' cy='45' r='20' fill='%23888888'/%3E%3C/svg%3E";
+                  }}
                   style={{
                     width: "150px",
                     height: "150px",

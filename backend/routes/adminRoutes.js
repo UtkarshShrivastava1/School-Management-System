@@ -50,23 +50,55 @@ const {
 // Set up multer for file storage (handling file uploads)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = "uploads/Admin/";
+    // Determine the correct upload directory based on the field name
+    let uploadDir = "uploads/Admin/";
+    if (file.fieldname === "photo" && req.url.includes("createstudent")) {
+      uploadDir = "uploads/Student/";
+    } else if (file.fieldname === "photo" && req.url.includes("createteacher")) {
+      uploadDir = "uploads/Teacher/";
+    } else if (file.fieldname === "parentPhoto") {
+      uploadDir = "uploads/Parent/";
+    }
+    
     const fs = require("fs");
 
     // Ensure the 'uploads' directory exists
     if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-    cb(null, uploadDir); // Store files in "uploads" folder
+    
+    console.log(`Saving ${file.fieldname} to directory: ${uploadDir}`);
+    cb(null, uploadDir); // Store files in appropriate folder
   },
   filename: (req, file, cb) => {
     // Generate a unique filename based on current timestamp
-    cb(null, Date.now() + path.extname(file.originalname));
+    const fileName = Date.now() + path.extname(file.originalname);
+    console.log(`Generated filename: ${fileName} for field: ${file.fieldname}`);
+    cb(null, fileName);
   },
 });
 
 // Configure multer to handle file type validation
 const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    // Only allow images with specific file extensions and MIME types
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      return cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
+// Configure multer for multiple file uploads
+const uploadFields = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
@@ -581,7 +613,10 @@ router.post(
 router.post(
   "/createstudent",
   verifyAdminToken, // Verify admin token
-  upload.single("photo"), // Handle file upload for the student's photo
+  uploadFields.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'parentPhoto', maxCount: 1 }
+  ]), // Handle file uploads for both student and parent photos
   [
     // Validation middleware
     body("studentName").notEmpty().withMessage("Student name is required."),

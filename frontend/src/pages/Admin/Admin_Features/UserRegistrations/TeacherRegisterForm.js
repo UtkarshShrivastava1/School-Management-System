@@ -27,10 +27,10 @@ const TeacherRegisterForm = () => {
       relation: "",
       phone: "",
     },
-    experience: "",
+    experience: "0",
     highestQualification: "",
     AADHARnumber: "",
-    salary: "",
+    salary: "0",
     bankDetails: {
       accountNumber: "",
       bankName: "",
@@ -112,19 +112,56 @@ const TeacherRegisterForm = () => {
     // Populate FormData with nested and array data
     Object.keys(formData).forEach((key) => {
       if (key === "emergencyContact" || key === "bankDetails") {
-        Object.keys(formData[key]).forEach((subKey) => {
-          formDataToSend.append(`${key}.${subKey}`, formData[key][subKey]);
-        });
+        // Parse nested objects differently - needed for proper backend handling
+        if (key === "emergencyContact") {
+          formDataToSend.append("emergencyContact.name", formData.emergencyContact.name || "");
+          formDataToSend.append("emergencyContact.relation", formData.emergencyContact.relation || "");
+          formDataToSend.append("emergencyContact.phone", formData.emergencyContact.phone || "");
+          console.log("Added emergencyContact fields");
+        } else if (key === "bankDetails") {
+          formDataToSend.append("bankDetails.accountNumber", formData.bankDetails.accountNumber || "");
+          formDataToSend.append("bankDetails.bankName", formData.bankDetails.bankName || "");
+          formDataToSend.append("bankDetails.ifscCode", formData.bankDetails.ifscCode || "");
+          console.log("Added bankDetails fields");
+        }
+      } else if (key === "salary" || key === "experience") {
+        // Ensure these are sent as numbers
+        const numValue = parseFloat(formData[key]) || 0;
+        formDataToSend.append(key, numValue.toString());
+        console.log(`Adding numeric field ${key}:`, numValue);
       } else if (Array.isArray(formData[key])) {
         formData[key].forEach((item, index) => {
-          formDataToSend.append(`${key}[${index}]`, item);
+          formDataToSend.append(`${key}[${index}]`, item || "");
         });
       } else {
-        formDataToSend.append(key, formData[key]);
+        // Handle null/undefined values
+        const value = formData[key] || "";
+        formDataToSend.append(key, value);
+        console.log(`Adding field ${key}:`, value);
       }
     });
 
+    // Double-check required fields
+    const requiredFields = ["name", "email", "phone", "designation", "address", "dob", "gender", "department", "salary"];
+    const missingFields = requiredFields.filter(field => !formData[field] || formData[field] === "");
+    
+    if (missingFields.length > 0) {
+      setErrors(missingFields.map(field => ({ msg: `${field} is required` })));
+      setLoading(false);
+      toast.error(`Missing required fields: ${missingFields.join(", ")}`, {
+        position: "top-center",
+        theme: "colored",
+      });
+      return;
+    }
+
     try {
+      // Log each key-value pair in formDataToSend for debugging
+      console.log("Form data being sent:");
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0], pair[1]);
+      }
+      
       const response = await axios.post(
         `${API_URL}/api/admin/auth/createteacher`,
         formDataToSend,
@@ -132,6 +169,7 @@ const TeacherRegisterForm = () => {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "X-User-Role": "admin"
           },
         }
       );
@@ -151,22 +189,33 @@ const TeacherRegisterForm = () => {
       });
 
       // Redirect to admin dashboard after 3 seconds
-      setTimeout(() => {
-        navigate("/admin/admin-dashboard", {
-          state: { activeTab: "User Registration" }
-        });
-      }, 3000);
+      // setTimeout(() => {
+      //   navigate("/admin/admin-dashboard", {
+      //     state: { activeTab: "User Registration" }
+      //   });
+      // }, 3000);
     } catch (error) {
-      console.error("Form submission error:", error.response?.data || error);
+      console.error("Form submission error:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      
+      // Display detailed error information for debugging
+      const errorResponse = error.response?.data || {};
+      const errorMessage = errorResponse.message || "Unknown error occurred";
+      const validationErrors = errorResponse.errors || [];
+      const detailedError = errorResponse.error || "";
+      
+      console.log("Error message:", errorMessage);
+      console.log("Validation errors:", validationErrors);
+      console.log("Detailed error:", detailedError);
       
       // Handle validation errors
-      if (error.response?.data?.errors) {
-        const validationErrors = error.response.data.errors;
+      if (validationErrors.length > 0) {
         setErrors(validationErrors);
         
-        // Show the first validation error in the toast
-        if (validationErrors.length > 0) {
-          toast.error(validationErrors[0].msg, {
+        // Show all validation errors in the toast
+        validationErrors.forEach(error => {
+          toast.error(error.msg, {
             position: "top-center",
             autoClose: 5000,
             hideProgressBar: false,
@@ -175,28 +224,26 @@ const TeacherRegisterForm = () => {
             draggable: true,
             theme: "colored",
           });
-        }
+        });
       } else {
         // Handle other types of errors
-        let errorMessage = "Failed to create teacher. Please try again.";
+        let displayErrorMessage = errorMessage;
         
-        if (error.response?.data?.error?.includes("duplicate key error")) {
-          if (error.response.data.error.includes("AADHARnumber")) {
-            errorMessage = "A teacher with this AADHAR number already exists.";
+        if (detailedError.includes("duplicate key error")) {
+          if (detailedError.includes("AADHARnumber")) {
+            displayErrorMessage = "A teacher with this AADHAR number already exists.";
             setFormData(prev => ({ ...prev, AADHARnumber: "" }));
-          } else if (error.response.data.error.includes("phone")) {
-            errorMessage = "A teacher with this phone number already exists.";
+          } else if (detailedError.includes("phone")) {
+            displayErrorMessage = "A teacher with this phone number already exists.";
             setFormData(prev => ({ ...prev, phone: "" }));
-          } else if (error.response.data.error.includes("email")) {
-            errorMessage = "A teacher with this email already exists.";
+          } else if (detailedError.includes("email")) {
+            displayErrorMessage = "A teacher with this email already exists.";
             setFormData(prev => ({ ...prev, email: "" }));
           }
-        } else {
-          errorMessage = error.response?.data?.message || errorMessage;
         }
         
-        setErrors([{ msg: errorMessage }]);
-        toast.error(errorMessage, {
+        setErrors([{ msg: displayErrorMessage }]);
+        toast.error(displayErrorMessage, {
           position: "top-center",
           autoClose: 5000,
           hideProgressBar: false,
@@ -215,7 +262,8 @@ const TeacherRegisterForm = () => {
   // Handles closing modal and navigation back to teacher dashboard
   const handleCloseModal = () => {
     setShowModal(false);
-    setTimeout(() => navigate("/admin-dashboard"), 300);
+    // setTimeout(() => navigate("/admin-dashboard"), 300);
+    navigate("/admin-dashboard");
   };
   //--------------------------------------------------------------------------------------------------------------------------------
   //Handles Print Modal
@@ -339,7 +387,15 @@ const TeacherRegisterForm = () => {
             value={formData.phone}
             onChange={handleChange}
             required
+            pattern="[0-9]{10}"
+            maxLength="10"
+            placeholder="10-digit phone number"
           />
+          {formData.phone && formData.phone.length !== 10 && (
+            <span style={{ color: "red", fontSize: "0.8rem" }}>
+              Phone number must be exactly 10 digits
+            </span>
+          )}
         </div>
 
         <div>
@@ -464,7 +520,15 @@ const TeacherRegisterForm = () => {
             value={formData.emergencyContact.phone}
             onChange={handleChange}
             required
+            pattern="[0-9]{10}"
+            maxLength="10"
+            placeholder="10-digit phone number"
           />
+          {formData.emergencyContact.phone && formData.emergencyContact.phone.length !== 10 && (
+            <span style={{ color: "red", fontSize: "0.8rem" }}>
+              Emergency contact phone must be exactly 10 digits
+            </span>
+          )}
         </div>
 
         <div>
@@ -497,7 +561,15 @@ const TeacherRegisterForm = () => {
             value={formData.AADHARnumber}
             onChange={handleChange}
             required
+            pattern="[0-9]{12}"
+            maxLength="12"
+            placeholder="12-digit AADHAR number"
           />
+          {formData.AADHARnumber && formData.AADHARnumber.length !== 12 && (
+            <span style={{ color: "red", fontSize: "0.8rem" }}>
+              AADHAR number must be exactly 12 digits
+            </span>
+          )}
         </div>
 
         <div>
@@ -508,6 +580,8 @@ const TeacherRegisterForm = () => {
             value={formData.salary}
             onChange={handleChange}
             required
+            min="0"
+            placeholder="Enter salary amount"
           />
         </div>
 
@@ -570,11 +644,16 @@ const TeacherRegisterForm = () => {
                 }}
               >
                 <Image
-                  src={`${API_URL}/uploads/Admin/${successData.data.photo}`}
-                  alt="Teacher Profile"
-                  onError={
-                    (e) => (e.target.src = "https://via.placeholder.com/150") // Fallback image
+                  src={successData?.data?.photo ? 
+                    `${API_URL}/uploads/Teacher/${successData.data.photo}` : 
+                    `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`
                   }
+                  alt="Teacher Profile"
+                  onError={(e) => {
+                    console.log("Teacher image load error, using data URI placeholder");
+                    // Using a simple data URI for a gray square with a person icon
+                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23cccccc'/%3E%3Cpath d='M75 75 Q95 45 115 75 L115 115 L35 115 L35 75 Q55 45 75 75' fill='%23888888'/%3E%3Ccircle cx='75' cy='45' r='20' fill='%23888888'/%3E%3C/svg%3E";
+                  }}
                   style={{
                     width: "150px",
                     height: "150px",

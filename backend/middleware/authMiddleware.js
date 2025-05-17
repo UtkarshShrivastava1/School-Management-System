@@ -56,6 +56,11 @@ const verifyTokenAndRole = async (req, res, next, role) => {
         loggedInUser = await Student.findById(userId);
       } else if (role === "parent") {
         loggedInUser = await Parent.findById(userId);
+        console.log("Parent user fetched:", loggedInUser ? {
+          id: loggedInUser._id,
+          parentID: loggedInUser.parentID,
+          name: loggedInUser.parentName
+        } : "Not found");
       }
     } catch (dbError) {
       console.error(`Database error finding ${role}:`, dbError);
@@ -72,6 +77,16 @@ const verifyTokenAndRole = async (req, res, next, role) => {
     // Attach user to request
     req[role] = loggedInUser;
     req.user = { id: loggedInUser._id, role: role };
+    
+    // Make sure we log the entire req.parent object if we're dealing with a parent
+    if (role === "parent") {
+      console.log("Setting req.parent:", {
+        _id: loggedInUser._id,
+        parentID: loggedInUser.parentID,
+        parentName: loggedInUser.parentName,
+        hasParentPassword: !!loggedInUser.parentPassword
+      });
+    }
     
     console.log(`${role.charAt(0).toUpperCase() + role.slice(1)} authenticated successfully:`, {
       id: loggedInUser._id,

@@ -6,6 +6,7 @@ const compression = require("compression");
 const helmet = require("helmet");
 require("colors");
 const connectToMongo = require("./config/db"); // Import the MongoDB connection function
+const ensureUploadDirsExist = require("./utils/checkUploads"); // Import upload directory checker
 
 // Load environment variables
 dotenv.config();
@@ -18,6 +19,9 @@ const isProduction = process.env.NODE_ENV === "production"; // Declare first
 const mongoURI = isProduction
   ? process.env.MONGO_ATLAS_URI
   : process.env.MONGO_LOCAL_URI;
+
+// Ensure upload directories exist
+ensureUploadDirsExist();
 
 // Middleware setup
 app.use(express.json());
