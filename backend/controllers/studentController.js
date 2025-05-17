@@ -30,147 +30,26 @@ const generateParentID = async () => {
 
 //============================================================================================================
 
-// Get Student Profile
-const getStudentProfile = async (req, res) => {
-  try {
-    if (!req.student || !req.student.id) {
-      return res.status(401).json({ message: "Unauthorized - Invalid token" });
-    }
-
-    const student = await Student.findById(req.student.id)
-      .populate({
-        path: 'parent',
-        select: 'parentName parentID parentEmail parentContactNumber',
-        model: 'Parent'
-      })
-      .populate({
-        path: 'enrolledClasses',
-        select: 'className classId',
-        model: 'Class'
-      })
-      .select('-studentPassword');
-    
-    if (!student) {
-      return res.status(404).json({ message: "Student not found" });
-    }
-
-    res.json({ student });
-  } catch (error) {
-    console.error("Get student profile error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Update Student Profile
-const updateStudentProfile = async (req, res) => {
-  try {
-    console.log("Update student profile request received:", req.body);
-    
-    const { studentID } = req.body;
-    if (!studentID) {
-      console.error("Student ID is missing in request body");
-      return res.status(400).json({ message: "Student ID is required" });
-    }
-
-    console.log("Looking for student with ID:", studentID);
-    const student = await Student.findOne({ studentID });
-    
-    if (!student) {
-      console.log("Student not found with ID:", studentID);
-      return res.status(404).json({ message: "Student not found" });
-    }
-    
-    console.log("Student found:", student.studentID);
-
-    const {
-      studentEmail,
-      studentPhone,
-      studentName,
-      studentAddress,
-      studentDOB,
-      studentGender,
-      religion,
-      category,
-      bloodgroup,
-      studentFatherName,
-      studentMotherName,
-      emergencyContact,
-    } = req.body;
-    
-    const photo = req.file ? req.file.filename : null;
-    console.log("Photo received:", photo);
-
-    // Update fields if provided
-    if (studentEmail) student.studentEmail = studentEmail;
-    if (studentPhone) student.studentPhone = studentPhone;
-    if (studentName) student.studentName = studentName;
-    if (studentAddress) student.studentAddress = studentAddress;
-    if (studentDOB) student.studentDOB = new Date(studentDOB);
-    if (studentGender) student.studentGender = studentGender;
-    if (religion) student.religion = religion;
-    if (category) student.category = category;
-    if (bloodgroup) student.bloodgroup = bloodgroup;
-    if (studentFatherName) student.studentFatherName = studentFatherName;
-    if (studentMotherName) student.studentMotherName = studentMotherName;
-    if (emergencyContact) {
-      try {
-        // If emergencyContact is a string (JSON), parse it
-        const contactData = typeof emergencyContact === 'string' 
-          ? JSON.parse(emergencyContact) 
-          : emergencyContact;
-          
-        student.emergencyContact = {
-          name: contactData.name || student.emergencyContact?.name || "",
-          relation: contactData.relation || student.emergencyContact?.relation || "",
-          phone: contactData.phone || student.emergencyContact?.phone || "",
-        };
-      } catch (err) {
-        console.error("Error processing emergencyContact:", err);
-      }
-    }
-    if (photo) student.photo = photo;
-
-    // Add to action history
-    student.actionHistory.push("Profile updated");
-
-    console.log("Saving updated student data...");
-    await student.save();
-    console.log("Student data saved successfully");
-
-    // Create a new object without the password
-    const studentObj = student.toObject();
-    delete studentObj.studentPassword;
-
-    res.json({
-      message: "Profile updated successfully",
-      student: studentObj
-    });
-  } catch (error) {
-    console.error("Error updating student profile:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
+exports.createStudent = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    console.error('Validation errors in createStudent:', errors.array());
+    return res.status(400).json({
+      message: "Validation failed.",
+      errors: errors.array().map(err => ({
+        field: err.param,
+        message: err.msg,
+        value: err.value
+      }))
     });
   }
-};
 
-// Change Student Password
-const changeStudentPassword = async (req, res) => {
   try {
-    const { studentID, currentPassword, newPassword } = req.body;
-    if (!studentID) {
-      return res.status(400).json({ message: "Student ID is required" });
-    }
-
-    const student = await Student.findOne({ studentID });
-    if (!student) {
-      return res.status(404).json({ message: "Student not found" });
-    }
-
-    // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, student.studentPassword);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Current password is incorrect" });
+    // Get logged-in admin data (assuming it's available in `req.admin`)
+    const loggedInAdmin = req.admin;
+    if (!loggedInAdmin) {
+      console.error('Logged-in admin not found in request');
+      return res.status(400).json({ message: "Logged-in admin not found" });
     }
 
     // Hash new password
@@ -205,15 +84,54 @@ const createStudent = async (req, res) => {
       parentName,
       parentContactNumber,
       parentEmail,
+      parentAddress,
+      parentOccupation,
       studentFatherName,
       studentMotherName,
       relationship,
       religion,
       category,
       bloodgroup,
-      AADHARnumber,
-      emergencyContact
+      className,
     } = req.body;
+
+    console.log('Received request body:', req.body);
+    console.log('Received files:', req.files);
+
+    // Handle student photo
+    const photo = req.files && req.files.photo ? req.files.photo[0].filename : null;
+    
+    // Handle parent photo if it exists in req.files
+    let parentPhoto = null;
+    if (req.files && req.files.parentPhoto) {
+      parentPhoto = req.files.parentPhoto[0].filename;
+    }
+
+    // Generate IDs for student and parent
+    const studentID = await generateStudentID();
+    const parentID = await generateParentID();
+
+    // Find or create the class
+    let classDoc = await Class.findOne({ className });
+    if (!classDoc) {
+      classDoc = new Class({
+        className,
+        classId: `CLASS${className.split(' ')[1]}`,
+        subjects: [],
+        students: [],
+        teachers: [],
+        attendanceHistory: []
+      });
+      await classDoc.save();
+    }
+
+    // Plain text passwords (before hashing)
+    const studentPlainPassword = "student@123";
+    const parentPlainPassword = "parent@123";
+
+    // Hash the passwords before saving to database
+    const studentPassword = await bcrypt.hash(studentPlainPassword, 10);
+    const parentPassword = await bcrypt.hash(parentPlainPassword, 10);
 
     // Check if student or parent email already exists
     const existingStudent = await Student.findOne({ studentEmail });
@@ -234,45 +152,36 @@ const createStudent = async (req, res) => {
     const studentPlainPassword = "student@123";
     const parentPlainPassword = "parent@123";
 
-    // Hash the passwords
-    const studentPassword = await bcrypt.hash(studentPlainPassword, 10);
-    const parentPassword = await bcrypt.hash(parentPlainPassword, 10);
-
     // Create new Student document
     const newStudent = new Student({
       studentName,
-      photo: req.file ? req.file.path : null,
+      photo,
       studentID,
       studentPassword,
       studentEmail,
       studentPhone,
       studentAddress,
-      studentDOB: new Date(studentDOB),
+      studentDOB,
       studentGender,
-      studentDateOfAdmission: new Date(),
+      studentDateOfAdmission,
       studentFatherName,
       studentMotherName,
       religion,
       category,
       bloodgroup,
-      AADHARnumber,
-      emergencyContact: emergencyContact || {
-        name: "",
-        relation: "",
-        phone: ""
+      enrolledClasses: [classDoc._id], // Add the class to enrolledClasses
+      registeredBy: {
+        adminID: loggedInAdmin.adminID,
+        name: loggedInAdmin.name,
       },
-      role: "student",
-      registeredBy: req.admin ? {
-        adminID: req.admin.adminID,
-        name: req.admin.name,
-      } : null,
-      lastLogin: new Date(),
-      loginHistory: [new Date()],
-      actionHistory: ["Account created"]
     });
 
     // Save student to database
     const savedStudent = await newStudent.save();
+
+    // Add student to class's students array
+    classDoc.students.push(savedStudent._id);
+    await classDoc.save();
 
     // Create new Parent document
     const newParent = new Parent({
@@ -280,11 +189,15 @@ const createStudent = async (req, res) => {
       parentContactNumber,
       parentEmail,
       parentID,
-      password: parentPassword,
+      parentPassword,
+      address: parentAddress || "",
+      occupation: parentOccupation || "",
+      relationship: relationship || "Parent",
+      photo: parentPhoto || "",
       children: [
         {
           student: savedStudent._id,
-          relationship,
+          relationship: relationship,
         },
       ],
     });
@@ -296,6 +209,7 @@ const createStudent = async (req, res) => {
     savedStudent.parent = savedParent._id;
     await savedStudent.save();
 
+    // Respond with success message and all details
     res.status(201).json({
       message: "Student and Parent profiles created successfully.",
       student: {
@@ -317,6 +231,7 @@ const createStudent = async (req, res) => {
         photo: savedStudent.photo,
         parentID: savedParent.parentID,
         registeredBy: savedStudent.registeredBy,
+        className: className, // Add className to the response
       },
       parent: {
         id: savedParent._id,
@@ -325,6 +240,10 @@ const createStudent = async (req, res) => {
         contactNumber: savedParent.parentContactNumber,
         parentPassword: parentPlainPassword,
         email: savedParent.parentEmail,
+        address: savedParent.address,
+        occupation: savedParent.occupation,
+        relationship: savedParent.relationship,
+        photo: savedParent.photo,
         children: savedParent.children.map((child) => ({
           student: savedStudent.studentName,
           relationship: child.relationship,
@@ -352,28 +271,30 @@ const studentLogin = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    const isMatch = await bcrypt.compare(password, student.studentPassword);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      student.studentPassword
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid credentials." });
     }
 
+    // Generate JWT token with explicit role
     const token = generateToken(student._id, "student");
 
-    // Update last login and login history
-    student.lastLogin = new Date();
-    student.loginHistory.push(new Date());
-    await student.save();
-
+    // Return success response with token and student details
     res.json({
       token,
+      role: "student", // Explicitly include role in response
       student: {
         studentID: student.studentID,
         studentName: student.studentName,
         studentEmail: student.studentEmail,
-        studentPhone: student.studentPhone,
         photo: student.photo,
-        role: "student"
-      }
+        role: "student", // Ensure role is set in student object
+      },
     });
   } catch (error) {
     console.error("Student login error:", error);
@@ -524,18 +445,134 @@ const searchStudents = async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error("Search students error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error searching students:", error);
+    next(error); // Pass the error to the global error handler
   }
 };
 
-module.exports = {
-  studentLogin,
-  getStudentProfile,
-  updateStudentProfile,
-  changeStudentPassword,
-  createStudent,
-  getAllStudents,
-  assignStudentToClass,
-  searchStudents
+//Controller to get profile info of logged in student
+
+exports.getStudentProfile = async (req, res) => {
+  try {
+    // Ensure req.student is defined
+    if (!req.student || !req.student._id) {
+      return res.status(400).json({ message: "Student not authenticated." });
+    }
+
+    console.log("Fetching student profile for ID:", req.student._id);
+
+    // Fetch student data from the database
+    const student = await Student.findById(req.student._id)
+      .populate("parent", "parentID parentName")
+      .populate("enrolledClasses", "className classId") // Populate enrolled classes to get class information
+      .select("-studentPassword")
+      .exec();
+
+    // If student not found, return a 404 response
+    if (!student) {
+      console.error("Student not found in database with ID:", req.student._id);
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    console.log("Found student:", {
+      id: student._id,
+      studentID: student.studentID,
+      name: student.studentName,
+      photo: student.photo || "No photo" 
+    });
+
+    // Get the class name from the first enrolled class (if any)
+    const className = student.enrolledClasses && student.enrolledClasses.length > 0 
+      ? student.enrolledClasses[0].className 
+      : "";
+
+    // Format the student data
+    const formattedStudent = {
+      studentID: student.studentID,
+      studentName: student.studentName,
+      studentEmail: student.studentEmail,
+      studentPhone: student.studentPhone,
+      studentAddress: student.studentAddress,
+      studentDOB: student.studentDOB,
+      studentGender: student.studentGender,
+      studentDateOfAdmission: student.studentDateOfAdmission,
+      studentFatherName: student.studentFatherName,
+      studentMotherName: student.studentMotherName,
+      religion: student.religion,
+      category: student.category,
+      bloodgroup: student.bloodgroup,
+      photo: student.photo,
+      className: className, // Include the class name
+      enrolledClasses: student.enrolledClasses, // Include all enrolled classes data
+      parentID: student.parent ? student.parent.parentID : null,
+      parentName: student.parent ? student.parent.parentName : null,
+    };
+
+    console.log("Returning student profile with photo:", formattedStudent.photo);
+    
+    res.status(200).json({
+      message: "Student profile fetched successfully",
+      student: formattedStudent,
+    });
+  } catch (error) {
+    console.error("Error fetching student profile:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+// Controller to update student profile info
+exports.updateStudentInfo = async (req, res) => {
+  try {
+    console.log("Updating student profile, request body:", req.body);
+    console.log("File received:", req.file);
+    
+    const studentId = req.student._id;
+    
+    // Extract updated fields from request body
+    const { 
+      studentName, 
+      studentEmail, 
+      studentPhone,
+      studentAddress
+    } = req.body;
+    
+    // Find student by ID
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+    
+    console.log("Found student to update:", {
+      id: student._id,
+      studentID: student.studentID,
+      name: student.studentName,
+      currentPhoto: student.photo || "No photo"
+    });
+    
+    // Handle photo upload if provided
+    let photoFilename = student.photo; // Default to existing photo
+    if (req.file) {
+      photoFilename = req.file.filename;
+      console.log("New photo will be saved:", photoFilename);
+    }
+    
+    // Update fields (only if they are provided)
+    if (studentName) student.studentName = studentName;
+    if (studentEmail) student.studentEmail = studentEmail;
+    if (studentPhone) student.studentPhone = studentPhone;
+    if (studentAddress !== undefined) student.studentAddress = studentAddress;
+    if (photoFilename) student.photo = photoFilename;
+    
+    // Save updated student
+    const updatedStudent = await student.save();
+    console.log("Student updated successfully with photo:", updatedStudent.photo);
+    
+    res.status(200).json({
+      message: "Student information updated successfully",
+      student: updatedStudent
+    });
+  } catch (error) {
+    console.error("Error updating student information:", error);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
 };

@@ -31,6 +31,9 @@ import TeacherManagement from "../../pages/Admin/Admin_Features/AcademicManageme
 import AssignTeacherToSubject from "../../pages/Admin/Admin_Features/AcademicManagement/TeacherManagement/AssignTeacherToSubject";
 import AssignTeacherToClass from "../../pages/Admin/Admin_Features/AcademicManagement/TeacherManagement/AssignTeacherToClass";
 
+// Import the NotificationCreation component at the top
+import NotificationCreation from "../../pages/Admin/Admin_Features/NotificationCreation";
+
 const AdminRoutes = ({ isLoggedIn, userRole }) => {
   if (!isLoggedIn || userRole !== "admin")
     return <Navigate to="/signin" replace />;
@@ -80,6 +83,9 @@ const AdminRoutes = ({ isLoggedIn, userRole }) => {
       <Route path="/student-profiles" element={<TrackStudentProfile />} />
 
       <Route path="/edit-class/:classId" element={<EditClass />} />
+
+      {/* Add the route inside the Routes component */}
+      <Route path="/notifications" element={<NotificationCreation />} />
     </Routes>
   );
 };

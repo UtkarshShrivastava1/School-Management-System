@@ -1,17 +1,34 @@
 const jwt = require("jsonwebtoken");
 
-const generateToken = (id, role, adminID = null) => {
-  // Generate a token with id, role, and adminID (if provided) in the payload
-  const payload = { id, role };
-  
-  // Include adminID for admin users if provided
-  if (role === 'admin' && adminID) {
-    payload.adminID = adminID;
+/**
+ * Generate JWT token for authentication
+ * @param {string|ObjectId} id - User ID 
+ * @param {string} role - User role (admin, teacher, student, parent)
+ * @returns {string} JWT token
+ */
+const generateToken = (id, role) => {
+  if (!id) {
+    throw new Error("User ID is required to generate token");
   }
   
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: "30d", // You can adjust this value depending on your requirements
-  });
+  if (!role) {
+    throw new Error("User role is required to generate token");
+  }
+  
+  // Convert ObjectId to string if needed
+  const userId = id.toString();
+  
+  // Generate a token with id and role in the payload
+  return jwt.sign(
+    { 
+      id: userId,
+      role 
+    }, 
+    process.env.JWT_SECRET, 
+    {
+      expiresIn: "30d" // 30 day expiration
+    }
+  );
 };
 
 module.exports = generateToken;

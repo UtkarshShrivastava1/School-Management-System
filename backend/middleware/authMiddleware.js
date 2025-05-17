@@ -4,77 +4,96 @@ const Teacher = require("../models/TeacherModel");
 const Student = require("../models/StudentModel");
 const Parent = require("../models/ParentModel");
 
-// Verify student token
-const verifyStudentToken = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "student") {
-      return res.status(401).json({ message: "Invalid token role" });
-    }
-
-    const student = await Student.findById(decoded.id).select("-password");
-    if (!student) {
-      return res.status(401).json({ message: "Student not found" });
-    }
-
-    req.student = student;
-    next();
-  } catch (error) {
-    console.error("Student token verification error:", error);
-    res.status(401).json({ message: "Invalid token" });
+// Helper function to verify JWT and role
+const verifyTokenAndRole = async (req, res, next, role) => {
+  // Look for token in multiple places
+  const authHeader = req.header("Authorization");
+  let token;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.replace("Bearer ", "");
+  } else if (req.cookies && req.cookies.token) {
+    // Check cookies as fallback
+    token = req.cookies.token;
   }
-};
+  
+  const headerRole = req.header("X-User-Role");
+  console.log("Authorization Header:", authHeader);
+  console.log("Token received:", token ? "Token exists" : "No token");
+  console.log("Header Role:", headerRole);
+  console.log("Required Role:", role);
 
-// Verify parent token
-const verifyParentToken = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "parent") {
-      return res.status(401).json({ message: "Invalid token role" });
-    }
-
-    const parent = await Parent.findById(decoded.id).select("-password");
-    if (!parent) {
-      return res.status(401).json({ message: "Parent not found" });
-    }
-
-    req.parent = parent;
-    next();
-  } catch (error) {
-    console.error("Parent token verification error:", error);
-    res.status(401).json({ message: "Invalid token" });
+  if (!token) {
+    console.error("No token provided. Authorization denied.");
+    return res.status(401).json({ message: "Authentication token not found. Please log in again." });
   }
-};
 
-// Verify teacher token
-const verifyTeacherToken = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
+    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "teacher") {
-      return res.status(401).json({ message: "Invalid token role" });
+    console.log("Decoded Token:", decoded);
+    
+    // Get user ID and provided role
+    const userId = decoded.id;
+    const tokenRole = decoded.role;
+    
+    // Check if either token role or header role matches required role
+    const roleMatches = tokenRole === role || headerRole === role;
+
+    if (!roleMatches) {
+      console.error(`Role mismatch. Token role: ${tokenRole}, Header role: ${headerRole}, Required role: ${role}`);
+      return res.status(403).json({ message: "Unauthorized role. Please log in with correct credentials." });
     }
 
-    const teacher = await Teacher.findById(decoded.id).select("-password");
-    if (!teacher) {
-      return res.status(401).json({ message: "Teacher not found" });
+    // Fetch user based on role with proper error handling
+    let loggedInUser;
+    try {
+      if (role === "admin") {
+        loggedInUser = await Admin.findById(userId);
+      } else if (role === "teacher") {
+        loggedInUser = await Teacher.findById(userId);
+      } else if (role === "student") {
+        loggedInUser = await Student.findById(userId);
+      } else if (role === "parent") {
+        loggedInUser = await Parent.findById(userId);
+        console.log("Parent user fetched:", loggedInUser ? {
+          id: loggedInUser._id,
+          parentID: loggedInUser.parentID,
+          name: loggedInUser.parentName
+        } : "Not found");
+      }
+    } catch (dbError) {
+      console.error(`Database error finding ${role}:`, dbError);
+      return res.status(500).json({ message: "Error retrieving user data. Please try again." });
     }
 
-    req.teacher = teacher;
+    if (!loggedInUser) {
+      console.error(`${role} with ID ${userId} not found in database`);
+      return res.status(404).json({
+        message: "User not found. Please log in again.",
+      });
+    }
+
+    // Attach user to request
+    req[role] = loggedInUser;
+    req.user = { id: loggedInUser._id, role: role };
+    
+    // Make sure we log the entire req.parent object if we're dealing with a parent
+    if (role === "parent") {
+      console.log("Setting req.parent:", {
+        _id: loggedInUser._id,
+        parentID: loggedInUser.parentID,
+        parentName: loggedInUser.parentName,
+        hasParentPassword: !!loggedInUser.parentPassword
+      });
+    }
+    
+    console.log(`${role.charAt(0).toUpperCase() + role.slice(1)} authenticated successfully:`, {
+      id: loggedInUser._id,
+      role: role,
+      name: loggedInUser.name || loggedInUser.studentName || loggedInUser.parentName || loggedInUser.teacherName
+    });
+    
     next();
   } catch (error) {
     console.error("Teacher token verification error:", error);
@@ -82,52 +101,40 @@ const verifyTeacherToken = async (req, res, next) => {
   }
 };
 
-// Verify admin token
-const verifyAdminToken = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
+// Common error handler for JWT verification issues
+const handleTokenError = (error, res) => {
+  console.error("Error verifying token:", error);
 
-    console.log("Decoded token payload:", jwt.decode(token));
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "admin") {
-      return res.status(401).json({ message: "Invalid token role: expected 'admin', got '" + decoded.role + "'" });
-    }
-
-    let admin = null;
-    
-    // First try to use the adminID from the token if available
-    if (decoded.adminID) {
-      console.log("Looking for admin with adminID from token:", decoded.adminID);
-      admin = await Admin.findOne({ adminID: decoded.adminID }).select("-password");
-    }
-    
-    // If admin not found or no adminID in token, try with MongoDB _id
-    if (!admin) {
-      console.log("Looking for admin with ID:", decoded.id);
-      admin = await Admin.findById(decoded.id).select("-password");
-    }
-    
-    // If admin still not found but the ID looks like an admin ID, try one more time
-    if (!admin && decoded.id && typeof decoded.id === 'string' && decoded.id.startsWith('ADM')) {
-      console.log("Admin not found by _id, trying with adminID:", decoded.id);
-      admin = await Admin.findOne({ adminID: decoded.id }).select("-password");
-    }
-    
-    if (!admin) {
-      console.error("Admin not found with ID:", decoded.id);
-      return res.status(401).json({ message: "Admin not found with the provided token" });
-    }
-
-    console.log("Admin found:", admin.adminID);
-    req.admin = admin;
-    next();
-  } catch (error) {
-    console.error("Admin token verification error:", error);
-    res.status(401).json({ message: "Invalid token: " + error.message });
+  if (error.name === "TokenExpiredError") {
+    console.error("Token has expired");
+    return res.status(401).json({ message: "Token has expired" });
   }
+  if (error.name === "JsonWebTokenError") {
+    console.error("Token is not valid");
+    return res.status(401).json({ message: "Token is not valid" });
+  }
+
+  console.error("Token verification failed", error.message);
+  return res
+    .status(500)
+    .json({ message: "Token verification failed", error: error.message });
+};
+
+// Middleware instances
+const verifyAdminToken = (req, res, next) => {
+  verifyTokenAndRole(req, res, next, "admin");
+};
+
+const verifyTeacherToken = (req, res, next) => {
+  verifyTokenAndRole(req, res, next, "teacher");
+};
+
+const verifyStudentToken = (req, res, next) => {
+  verifyTokenAndRole(req, res, next, "student");
+};
+
+const verifyParentToken = (req, res, next) => {
+  verifyTokenAndRole(req, res, next, "parent");
 };
 
 module.exports = {

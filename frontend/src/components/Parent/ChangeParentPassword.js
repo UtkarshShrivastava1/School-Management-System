@@ -1,103 +1,99 @@
+import React, { useState } from "react";
+import { Button, Form, Modal, Spinner, Alert } from "react-bootstrap";
 import axios from "axios";
-import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 
-const ChangeParentPassword = () => {
-  const [parentID, setParentID] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+const ChangeParentPassword = ({ show, handleClose }) => {
+  const [formData, setFormData] = useState({
+    parentID: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+
   const [loading, setLoading] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
       ? process.env.REACT_APP_PRODUCTION_URL
       : process.env.REACT_APP_DEVELOPMENT_URL;
-      
-  // Fetch parent ID on component mount
-  useEffect(() => {
-    const fetchParentInfo = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      
-      try {
-        const response = await axios.get(
-          `${API_URL}/api/parent/auth/parentprofile`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        
-        if (response.data.parent && response.data.parent.parentID) {
-          setParentID(response.data.parent.parentID);
-        }
-      } catch (error) {
-        console.error("Error fetching parent info:", error);
-      }
-    };
-    
-    fetchParentInfo();
-  }, [API_URL]);
 
-  // Validate password requirements
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
   const validatePassword = (password) => {
-    if (password.length < 8) {
+    // At least 8 characters, one number, one special character
+    const hasNumber = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*]/.test(password);
+    const hasMinLength = password.length >= 8;
+
+    if (!hasMinLength) {
       return "Password must be at least 8 characters long";
     }
-    if (!/\d/.test(password)) {
+    if (!hasNumber) {
       return "Password must contain at least one number";
     }
-    if (!/[!@#$%^&*]/.test(password)) {
-      return "Password must contain at least one special character";
+    if (!hasSpecial) {
+      return "Password must contain at least one special character (!@#$%^&*)";
     }
-    return "";
+
+    return null;
   };
 
-  const handlePasswordChange = (e) => {
-    const value = e.target.value;
-    setNewPassword(value);
-    setPasswordError(validatePassword(value));
-  };
-
-  const handleChangePassword = async (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-
-    // Validate passwords match
-    if (newPassword !== confirmNewPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
-    // Validate password requirements
-    const validationError = validatePassword(newPassword);
-    if (validationError) {
-      toast.error(validationError);
-      return;
-    }
-
-    // Retrieve the JWT token from localStorage
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.error("Authentication token is missing. Please log in.");
-      return;
-    }
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
-      setLoading(true);
+      // Get parentID from localStorage
+      const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
+      const parentID = parentInfo.parentID;
+      
+      if (!parentID) {
+        throw new Error("Parent ID not found. Please log in again.");
+      }
+      
+      const passwordData = {
+        parentID: parentID,
+        newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmNewPassword
+      };
+      
+      console.log("Password change data prepared:", { 
+        parentID, 
+        passwordLength: formData.newPassword?.length 
+      });
 
-      // Send PUT request to the backend API (only use one endpoint)
+      // Password validation
+      if (formData.newPassword !== formData.confirmNewPassword) {
+        setError("Passwords do not match");
+        setLoading(false);
+        return;
+      }
+
+      const passwordError = validatePassword(formData.newPassword);
+      if (passwordError) {
+        setError(passwordError);
+        setLoading(false);
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in again.");
+      }
+
       const response = await axios.put(
-        `${API_URL}/api/parent/changeparentpassword`,
-        {
-          parentID,
-          currentPassword,
-          newPassword,
-          confirmNewPassword,
-        },
+        `${API_URL}/api/parent/auth/changeparentpassword`,
+        passwordData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -106,143 +102,83 @@ const ChangeParentPassword = () => {
         }
       );
 
-      toast.success(response.data.message || "Password changed successfully");
+      setSuccess("Password changed successfully!");
+      toast.success("Password changed successfully!");
       
-      // Reset form fields after successful response
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-
-      // Close the modal on success
-      document.getElementById("closeModal").click();
+      // Reset the form
+      setFormData({
+        parentID: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+      
+      // Close the modal after a short delay
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
     } catch (err) {
-      const errorMessage = err.response?.data?.message || "Failed to change password";
+      const errorMessage = 
+        err.response?.data?.message || 
+        err.message || 
+        "Failed to change password";
+      setError(errorMessage);
       toast.error(errorMessage);
+      console.error("Error changing password:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container mt-5">
-      {/* Button to Open Modal */}
-      <button
-        type="button"
-        className="btn btn-primary ms-2"
-        data-bs-toggle="modal"
-        data-bs-target="#changePasswordModal"
-      >
-        Change Password
-      </button>
+    <Modal show={show} onHide={handleClose}>
+      <Modal.Header closeButton>
+        <Modal.Title>Change Password</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {error && <Alert variant="danger">{error}</Alert>}
+        {success && <Alert variant="success">{success}</Alert>}
 
-      {/* Modal */}
-      <div
-        className="modal fade"
-        id="changePasswordModal"
-        tabIndex="-1"
-        aria-labelledby="changePasswordModalLabel"
-        aria-hidden="false"
-      >
-        <div className="modal-dialog">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title" id="changePasswordModalLabel">
-                Change Parent Password
-              </h5>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-                id="closeModal"
-              ></button>
-            </div>
-            <div className="modal-body">
-              <form onSubmit={handleChangePassword}>
-                <div className="mb-3">
-                  <label htmlFor="parentID" className="form-label">
-                    Parent ID
-                  </label>
-                  <input
-                    type="text"
-                    id="parentID"
-                    className="form-control"
-                    value={parentID}
-                    onChange={(e) => setParentID(e.target.value)}
-                    placeholder="Enter Parent ID"
-                    required
-                    readOnly
-                  />
-                </div>
-                
-                <div className="mb-3">
-                  <label htmlFor="currentPassword" className="form-label">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    id="currentPassword"
-                    className="form-control"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter Current Password"
-                    required
-                  />
-                </div>
-                
-                <div className="mb-3">
-                  <label htmlFor="newPassword" className="form-label">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    className={`form-control ${passwordError ? "is-invalid" : ""}`}
-                    value={newPassword}
-                    onChange={handlePasswordChange}
-                    placeholder="Enter New Password"
-                    required
-                  />
-                  {passwordError && (
-                    <div className="invalid-feedback">{passwordError}</div>
-                  )}
-                  <small className="form-text text-muted">
-                    Password must be at least 8 characters long, contain a number and a special character.
-                  </small>
-                </div>
-                
-                <div className="mb-3">
-                  <label htmlFor="confirmNewPassword" className="form-label">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="confirmNewPassword"
-                    className={`form-control ${newPassword !== confirmNewPassword && confirmNewPassword ? "is-invalid" : ""}`}
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    placeholder="Confirm New Password"
-                    required
-                  />
-                  {newPassword !== confirmNewPassword && confirmNewPassword && (
-                    <div className="invalid-feedback">Passwords do not match</div>
-                  )}
-                </div>
-                
-                <button
-                  type="submit"
-                  className="btn btn-primary w-100"
-                  disabled={loading || passwordError || newPassword !== confirmNewPassword}
-                >
-                  {loading ? "Changing..." : "Change Password"}
-                </button>
-              </form>
-            </div>
+        <Form onSubmit={handleFormSubmit}>
+          <Form.Group className="mb-3" controlId="newPassword">
+            <Form.Label>New Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Enter new password"
+              name="newPassword"
+              value={formData.newPassword}
+              onChange={handleInputChange}
+              required
+            />
+            <Form.Text className="text-muted">
+              Password must be at least 8 characters long, contain at least one
+              number and one special character.
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="confirmNewPassword">
+            <Form.Label>Confirm New Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Confirm new password"
+              name="confirmNewPassword"
+              value={formData.confirmNewPassword}
+              onChange={handleInputChange}
+              required
+            />
+          </Form.Group>
+
+          <div className="d-flex justify-content-end">
+            <Button variant="secondary" onClick={handleClose} className="me-2">
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={loading}>
+              {loading ? <Spinner size="sm" animation="border" /> : "Change Password"}
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
   );
 };
 
-export default ChangeParentPassword;
+export default ChangeParentPassword; 

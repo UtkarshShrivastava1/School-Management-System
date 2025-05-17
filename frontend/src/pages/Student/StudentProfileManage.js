@@ -1,17 +1,19 @@
-import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Alert,
-  Button,
-  Col,
   Form,
-  Image,
+  Button,
   Row,
-  Spinner,
+  Col,
+  Image,
   Table,
+  Spinner,
+  Alert,
 } from "react-bootstrap";
-import { toast } from "react-toastify";
+import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
 import ChangeStudentPassword from "../../components/Student/ChangeStudentPassword";
 
 const StudentProfileManage = () => {
@@ -19,28 +21,18 @@ const StudentProfileManage = () => {
     studentName: "",
     studentEmail: "",
     studentPhone: "",
-    studentGender: "",
-    studentDOB: "",
     studentAddress: "",
-    studentFatherName: "",
-    studentMotherName: "",
-    bloodgroup: "",
-    religion: "",
-    category: "",
-    emergencyContact: {
-      name: "",
-      relation: "",
-      phone: ""
-    }
+    className: "",
   });
-  const [photoFile, setPhotoFile] = useState(null);
-
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const navigate = useNavigate();
 
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
@@ -49,31 +41,52 @@ const StudentProfileManage = () => {
 
   useEffect(() => {
     const fetchStudentData = async () => {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setError("Authentication token is missing. Please log in.");
-        setLoading(false);
-        return;
-      }
-
       try {
-        const response = await axios.get(
-          `${API_URL}/api/student/auth/studentprofile`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        setStudentData(response.data.student);
-        setFormData(response.data.student);
+        setLoading(true);
         setError(null);
+        
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Authentication token is missing. Please log in.");
+        }
+
+        const response = await axios.get(`${API_URL}/api/student/auth/studentprofile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log("Student profile API response:", response.data);
+
+        if (!response.data || !response.data.student) {
+          throw new Error("Invalid response format from server");
+        }
+
+        const studentData = response.data.student;
+        console.log("Student data received:", studentData);
+        
+        // Log photo information specifically
+        if (studentData.photo) {
+          console.log("Student photo found:", studentData.photo);
+          console.log("Full photo URL:", `${API_URL}/uploads/Student/${studentData.photo}`);
+        } else {
+          console.log("No student photo available in the response");
+        }
+        
+        setStudentData(studentData);
+        setFormData({
+          studentID: studentData.studentID || "",
+          studentName: studentData.studentName || "",
+          studentEmail: studentData.studentEmail || "",
+          studentPhone: studentData.studentPhone || "",
+          studentAddress: studentData.studentAddress || "",
+          className: studentData.className || "",
+        });
       } catch (err) {
-        setError(
-          err.response?.data?.message || "Failed to fetch student data."
-        );
+        const errorMessage = err.response?.data?.message || err.message || "Failed to fetch student data";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        console.error("Error fetching student data:", err);
       } finally {
         setLoading(false);
       }
@@ -84,25 +97,14 @@ const StudentProfileManage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (name.startsWith('emergencyContact.')) {
-      const field = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        emergencyContact: {
-          ...prev.emergencyContact,
-          [field]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
     }));
-    }
   };
 
-  const handleFileChange = (e) => {
-    setPhotoFile(e.target.files[0]);
+  const handlePhotoChange = (e) => {
+    setPhoto(e.target.files[0]);
   };
 
   const handleEditToggle = () => {
@@ -112,31 +114,38 @@ const StudentProfileManage = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
+    setError(null);
+    setSuccess(null);
 
-    const formDataToSubmit = new FormData();
-    
-    // Ensure studentID is included
-    formDataToSubmit.append("studentID", studentData.studentID);
-    
-    // Append all form fields
-    Object.keys(formData).forEach((key) => {
-      if (key === 'emergencyContact') {
-        formDataToSubmit.append(key, JSON.stringify(formData[key]));
-      } else {
-        formDataToSubmit.append(key, formData[key]);
-      }
-    });
-    
-    // Append photo file if it exists
-    if (photoFile) {
-      formDataToSubmit.append("photo", photoFile);
-    }
-
-    const token = localStorage.getItem("token");
     try {
-      console.log("Sending profile update request");
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in.");
+      }
+
+      // Get studentInfo from localStorage to ensure ID is included
+      const studentInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
+      
+      const formDataToSubmit = new FormData();
+      
+      // Ensure studentID is always included
+      formDataToSubmit.append("studentID", formData.studentID || studentInfo.studentID);
+      
+      // Add other form fields
+      Object.keys(formData).forEach((key) => {
+        if (key !== "studentID") { // Skip studentID as we've already added it
+          formDataToSubmit.append(key, formData[key]);
+        }
+      });
+
+      if (photo) {
+        formDataToSubmit.append("photo", photo);
+      }
+      
+      console.log("Submitting form data:", Object.fromEntries(formDataToSubmit));
+
       const response = await axios.put(
-        `${API_URL}/api/student/auth/studentprofile`,
+        `${API_URL}/api/student/auth/updatestudentinfo`,
         formDataToSubmit,
         {
           headers: {
@@ -146,19 +155,46 @@ const StudentProfileManage = () => {
         }
       );
 
+      if (!response.data || !response.data.student) {
+        throw new Error("Invalid response format from server");
+      }
+
+      // Update local state with the updated data
+      setStudentData(response.data.student);
+      
+      // Update the form data to reflect the changes
+      setFormData({
+        studentID: response.data.student.studentID || "",
+        studentName: response.data.student.studentName || "",
+        studentEmail: response.data.student.studentEmail || "",
+        studentPhone: response.data.student.studentPhone || "",
+        studentAddress: response.data.student.studentAddress || "",
+        className: response.data.student.className || "",
+      });
+      
       setSuccess("Profile updated successfully!");
       toast.success("Profile updated successfully!");
-      setStudentData(response.data.student);
-      setError(null);
+      setIsEditing(false);
     } catch (err) {
-      console.error("Profile update error:", err.response || err);
-      setError(err.response?.data?.message || "Failed to update profile.");
-      toast.error(err.response?.data?.message || "Failed to update profile.");
-      setSuccess(null);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update profile";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error("Error updating profile:", err);
     } finally {
       setIsUpdating(false);
-      setIsEditing(false);
     }
+  };
+
+  const handleChangePassword = () => {
+    setShowPasswordModal(true);
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+  };
+
+  const handleBack = () => {
+    navigate(-1); // Navigate back to the previous page
   };
 
   if (loading) {
@@ -172,6 +208,28 @@ const StudentProfileManage = () => {
   return (
     <div className="container mt-5">
       <h2 className="text-center mb-4">Manage Student Profile</h2>
+      <ToastContainer />
+      
+      {/* Back button with icon */}
+      <div style={{ marginBottom: "20px" }}>
+        <FaArrowLeft
+          onClick={handleBack}
+          size={24}
+          style={{
+            cursor: "pointer",
+            color: "#007bff",
+            display: "inline-block",
+            marginRight: "10px",
+          }}
+        />
+        <span
+          onClick={handleBack}
+          style={{ cursor: "pointer", color: "#007bff" }}
+        >
+          Back
+        </span>
+      </div>
+      
       {error && <Alert variant="danger">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
 
@@ -180,17 +238,37 @@ const StudentProfileManage = () => {
           <Row>
             <Col md={4} className="text-center">
               <Image
-                src={`${API_URL}/uploads/Student/${studentData?.photo}`}
+                src={studentData?.photo 
+                  ? `${API_URL}/uploads/Student/${studentData.photo}`
+                  : "https://via.placeholder.com/150"}
                 alt="Student Profile"
                 className="rounded-circle mb-3"
-                style={{ width: "150px", height: "150px", objectFit: "cover" }}
+                style={{
+                  width: "150px",
+                  height: "150px",
+                  objectFit: "cover",
+                  border: "2px solid #007bff"
+                }}
+                onError={(e) => {
+                  console.error("Error loading image:", e);
+                  e.target.src = "https://via.placeholder.com/150";
+                  e.target.onerror = null; // Prevent infinite loop
+                }}
               />
               <h5 className="mt-2">{studentData?.studentName || "N/A"}</h5>
-              <p className="text-muted">{studentData?.studentID || "N/A"}</p>
+              <p className="text-muted">{studentData?.className || "N/A"}</p>
             </Col>
             <Col md={8}>
               <Table bordered hover>
                 <tbody>
+                  <tr>
+                    <th>Role</th>
+                    <td>Student</td>
+                  </tr>
+                  <tr>
+                    <th>Student ID</th>
+                    <td>{studentData?.studentID || "N/A"}</td>
+                  </tr>
                   <tr>
                     <th>Email</th>
                     <td>{studentData?.studentEmail || "N/A"}</td>
@@ -200,129 +278,115 @@ const StudentProfileManage = () => {
                     <td>{studentData?.studentPhone || "N/A"}</td>
                   </tr>
                   <tr>
-                    <th>Gender</th>
-                    <td>{studentData?.studentGender || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Date of Birth</th>
-                    <td>
-                      {studentData?.studentDOB
-                        ? new Date(studentData.studentDOB).toLocaleDateString()
-                        : "N/A"}
-                    </td>
-                  </tr>
-                  <tr>
                     <th>Address</th>
                     <td>{studentData?.studentAddress || "N/A"}</td>
                   </tr>
                   <tr>
-                    <th>Father's Name</th>
-                    <td>{studentData?.studentFatherName || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Mother's Name</th>
-                    <td>{studentData?.studentMotherName || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Blood Group</th>
-                    <td>{studentData?.bloodgroup || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Religion</th>
-                    <td>{studentData?.religion || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Category</th>
-                    <td>{studentData?.category || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Emergency Contact</th>
-                    <td>
-                      {studentData?.emergencyContact ? (
-                        <>
-                          <div>Name: {studentData.emergencyContact.name}</div>
-                          <div>Relation: {studentData.emergencyContact.relation}</div>
-                          <div>Phone: {studentData.emergencyContact.phone}</div>
-                        </>
-                      ) : (
-                        "N/A"
-                      )}
-                    </td>
+                    <th>Class</th>
+                    <td>{studentData?.className || "N/A"}</td>
                   </tr>
                 </tbody>
               </Table>
             </Col>
           </Row>
-          <div className="text-center mt-3">
-            <Button onClick={handleEditToggle} variant="primary" disabled={isUpdating}>
+          <div className="text-center mt-3 d-flex justify-content-center gap-2">
+            <Button
+              onClick={handleEditToggle}
+              variant="primary"
+              disabled={isUpdating}
+            >
               Edit Profile
             </Button>
-            <ChangeStudentPassword />
+            <Button
+              onClick={handleChangePassword}
+              variant="secondary"
+              disabled={isUpdating}
+            >
+              Change Password
+            </Button>
           </div>
         </div>
       ) : (
         <Form onSubmit={handleFormSubmit} className="p-4">
-          {[
-            { name: "studentName", label: "Name" },
-            { name: "studentEmail", label: "Email", type: "email" },
-            { name: "studentPhone", label: "Phone" },
-            { name: "studentGender", label: "Gender" },
-            { name: "studentDOB", label: "Date of Birth", type: "date" },
-            { name: "studentAddress", label: "Address" },
-            { name: "studentFatherName", label: "Father's Name" },
-            { name: "studentMotherName", label: "Mother's Name" },
-            { name: "bloodgroup", label: "Blood Group" },
-            { name: "religion", label: "Religion" },
-            { name: "category", label: "Category" },
-          ].map(({ name, label, type = "text" }) => (
-            <Form.Group controlId={`form-${name}`} key={name}>
-              <Form.Label>{label}</Form.Label>
-              <Form.Control
-                type={type}
-                placeholder={`Enter ${label.toLowerCase()}`}
-                name={name}
-                value={formData[name] || ""}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          ))}
+          <Form.Group controlId="formName" className="mb-3">
+            <Form.Label>Name</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter name"
+              name="studentName"
+              value={formData.studentName || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
 
-          <h4 className="mt-4">Emergency Contact</h4>
-          {[
-            { name: "emergencyContact.name", label: "Name" },
-            { name: "emergencyContact.relation", label: "Relation" },
-            { name: "emergencyContact.phone", label: "Phone" },
-          ].map(({ name, label }) => (
-            <Form.Group controlId={`form-${name}`} key={name}>
-              <Form.Label>{label}</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder={`Enter ${label.toLowerCase()}`}
-                name={name}
-                value={formData.emergencyContact?.[name.split('.')[1]] || ""}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          ))}
+          <Form.Group controlId="formEmail" className="mb-3">
+            <Form.Label>Email</Form.Label>
+            <Form.Control
+              type="email"
+              placeholder="Enter email"
+              name="studentEmail"
+              value={formData.studentEmail || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
 
-          <Form.Group controlId="formPhoto">
+          <Form.Group controlId="formPhone" className="mb-3">
+            <Form.Label>Phone</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter phone number"
+              name="studentPhone"
+              value={formData.studentPhone || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formAddress" className="mb-3">
+            <Form.Label>Address</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter address"
+              name="studentAddress"
+              value={formData.studentAddress || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formPhoto" className="mb-3">
             <Form.Label>Profile Photo</Form.Label>
             <Form.Control
               type="file"
               name="photo"
-              onChange={handleFileChange}
+              onChange={handlePhotoChange}
+              accept="image/*"
             />
+            <Form.Text className="text-muted">
+              Upload a new photo to change your profile picture.
+            </Form.Text>
           </Form.Group>
 
-          <div className="text-center mt-4">
+          <div className="d-flex justify-content-center gap-2 mt-4">
+            <Button
+              variant="secondary"
+              onClick={handleEditToggle}
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
             <Button variant="primary" type="submit" disabled={isUpdating}>
-              {isUpdating ? "Updating..." : "Update Profile"}
+              {isUpdating ? "Updating..." : "Save Changes"}
             </Button>
           </div>
         </Form>
       )}
+
+      {/* Password Change Modal */}
+      <ChangeStudentPassword
+        show={showPasswordModal}
+        handleClose={handleClosePasswordModal}
+      />
     </div>
   );
 };
 
-export default StudentProfileManage;
+export default StudentProfileManage; 

@@ -4,12 +4,14 @@ const multer = require("multer");
 const { body, validationResult } = require("express-validator");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcryptjs");
 const { 
   parentLogin, 
   getParentProfile, 
-  updateParentProfile, 
+  updateParentInfo,
   changeParentPassword 
-} = require("../controllers/parentController");
+} = require("../controllers/parentController"); // Import all controller functions
+const Parent = require("../models/ParentModel"); // Importing Parent model
 const { verifyParentToken } = require("../middleware/authMiddleware");
 const Parent = require("../models/ParentModel");
 const bcrypt = require("bcryptjs");
@@ -32,11 +34,17 @@ const storage = multer.diskStorage({
     const uploadDir = "uploads/Parent/";
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`Created parent upload directory: ${uploadDir}`);
     }
-    cb(null, uploadDir);
+    
+    console.log(`Saving parent photo to: ${uploadDir}`);
+    cb(null, uploadDir); // Store files in "uploads/Parent" folder
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    // Generate a unique filename based on current timestamp
+    const filename = Date.now() + path.extname(file.originalname);
+    console.log(`Generated parent photo filename: ${filename}`);
+    cb(null, filename);
   },
 });
 
@@ -69,41 +77,69 @@ router.use(multerErrorHandler);
 
 // Route for parent login
 router.post(
-  "/auth/login",
+  "/login",
   [
     body("parentID").trim().notEmpty().withMessage("Parent ID is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
   ],
-  handleValidationErrors,
-  parentLogin
+  handleValidationErrors, // Handle validation errors
+  parentLogin // Delegate to parent login controller
 );
 
-// Get parent profile
+//------------------------------------------------------------------------------------------------
+// Route: Get parent profile using GET "/api/parent/auth/parentprofile"
 router.get(
-  "/auth/parentprofile",
-  verifyParentToken,
+  "/parentprofile", 
+  verifyParentToken, 
   getParentProfile
 );
 
-// Parent Profile Routes
-router.get("/parentprofile", verifyParentToken, async (req, res) => {
-  try {
-    const parentID = req.parent?.id;
-    if (!parentID) {
-      return res.status(400).json({ message: "Parent ID is missing in token" });
-    }
+//------------------------------------------------------------------------------------------------
+// Route: Update parent info using PUT "/api/parent/auth/updateparentinfo"
+//------------------------------------------------------------------------------------------------
+router.put(
+  "/updateparentinfo",
+  verifyParentToken, // Middleware to verify parent token
+  upload.single("photo"), // Middleware to handle photo upload
+  [
+    body("parentID").notEmpty().withMessage("Parent ID is required"),
+    body("parentEmail").optional().isEmail().withMessage("Invalid email format"),
+    body("parentContactNumber")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone number must be 10 digits"),
+    body("parentName")
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage("Name cannot be empty"),
+    body("occupation").optional().trim(),
+    body("relationship").optional().trim(),
+    body("address").optional().trim(),
+  ],
+  handleValidationErrors, // Middleware to handle validation errors
+  updateParentInfo
+);
 
-    const parent = await Parent.findById(parentID);
-    if (!parent) {
-      return res.status(404).json({ message: "Parent not found" });
-    }
-
-    res.status(200).json({ parent });
-  } catch (error) {
-    console.error("Error fetching parent profile:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+//------------------------------------------------------------------------------------------------
+// Route: Update/change parent password using PUT "/api/parent/auth/changeparentpassword"
+//------------------------------------------------------------------------------------------------
+router.put(
+  "/changeparentpassword",
+  verifyParentToken,
+  [
+    body("currentPassword").notEmpty().withMessage("Current password is required"),
+    body("newPassword")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters long")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number")
+      .matches(/[!@#$%^&*]/)
+      .withMessage("Password must contain at least one special character"),
+  ],
+  handleValidationErrors,
+  changeParentPassword
+);
 
 // Update parent profile - Fix for multipart boundary issue
 router.put(

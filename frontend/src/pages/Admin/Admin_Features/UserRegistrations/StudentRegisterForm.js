@@ -26,7 +26,11 @@ const StudentRegisterForm = () => {
     parentName: "",
     parentContactNumber: "",
     parentEmail: "",
+    parentAddress: "", // New field for parent address
+    parentOccupation: "", // New field for parent occupation
     photo: null,
+    parentPhoto: null, // New field for parent photo
+    className: "", // Add this line for class selection
   });
 
   const [errors, setErrors] = useState([]);
@@ -63,7 +67,11 @@ const StudentRegisterForm = () => {
     const formDataToSend = new FormData();
 
     Object.keys(formData).forEach((key) => {
-      formDataToSend.append(key, formData[key]);
+      if (key === 'parentPhoto' && formData[key]) {
+        formDataToSend.append('parentPhoto', formData[key]);
+      } else {
+        formDataToSend.append(key, formData[key]);
+      }
     });
 
     try {
@@ -74,16 +82,28 @@ const StudentRegisterForm = () => {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "X-User-Role": "admin"
           },
         }
       );
 
       setSuccessData(response.data);
       setShowModal(true);
-      toast.success("Student created successfully!", { theme: "colored" });
+
+      // Show success notification
+      toast.success("Student created successfully!", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "colored",
+      });
     } catch (error) {
-      setErrors(error.response?.data?.errors || [{ msg: error.message }]);
-      toast.error("Failed to create student. Please try again.", {
+      console.error('Error creating student:', error.response?.data || error);
+      setErrors(error.response?.data?.errors || [{ msg: error.response?.data?.message || error.message }]);
+      toast.error(error.response?.data?.message || "Failed to create student. Please try again.", {
         theme: "colored",
       });
     } finally {
@@ -93,7 +113,7 @@ const StudentRegisterForm = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setTimeout(() => navigate("/admin-dashboard"), 300);
+    navigate("/admin-dashboard");
   };
 
   //--------------------------------------------------------------------------------------------------------------------------------
@@ -200,6 +220,22 @@ const StudentRegisterForm = () => {
               onChange={handleChange}
               required
             />
+          </div>
+          <div>
+            <label>Class</label>
+            <select
+              name="className"
+              value={formData.className}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Select a class</option>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={`Class ${i + 1}`}>
+                  Class {i + 1}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label>Email</label>
@@ -358,6 +394,35 @@ const StudentRegisterForm = () => {
               required
             />
           </div>
+          <div>
+            <label>Parent Address</label>
+            <input
+              type="text"
+              name="parentAddress"
+              value={formData.parentAddress}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <label>Parent Occupation</label>
+            <input
+              type="text"
+              name="parentOccupation"
+              value={formData.parentOccupation}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <label>Upload Photo of Parent</label>
+            <input
+              type="file"
+              name="parentPhoto"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                setFormData((prev) => ({ ...prev, parentPhoto: file }));
+              }}
+            />
+          </div>
         </div>
 
         {/* Submit Button */}
@@ -385,13 +450,16 @@ const StudentRegisterForm = () => {
             }}
           >
             <Image
-              src={`${API_URL}/uploads/Admin/${
-                successData?.student?.photo || "default-photo.jpg"
-              }`}
+              src={successData?.student?.photo ? 
+                `${API_URL}/uploads/students/${successData.student.photo}` :
+                `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`
+              }
               alt="Student Profile"
-              onError={(e) =>
-                (e.target.src = "https://via.placeholder.com/150")
-              } // Fallback image
+              onError={(e) => {
+                console.log("Image load error, using data URI placeholder");
+                // Using a simple data URI for a gray square with a person icon
+                e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23cccccc'/%3E%3Cpath d='M75 75 Q95 45 115 75 L115 115 L35 115 L35 75 Q55 45 75 75' fill='%23888888'/%3E%3Ccircle cx='75' cy='45' r='20' fill='%23888888'/%3E%3C/svg%3E";
+              }}
               style={{
                 width: "150px",
                 height: "150px",
@@ -415,6 +483,10 @@ const StudentRegisterForm = () => {
               <p>
                 <strong>Name:</strong>{" "}
                 {successData?.student?.name || "Not Provided"}
+              </p>
+              <p>
+                <strong>Class:</strong>{" "}
+                {successData?.student?.className || "Not Provided"}
               </p>
               <p>
                 <strong>Student ID:</strong>{" "}
@@ -514,6 +586,18 @@ const StudentRegisterForm = () => {
               <p>
                 <strong>Phone:</strong>{" "}
                 {successData?.parent?.contactNumber || "Not Provided"}
+              </p>
+              <p>
+                <strong>Address:</strong>{" "}
+                {successData?.parent?.address || "Not Provided"}
+              </p>
+              <p>
+                <strong>Occupation:</strong>{" "}
+                {successData?.parent?.occupation || "Not Provided"}
+              </p>
+              <p>
+                <strong>Relationship:</strong>{" "}
+                {successData?.parent?.relationship || "Not Provided"}
               </p>
             </div>
           </div>

@@ -79,6 +79,26 @@ const studentSchema = new mongoose.Schema(
 
     // Role Information
     role: { type: String, default: "student" }, // Role in the system (default: "student")
+
+    // Attendance Information
+    attendance: [
+      {
+        date: {
+          type: Date,
+          required: true,
+        },
+        classId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Class",
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ["Present", "Absent"],
+          required: true,
+        },
+      },
+    ],
   },
 
   { timestamps: true } // Automatically adds createdAt and updatedAt timestamps

@@ -1,42 +1,99 @@
-import axios from "axios";
 import React, { useState } from "react";
+import { Button, Form, Modal, Spinner, Alert } from "react-bootstrap";
+import axios from "axios";
 import { toast } from "react-toastify";
-const ChangeStudentPassword = () => {
 
-  const [studentID, setStudentID] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+const ChangeStudentPassword = ({ show, handleClose }) => {
+  const [formData, setFormData] = useState({
+    studentID: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL // Production API URL
-      : process.env.REACT_APP_DEVELOPMENT_URL; // Local development API URL
+      ? process.env.REACT_APP_PRODUCTION_URL
+      : process.env.REACT_APP_DEVELOPMENT_URL;
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
 
-    // Retrieve the JWT token from localStorage
-    const token = localStorage.getItem("token");
-    if (!token) {
-        toast.error("Authentication token is missing. Please log in."); // ✅ Used toast
-      return;
+  const validatePassword = (password) => {
+    // At least 8 characters, one number, one special character
+    const hasNumber = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*]/.test(password);
+    const hasMinLength = password.length >= 8;
+
+    if (!hasMinLength) {
+      return "Password must be at least 8 characters long";
+    }
+    if (!hasNumber) {
+      return "Password must contain at least one number";
+    }
+    if (!hasSpecial) {
+      return "Password must contain at least one special character (!@#$%^&*)";
     }
 
-    try {
-      setLoading(true); // Indicate loading state
-      console.log("Sending API request to change password..."); // Debugging log
+    return null;
+  };
 
-      // Send PUT request to the backend API
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Get studentID from localStorage
+      const studentInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
+      const studentID = studentInfo.studentID;
+      
+      if (!studentID) {
+        throw new Error("Student ID not found. Please log in again.");
+      }
+      
+      const passwordData = {
+        studentID: studentID,
+        newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmNewPassword
+      };
+      
+      console.log("Password change data prepared:", { 
+        studentID, 
+        passwordLength: formData.newPassword?.length 
+      });
+
+      // Password validation
+      if (formData.newPassword !== formData.confirmNewPassword) {
+        setError("Passwords do not match");
+        setLoading(false);
+        return;
+      }
+
+      const passwordError = validatePassword(formData.newPassword);
+      if (passwordError) {
+        setError(passwordError);
+        setLoading(false);
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in again.");
+      }
+
       const response = await axios.put(
-        `${API_URL}/api/student/auth/changestudentpassword`, // Corrected URL with backticks
-        {
-          studentID,
-          currentPassword,
-          newPassword,
-          confirmNewPassword,
-        },
+        `${API_URL}/api/student/auth/changestudentpassword`,
+        passwordData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -45,130 +102,83 @@ const ChangeStudentPassword = () => {
         }
       );
 
-      console.log("Password changed successfully:", response.data); // Debugging log
-      toast.success(response.data.message); // ✅ Toast success
-
-      // Reset form fields after successful response
-      setStudentID("");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-
-      // Close the modal on success
-      document.getElementById("closeModal").click(); // ✅ Close modal
-      } catch (err) {
-        toast.error(err.response?.data?.message || "Error occurred"); // ✅ Toast error
+      setSuccess("Password changed successfully!");
+      toast.success("Password changed successfully!");
+      
+      // Reset the form
+      setFormData({
+        studentID: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+      
+      // Close the modal after a short delay
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
+    } catch (err) {
+      const errorMessage = 
+        err.response?.data?.message || 
+        err.message || 
+        "Failed to change password";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error("Error changing password:", err);
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container mt-5">
-      {/* Button to Open Modal */}
-      <button
-        type="button"
-        className="btn btn-primary"
-        data-bs-toggle="modal"
-        data-bs-target="#changePasswordModal"
-      >
-        Change Password
-      </button>
+    <Modal show={show} onHide={handleClose}>
+      <Modal.Header closeButton>
+        <Modal.Title>Change Password</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {error && <Alert variant="danger">{error}</Alert>}
+        {success && <Alert variant="success">{success}</Alert>}
 
-      {/* Modal */}
-      <div
-        className="modal fade"
-        id="changePasswordModal"
-        tabIndex="-1"
-        aria-labelledby="changePasswordModalLabel"
-        aria-hidden="false"
-      >
-        <div className="modal-dialog">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title" id="changePasswordModalLabel">
-                Change Student Password
-              </h5>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-                id="closeModal"
-              ></button>
-            </div>
-            <div className="modal-body">
-              <form onSubmit={handleChangePassword}>
-                <div className="mb-3">
-                  <label htmlFor="studentID" className="form-label">
-                    Student ID
-                  </label>
-                  <input
-                    type="text"
-                    id="studentID"
-                    className="form-control"
-                    value={studentID}
-                    onChange={(e) => setStudentID(e.target.value)}
-                    placeholder="Enter Student ID"
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="currentPassword" className="form-label">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    id="currentPassword"
-                    className="form-control"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter Current Password"
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="newPassword" className="form-label">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    className="form-control"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter New Password"
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="confirmNewPassword" className="form-label">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="confirmNewPassword"
-                    className="form-control"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    placeholder="Confirm New Password"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn-primary w-100"
-                  disabled={loading}
-                >
-                  {loading ? "Changing..." : "Change Password"}
-                </button>
-              </form>
-            </div>
+        <Form onSubmit={handleFormSubmit}>
+          <Form.Group className="mb-3" controlId="newPassword">
+            <Form.Label>New Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Enter new password"
+              name="newPassword"
+              value={formData.newPassword}
+              onChange={handleInputChange}
+              required
+            />
+            <Form.Text className="text-muted">
+              Password must be at least 8 characters long, contain at least one
+              number and one special character.
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="confirmNewPassword">
+            <Form.Label>Confirm New Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Confirm new password"
+              name="confirmNewPassword"
+              value={formData.confirmNewPassword}
+              onChange={handleInputChange}
+              required
+            />
+          </Form.Group>
+
+          <div className="d-flex justify-content-end">
+            <Button variant="secondary" onClick={handleClose} className="me-2">
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={loading}>
+              {loading ? <Spinner size="sm" animation="border" /> : "Change Password"}
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
   );
 };
 
-export default ChangeStudentPassword;
+export default ChangeStudentPassword; 

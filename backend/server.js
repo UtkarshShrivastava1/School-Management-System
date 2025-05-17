@@ -6,6 +6,7 @@ const compression = require("compression");
 const helmet = require("helmet");
 require("colors");
 const connectToMongo = require("./config/db"); // Import the MongoDB connection function
+const ensureUploadDirsExist = require("./utils/checkUploads"); // Import upload directory checker
 
 // Load environment variables
 dotenv.config();
@@ -18,6 +19,9 @@ const isProduction = process.env.NODE_ENV === "production"; // Declare first
 const mongoURI = isProduction
   ? process.env.MONGO_ATLAS_URI
   : process.env.MONGO_LOCAL_URI;
+
+// Ensure upload directories exist
+ensureUploadDirsExist();
 
 // Middleware setup
 app.use(express.json());
@@ -52,11 +56,16 @@ const adminRoutes = require("./routes/adminRoutes");
 const parentRoutes = require("./routes/parentRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
 
+// Mount routes
 app.use("/api/admin/auth", adminRoutes);
-app.use("/api/teacher", teacherRoutes);
-app.use("/api/student", studentRoutes);
-app.use("/api/parent", parentRoutes);
+app.use("/api/parent/auth", parentRoutes);
+app.use("/api/student/auth", studentRoutes);
+app.use("/api/teacher/auth", teacherRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 // Serve static files from the "uploads" directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

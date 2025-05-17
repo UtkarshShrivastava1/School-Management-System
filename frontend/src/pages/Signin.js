@@ -82,12 +82,44 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
         password,
       });
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem(`${role}Info`, JSON.stringify(response.data.data));
+      // Store token and role
+      const token = response.data.token;
+      if (!token) {
+        throw new Error("No token received from server");
+      }
 
+      // Store authentication data
+      localStorage.setItem("token", token);
+      localStorage.setItem("userRole", role);
+      
+      // Store user info
+      const userInfo = response.data[role] || response.data.data;
+      if (userInfo) {
+        // Make sure the ID field is properly stored for each role
+        const enhancedUserInfo = {
+          ...userInfo,
+          [`${role}ID`]: userId // Ensure the ID is explicitly added
+        };
+        
+        console.log(`Storing ${role} info:`, enhancedUserInfo);
+        localStorage.setItem(`${role}Info`, JSON.stringify(enhancedUserInfo));
+        
+        // Verify the data was stored correctly
+        try {
+          const storedData = JSON.parse(localStorage.getItem(`${role}Info`));
+          console.log(`Verified ${role} info in localStorage:`, storedData);
+        } catch (storageError) {
+          console.error("Error verifying localStorage data:", storageError);
+        }
+      } else {
+        console.warn(`No ${role} info received from server to store in localStorage`);
+      }
+
+      // Update app state
       setIsLoggedIn(true);
       setUserRole(role);
-      toast.success("Login successfull!", {
+
+      toast.success("Login successful!", {
         position: "top-center",
         autoClose: 5000,
         hideProgressBar: false,
@@ -96,8 +128,11 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
         draggable: true,
         theme: "colored",
       });
+
+      // Navigate to appropriate dashboard
       navigate(`/${role}/${role}-dashboard`);
     } catch (err) {
+      console.error("Login error:", err);
       setError(
         err.response?.data?.message || "Login failed. Please try again."
       );

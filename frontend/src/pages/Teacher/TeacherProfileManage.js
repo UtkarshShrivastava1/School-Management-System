@@ -12,9 +12,13 @@ import {
 } from "react-bootstrap";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
 import ChangeTeacherPassword from "../../components/Teacher/ChangeTeacherPassword";
+
 const TeacherProfileManage = () => {
   const [formData, setFormData] = useState({
+    teacherID: "",
     name: "",
     email: "",
     phone: "",
@@ -34,41 +38,49 @@ const TeacherProfileManage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchTeacherData = async () => {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setError("Authentication token is missing. Please log in.");
-        setLoading(false);
-        return;
-      }
-
       try {
-        const response = await axios.get(
-          `${API_URL}/api/teacher/auth/teacherprofile`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        console.log("Fetched teacher data:", response.data);
-        setTeacherData(response.data.teacher);
-        setFormData(response.data.teacher);
+        setLoading(true);
         setError(null);
+        
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Authentication token is missing. Please log in.");
+        }
+
+        const response = await axios.get(`${API_URL}/api/teacher/auth/teacherprofile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.data || !response.data.teacher) {
+          throw new Error("Invalid response format from server");
+        }
+
+        const teacherData = response.data.teacher;
+        setTeacherData(teacherData);
+        setFormData({
+          teacherID: teacherData.teacherID || "",
+          name: teacherData.name || "",
+          email: teacherData.email || "",
+          phone: teacherData.phone || "",
+          designation: teacherData.designation || "",
+          subjects: teacherData.subjects || "",
+          experience: teacherData.experience || "",
+          photo: teacherData.photo || "",
+        });
       } catch (err) {
+        const errorMessage = err.response?.data?.message || err.message || "Failed to fetch teacher data";
+        setError(errorMessage);
+        toast.error(errorMessage);
         console.error("Error fetching teacher data:", err);
-        setError(
-          err.response?.data?.message || "Failed to fetch teacher data."
-        );
       } finally {
         setLoading(false);
       }
@@ -79,10 +91,19 @@ const TeacherProfileManage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    
+    // Convert experience to a number
+    if (name === 'experience') {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value === '' ? '' : Number(value),
+      }));
+    } else {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value,
+      }));
+    }
   };
 
   const handleEditToggle = () => {
@@ -92,127 +113,98 @@ const TeacherProfileManage = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
+    setError(null);
+    setSuccess(null);
 
-    const formDataToSubmit = new FormData();
-    
-    // Debug - check what data we're submitting
-    console.log("Original form data to submit:", formData);
-    
-    // Ensure experience is a number
-    if (formData.experience && typeof formData.experience === 'string') {
-      formData.experience = Number(formData.experience);
-    }
-    
-    // Only include fields that the backend expects
-    const allowedFields = [
-      'name', 'email', 'phone', 'designation', 'department', 
-      'address', 'religion', 'category', 'bloodgroup',
-      'photo', 'experience', 'highestQualification'
-    ];
-    
-    // Handle regular fields
-    Object.keys(formData).forEach((key) => {
-      // Only process fields that the backend expects
-      if (!allowedFields.includes(key)) {
-        return;
-      }
-      
-      // Skip the photo field if it's a string (existing photo path)
-      if (key === 'photo' && typeof formData[key] === 'string') {
-        return;
-      }
-      
-      // Special handling for experience to ensure it's a number
-      if (key === 'experience') {
-        formDataToSubmit.append(key, Number(formData[key] || 0));
-        console.log(`Adding ${key} as number:`, Number(formData[key] || 0));
-        return;
-      }
-      
-      // Handle nested objects (like emergencyContact)
-      if (formData[key] !== null && typeof formData[key] === 'object' && !Array.isArray(formData[key]) && !(formData[key] instanceof File)) {
-        formDataToSubmit.append(key, JSON.stringify(formData[key]));
-        console.log(`Adding ${key} as JSON:`, JSON.stringify(formData[key]));
-      } else if (formData[key] !== undefined && formData[key] !== null) {
-        formDataToSubmit.append(key, formData[key]);
-        console.log(`Adding ${key}:`, formData[key]);
-      }
-    });
-
-    // Add teacherID explicitly if it exists in the profile
-    if (teacherData && teacherData.teacherID) {
-      formDataToSubmit.append('teacherID', teacherData.teacherID);
-      console.log('Adding teacherID:', teacherData.teacherID);
-    }
-
-    const token = localStorage.getItem("token");
     try {
-      console.log("Sending profile update request");
-      
-      // Create a log of which fields we're sending to help with debugging
-      console.log("Form data entries:");
-      for (let pair of formDataToSubmit.entries()) {
-        console.log(`Form field - ${pair[0]}: ${pair[1]}`);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in.");
       }
+
+      // Get teacherInfo from localStorage to ensure ID is included
+      const teacherInfo = JSON.parse(localStorage.getItem("teacherInfo") || "{}");
       
+      const formDataToSubmit = new FormData();
+      
+      // Ensure teacherID is always included
+      formDataToSubmit.append("teacherID", formData.teacherID || teacherInfo.teacherID || teacherData.teacherID);
+      
+      // Add other form fields
+      Object.keys(formData).forEach((key) => {
+        if (key !== "teacherID" && formData[key] !== null && formData[key] !== undefined) { // Skip teacherID as we've already added it
+          // Convert experience to number before appending
+          if (key === 'experience' && formData[key] !== '') {
+            formDataToSubmit.append(key, Number(formData[key]));
+          } else {
+            formDataToSubmit.append(key, formData[key]);
+          }
+        }
+      });
+
+      // Log what's being submitted
+      console.log("Submitting form data:", {
+        teacherID: formData.teacherID || teacherInfo.teacherID || teacherData.teacherID,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        experience: formData.experience,
+        subjects: formData.subjects,
+        designation: formData.designation
+      });
+
       const response = await axios.put(
-        `${API_URL}/api/teacher/auth/teacherprofile`,
+        `${API_URL}/api/teacher/auth/updateteacherinfo`,
         formDataToSubmit,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            // Don't set Content-Type with multipart form data, 
-            // axios will automatically set the correct boundary
+            "Content-Type": "multipart/form-data",
           },
         }
       );
 
-      console.log("Profile update response:", response.data);
-      
-      // Update the teacherData state with the response data
-      if (response.data.teacher) {
-        setTeacherData(response.data.teacher);
-        console.log("Updated teacher data in state:", response.data.teacher);
-        
-        // Force a refresh of the data to ensure it's updated
-        setTimeout(() => {
-          // Refetch teacher data to ensure we have the latest
-          const fetchUpdatedData = async () => {
-            try {
-              const refreshResponse = await axios.get(
-                `${API_URL}/api/teacher/auth/teacherprofile`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-              console.log("Refreshed teacher data:", refreshResponse.data);
-              setTeacherData(refreshResponse.data.teacher);
-            } catch (err) {
-              console.error("Error refreshing data:", err);
-            }
-          };
-          fetchUpdatedData();
-        }, 1000); // Wait for 1 second to ensure data is saved in the database
+      if (!response.data || !response.data.teacher) {
+        throw new Error("Invalid response format from server");
       }
 
+      // Update local state with the updated data
+      setTeacherData(response.data.teacher);
+      
+      // Update the form data to reflect the changes
+      setFormData({
+        teacherID: response.data.teacher.teacherID || "",
+        name: response.data.teacher.name || "",
+        email: response.data.teacher.email || "",
+        phone: response.data.teacher.phone || "",
+        designation: response.data.teacher.designation || "",
+        subjects: response.data.teacher.subjects || "",
+        experience: response.data.teacher.experience || "",
+      });
+      
       setSuccess("Profile updated successfully!");
       toast.success("Profile updated successfully!");
-      setError(null);
+      setIsEditing(false);
     } catch (err) {
-      console.error("Profile update error:", err);
-      // Log the detailed error response for debugging
-      if (err.response && err.response.data) {
-        console.error("Error details:", err.response.data);
-      }
-      setError(err.response?.data?.message || "Failed to update profile.");
-      toast.error(err.response?.data?.message || "Failed to update profile.");
-      setSuccess(null);
+      console.error("Error updating profile:", err);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update profile";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsUpdating(false);
-      setIsEditing(false);
     }
+  };
+
+  const handleChangePassword = () => {
+    setShowPasswordModal(true);
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+  };
+
+  const handleBack = () => {
+    navigate(-1); // Navigate back to the previous page
   };
 
   if (loading) {
@@ -226,6 +218,28 @@ const TeacherProfileManage = () => {
   return (
     <div className="container mt-5">
       <h2 className="text-center mb-4">Manage Teacher Profile</h2>
+      <ToastContainer />
+      
+      {/* Back button with icon */}
+      <div style={{ marginBottom: "20px" }}>
+        <FaArrowLeft
+          onClick={handleBack}
+          size={24}
+          style={{
+            cursor: "pointer",
+            color: "#007bff",
+            display: "inline-block",
+            marginRight: "10px",
+          }}
+        />
+        <span
+          onClick={handleBack}
+          style={{ cursor: "pointer", color: "#007bff" }}
+        >
+          Back
+        </span>
+      </div>
+      
       {error && <Alert variant="danger">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
 
@@ -234,7 +248,9 @@ const TeacherProfileManage = () => {
           <Row>
             <Col md={4} className="text-center">
               <Image
-                src={`${API_URL}/uploads/Teacher/${teacherData?.photo}`}
+                src={teacherData?.photo 
+                  ? `${API_URL}/uploads/Teacher/${teacherData.photo}`
+                  : "https://via.placeholder.com/150"}
                 alt="Teacher Profile"
                 className="rounded-circle mb-3"
                 style={{
@@ -250,8 +266,12 @@ const TeacherProfileManage = () => {
               <Table bordered hover>
                 <tbody>
                   <tr>
+                    <th>Teacher ID</th>
+                    <td>{teacherData?.teacherID || "N/A"}</td>
+                  </tr>
+                  <tr>
                     <th>Role</th>
-                    <td>{teacherData?.role || "N/A"}</td>
+                    <td>{teacherData?.role || "Teacher"}</td>
                   </tr>
                   <tr>
                     <th>Email</th>
@@ -266,34 +286,22 @@ const TeacherProfileManage = () => {
                     <td>{teacherData?.department || "N/A"}</td>
                   </tr>
                   <tr>
+                    <th>Designation</th>
+                    <td>{teacherData?.designation || "N/A"}</td>
+                  </tr>
+                  <tr>
                     <th>Address</th>
                     <td>{teacherData?.address || "N/A"}</td>
                   </tr>
                   <tr>
-                    <th>Religion</th>
-                    <td>{teacherData?.religion || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Category</th>
-                    <td>{teacherData?.category || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Blood Group</th>
-                    <td>{teacherData?.bloodgroup || "N/A"}</td>
-                  </tr>
-                  <tr>
                     <th>Experience</th>
-                    <td>{teacherData?.experience || "N/A"} years</td>
-                  </tr>
-                  <tr>
-                    <th>Highest Qualification</th>
-                    <td>{teacherData?.highestQualification || "N/A"}</td>
+                    <td>{teacherData?.experience ? `${teacherData.experience} years` : "N/A"}</td>
                   </tr>
                 </tbody>
               </Table>
             </Col>
           </Row>
-          <div className="text-center mt-3">
+          <div className="text-center mt-3 d-flex justify-content-center gap-2">
             <Button
               onClick={handleEditToggle}
               variant="primary"
@@ -301,12 +309,18 @@ const TeacherProfileManage = () => {
             >
               Edit Profile
             </Button>
-            <ChangeTeacherPassword/>
+            <Button
+              onClick={handleChangePassword}
+              variant="secondary"
+              disabled={isUpdating}
+            >
+              Change Password
+            </Button>
           </div>
         </div>
       ) : (
         <Form onSubmit={handleFormSubmit} className="p-4">
-          <Form.Group controlId="formName">
+          <Form.Group controlId="formName" className="mb-3">
             <Form.Label>Name</Form.Label>
             <Form.Control
               type="text"
@@ -317,7 +331,7 @@ const TeacherProfileManage = () => {
             />
           </Form.Group>
 
-          <Form.Group controlId="formEmail">
+          <Form.Group controlId="formEmail" className="mb-3">
             <Form.Label>Email</Form.Label>
             <Form.Control
               type="email"
@@ -328,7 +342,7 @@ const TeacherProfileManage = () => {
             />
           </Form.Group>
 
-          <Form.Group controlId="formPhone">
+          <Form.Group controlId="formPhone" className="mb-3">
             <Form.Label>Phone</Form.Label>
             <Form.Control
               type="text"
@@ -339,7 +353,7 @@ const TeacherProfileManage = () => {
             />
           </Form.Group>
 
-          <Form.Group controlId="formDesignation">
+          <Form.Group controlId="formDesignation" className="mb-3">
             <Form.Label>Designation</Form.Label>
             <Form.Control
               type="text"
@@ -350,7 +364,18 @@ const TeacherProfileManage = () => {
             />
           </Form.Group>
 
-          <Form.Group controlId="formExperience">
+          <Form.Group controlId="formSubjects" className="mb-3">
+            <Form.Label>Subjects</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter subjects taught"
+              name="subjects"
+              value={formData.subjects || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formExperience" className="mb-3">
             <Form.Label>Experience (in years)</Form.Label>
             <Form.Control
               type="number"
@@ -393,88 +418,45 @@ const TeacherProfileManage = () => {
               onChange={handleInputChange}
             />
           </Form.Group>
-          
-          <Row>
-            <Col md={4}>
-              <Form.Group controlId="formReligion">
-                <Form.Label>Religion</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter religion"
-                  name="religion"
-                  value={formData.religion || ""}
-                  onChange={handleInputChange}
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={4}>
-              <Form.Group controlId="formCategory">
-                <Form.Label>Category</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter category"
-                  name="category"
-                  value={formData.category || ""}
-                  onChange={handleInputChange}
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={4}>
-              <Form.Group controlId="formBloodgroup">
-                <Form.Label>Blood Group</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter blood group"
-                  name="bloodgroup"
-                  value={formData.bloodgroup || ""}
-                  onChange={handleInputChange}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-          
-          <Form.Group controlId="formQualification">
-            <Form.Label>Highest Qualification</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter highest qualification"
-              name="highestQualification"
-              value={formData.highestQualification || ""}
-              onChange={handleInputChange}
-            />
-          </Form.Group>
 
-          <Form.Group controlId="formPhoto">
+          <Form.Group controlId="formFile" className="mb-3">
             <Form.Label>Profile Photo</Form.Label>
             <Form.Control
               type="file"
               name="photo"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  console.log("Selected file:", e.target.files[0].name);
-                  setFormData((prevData) => ({
-                    ...prevData,
-                    photo: e.target.files[0]
-                  }));
-                }
-              }}
+              onChange={(e) =>
+                setFormData((prevData) => ({
+                  ...prevData,
+                  photo: e.target.files[0],
+                }))
+              }
+              accept="image/*"
             />
-            <small className="text-muted">
-              {formData.photo && typeof formData.photo === 'object' 
-                ? `Selected file: ${formData.photo.name}`
-                : 'No new file selected'}
-            </small>
+            <Form.Text className="text-muted">
+              Upload a new photo to change your profile picture.
+            </Form.Text>
           </Form.Group>
 
-          <div className="text-center mt-4">
+          <div className="d-flex justify-content-center gap-2 mt-4">
+            <Button
+              variant="secondary"
+              onClick={handleEditToggle}
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
             <Button variant="primary" type="submit" disabled={isUpdating}>
-              {isUpdating ? "Updating..." : "Update Profile"}
+              {isUpdating ? "Updating..." : "Save Changes"}
             </Button>
           </div>
         </Form>
       )}
+
+      {/* Password Change Modal */}
+      <ChangeTeacherPassword
+        show={showPasswordModal}
+        handleClose={handleClosePasswordModal}
+      />
     </div>
   );
 };

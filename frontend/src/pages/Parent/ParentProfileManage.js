@@ -1,17 +1,19 @@
-import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Alert,
-  Button,
-  Col,
   Form,
-  Image,
+  Button,
   Row,
-  Spinner,
+  Col,
+  Image,
   Table,
+  Spinner,
+  Alert,
 } from "react-bootstrap";
-import { toast } from "react-toastify";
+import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
 import ChangeParentPassword from "../../components/Parent/ChangeParentPassword";
 
 const ParentProfileManage = () => {
@@ -19,88 +21,125 @@ const ParentProfileManage = () => {
     parentName: "",
     parentEmail: "",
     parentContactNumber: "",
-    parentAddress: "",
-    parentOccupation: "",
-    parentIncome: "",
-    parentEducation: "",
-    emergencyContact: {
-      name: "",
-      relation: "",
-      phone: ""
-    }
+    address: "",
+    occupation: "",
+    relationship: "",
   });
-  const [photoFile, setPhotoFile] = useState(null);
-
   const [parentData, setParentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const navigate = useNavigate();
 
+  // Set default API URL with fallback
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
       ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
-  const fetchParentData = async () => {
-    setLoading(true);
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setError("Authentication token is missing. Please log in.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await axios.get(
-        `${API_URL}/api/parent/auth/parentprofile`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Fetched parent data:", response.data);
-      setParentData(response.data.parent);
-      setFormData(response.data.parent);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching parent data:", err);
-      setError(
-        err.response?.data?.message || "Failed to fetch parent data."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+      : process.env.REACT_APP_DEVELOPMENT_URL || "http://localhost:5000";
+      
+  console.log("Using API URL:", API_URL);
 
   useEffect(() => {
+    const fetchParentData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Authentication token is missing. Please log in.");
+        }
+
+        // Get parent info from localStorage for debugging
+        const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
+        console.log("Parent info from localStorage:", parentInfo);
+        
+        console.log("Fetching parent profile using token:", token ? "Token exists" : "No token");
+        
+        const response = await axios.get(`${API_URL}/api/parent/auth/parentprofile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-User-Role": "parent", // Add role header for extra validation
+          },
+        });
+
+        console.log("Parent profile API response:", response.data);
+
+        if (!response.data || !response.data.parent) {
+          throw new Error("Invalid response format from server");
+        }
+
+        const parentData = response.data.parent;
+        console.log("Parent data received:", parentData);
+        
+        // Log photo information specifically
+        if (parentData.photo) {
+          console.log("Parent photo found:", parentData.photo);
+          console.log("Full photo URL:", `${API_URL}/uploads/Parent/${parentData.photo}`);
+        } else {
+          console.log("No parent photo available in the response");
+        }
+        
+        setParentData(parentData);
+        setFormData({
+          parentID: parentData.parentID || parentInfo.parentID || "",
+          parentName: parentData.parentName || parentInfo.parentName || "",
+          parentEmail: parentData.parentEmail || parentInfo.parentEmail || "",
+          parentContactNumber: parentData.parentContactNumber || parentInfo.parentContactNumber || "",
+          address: parentData.address || "",
+          occupation: parentData.occupation || "",
+          relationship: parentData.relationship || "",
+        });
+      } catch (err) {
+        console.error("Error fetching parent profile:", err);
+        
+        // Fallback to localStorage data if API fails
+        try {
+          const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
+          if (parentInfo && parentInfo.parentID) {
+            console.log("Using localStorage data as fallback:", parentInfo);
+            setParentData(parentInfo);
+            setFormData({
+              parentID: parentInfo.parentID || "",
+              parentName: parentInfo.parentName || "",
+              parentEmail: parentInfo.parentEmail || "",
+              parentContactNumber: parentInfo.parentContactNumber || "",
+              address: parentInfo.address || "",
+              occupation: parentInfo.occupation || "",
+              relationship: parentInfo.relationship || "",
+            });
+            setError("Using locally stored profile data. Some information may be limited.");
+          } else {
+            setError("Failed to fetch profile data and no local data available");
+          }
+        } catch (localStorageError) {
+          console.error("Error accessing localStorage:", localStorageError);
+          const errorMessage = err.response?.data?.message || err.message || "Failed to fetch parent data";
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchParentData();
   }, [API_URL]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (name.startsWith('emergencyContact.')) {
-      const field = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        emergencyContact: {
-          ...prev.emergencyContact,
-          [field]: value
-        }
-      }));
-    } else {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
-    }
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
   };
 
-  const handleFileChange = (e) => {
-    setPhotoFile(e.target.files[0]);
+  const handlePhotoChange = (e) => {
+    setPhoto(e.target.files[0]);
   };
 
   const handleEditToggle = () => {
@@ -110,32 +149,45 @@ const ParentProfileManage = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
+    setError(null);
+    setSuccess(null);
 
-    const formDataToSubmit = new FormData();
-    
-    // Ensure parentID is included
-    formDataToSubmit.append("parentID", parentData.parentID);
-    
-    // Append all form fields
-    Object.keys(formData).forEach((key) => {
-      if (key === 'emergencyContact') {
-        formDataToSubmit.append(key, JSON.stringify(formData[key]));
-      } else if (key !== 'children' && key !== 'password' && key !== '_id' && key !== '__v') {
-        // Skip certain fields that should not be sent in the update
-        formDataToSubmit.append(key, formData[key]);
-      }
-    });
-    
-    // Append photo file if it exists
-    if (photoFile) {
-      formDataToSubmit.append("photo", photoFile);
-    }
-
-    const token = localStorage.getItem("token");
     try {
-      console.log("Sending parent profile update request");
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in.");
+      }
+
+      // Get parentInfo from localStorage to ensure ID is included
+      const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
+      
+      const formDataToSubmit = new FormData();
+      
+      // Ensure parentID is always included
+      formDataToSubmit.append("parentID", formData.parentID || parentInfo.parentID || parentData.parentID);
+      
+      // Add other form fields
+      Object.keys(formData).forEach((key) => {
+        if (key !== "parentID" && formData[key] !== null && formData[key] !== undefined) { // Skip parentID as we've already added it
+          formDataToSubmit.append(key, formData[key]);
+        }
+      });
+
+      // Add photo if it exists
+      if (photo) {
+        formDataToSubmit.append("photo", photo);
+      }
+      
+      // Log what's being submitted
+      console.log("Submitting form data:", {
+        parentID: formData.parentID || parentInfo.parentID || parentData.parentID,
+        parentName: formData.parentName,
+        parentEmail: formData.parentEmail,
+        parentContactNumber: formData.parentContactNumber
+      });
+
       const response = await axios.put(
-        `${API_URL}/api/parent/parentprofile`,
+        `${API_URL}/api/parent/auth/updateparentinfo`,
         formDataToSubmit,
         {
           headers: {
@@ -145,31 +197,47 @@ const ParentProfileManage = () => {
         }
       );
 
+      if (!response.data || !response.data.parent) {
+        throw new Error("Invalid response format from server");
+      }
+
+      // Update local state with the updated data
+      setParentData(response.data.parent);
+      
+      // Update the form data to reflect the changes
+      setFormData({
+        parentID: response.data.parent.parentID || "",
+        parentName: response.data.parent.parentName || "",
+        parentEmail: response.data.parent.parentEmail || "",
+        parentContactNumber: response.data.parent.parentContactNumber || "",
+        address: response.data.parent.address || "",
+        occupation: response.data.parent.occupation || "",
+        relationship: response.data.parent.relationship || "",
+      });
+      
       setSuccess("Profile updated successfully!");
       toast.success("Profile updated successfully!");
-      
-      // Update parent data with the returned data
-      if (response.data.parent) {
-        setParentData(response.data.parent);
-        setFormData(response.data.parent);
-        console.log("Updated parent data:", response.data.parent);
-      }
-      
-      // Refresh data to ensure we have the latest
-      setTimeout(() => {
-        fetchParentData();
-      }, 1000);
-      
-      setError(null);
+      setIsEditing(false);
     } catch (err) {
-      console.error("Profile update error:", err.response || err);
-      setError(err.response?.data?.message || "Failed to update profile.");
-      toast.error(err.response?.data?.message || "Failed to update profile.");
-      setSuccess(null);
+      console.error("Error updating profile:", err);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update profile";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsUpdating(false);
-      setIsEditing(false);
     }
+  };
+
+  const handleChangePassword = () => {
+    setShowPasswordModal(true);
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+  };
+
+  const handleBack = () => {
+    navigate(-1); // Navigate back to the previous page
   };
 
   if (loading) {
@@ -183,6 +251,28 @@ const ParentProfileManage = () => {
   return (
     <div className="container mt-5">
       <h2 className="text-center mb-4">Manage Parent Profile</h2>
+      <ToastContainer />
+      
+      {/* Back button with icon */}
+      <div style={{ marginBottom: "20px" }}>
+        <FaArrowLeft
+          onClick={handleBack}
+          size={24}
+          style={{
+            cursor: "pointer",
+            color: "#007bff",
+            display: "inline-block",
+            marginRight: "10px",
+          }}
+        />
+        <span
+          onClick={handleBack}
+          style={{ cursor: "pointer", color: "#007bff" }}
+        >
+          Back
+        </span>
+      </div>
+      
       {error && <Alert variant="danger">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
 
@@ -190,162 +280,183 @@ const ParentProfileManage = () => {
         <div className="p-4">
           <Row>
             <Col md={4} className="text-center">
-              {parentData?.photo && (
-                <Image
-                  src={`${API_URL}/uploads/Parent/${parentData.photo}`}
-                  alt="Parent Profile"
-                  className="rounded-circle mb-3"
-                  style={{ width: "150px", height: "150px", objectFit: "cover" }}
-                />
-              )}
+              <Image
+                src={parentData?.photo 
+                  ? `${API_URL}/uploads/Parent/${parentData.photo}`
+                  : "https://via.placeholder.com/150"}
+                alt="Parent Profile"
+                className="rounded-circle mb-3"
+                style={{
+                  width: "150px",
+                  height: "150px",
+                  objectFit: "cover",
+                  border: "2px solid #007bff"
+                }}
+                onError={(e) => {
+                  console.error("Error loading parent image:", e);
+                  console.log("Failed image source:", e.target.src);
+                  e.target.src = "https://via.placeholder.com/150";
+                  e.target.onerror = null; // Prevent infinite loop
+                }}
+              />
               <h5 className="mt-2">{parentData?.parentName || "N/A"}</h5>
-              <p className="text-muted">{parentData?.parentID || "N/A"}</p>
+              <p className="text-muted">{parentData?.relationship || "N/A"}</p>
             </Col>
             <Col md={8}>
               <Table bordered hover>
                 <tbody>
                   <tr>
+                    <th>Role</th>
+                    <td>Parent</td>
+                  </tr>
+                  <tr>
+                    <th>Parent ID</th>
+                    <td>{parentData?.parentID || "N/A"}</td>
+                  </tr>
+                  <tr>
                     <th>Email</th>
                     <td>{parentData?.parentEmail || "N/A"}</td>
                   </tr>
                   <tr>
-                    <th>Contact Number</th>
+                    <th>Phone</th>
                     <td>{parentData?.parentContactNumber || "N/A"}</td>
                   </tr>
                   <tr>
                     <th>Address</th>
-                    <td>{parentData?.parentAddress || "N/A"}</td>
+                    <td>{parentData?.address || "N/A"}</td>
                   </tr>
                   <tr>
                     <th>Occupation</th>
-                    <td>{parentData?.parentOccupation || "N/A"}</td>
+                    <td>{parentData?.occupation || "N/A"}</td>
                   </tr>
                   <tr>
-                    <th>Income</th>
-                    <td>{parentData?.parentIncome || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Education</th>
-                    <td>{parentData?.parentEducation || "N/A"}</td>
-                  </tr>
-                  <tr>
-                    <th>Emergency Contact</th>
-                    <td>
-                      {parentData?.emergencyContact ? (
-                        <>
-                          <div>Name: {parentData.emergencyContact.name || "N/A"}</div>
-                          <div>Relation: {parentData.emergencyContact.relation || "N/A"}</div>
-                          <div>Phone: {parentData.emergencyContact.phone || "N/A"}</div>
-                        </>
-                      ) : (
-                        "No emergency contact"
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Children</th>
-                    <td>
-                      {parentData?.children && parentData.children.length > 0 ? (
-                        <ul className="list-unstyled">
-                          {parentData.children.map((child, index) => (
-                            <li key={index} className="mb-2">
-                              {child.student ? (
-                                <>
-                                  <strong>{child.student.studentName}</strong> ({child.student.studentID})
-                                  <br />
-                                  <small className="text-muted">Relationship: {child.relationship || "N/A"}</small>
-                                </>
-                              ) : (
-                                `Child information not available`
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        "No children registered"
-                      )}
-                    </td>
+                    <th>Relationship</th>
+                    <td>{parentData?.relationship || "N/A"}</td>
                   </tr>
                 </tbody>
               </Table>
             </Col>
           </Row>
-          <div className="text-center mt-3">
-            <Button onClick={handleEditToggle} variant="primary" disabled={isUpdating}>
+          <div className="text-center mt-3 d-flex justify-content-center gap-2">
+            <Button
+              onClick={handleEditToggle}
+              variant="primary"
+              disabled={isUpdating}
+            >
               Edit Profile
             </Button>
-            <ChangeParentPassword />
+            <Button
+              onClick={handleChangePassword}
+              variant="secondary"
+              disabled={isUpdating}
+            >
+              Change Password
+            </Button>
           </div>
         </div>
       ) : (
         <Form onSubmit={handleFormSubmit} className="p-4">
-          {[
-            { name: "parentName", label: "Name" },
-            { name: "parentEmail", label: "Email", type: "email" },
-            { name: "parentContactNumber", label: "Contact Number" },
-            { name: "parentAddress", label: "Address" },
-            { name: "parentOccupation", label: "Occupation" },
-            { name: "parentIncome", label: "Income", type: "number" },
-            { name: "parentEducation", label: "Education" },
-          ].map(({ name, label, type = "text" }) => (
-            <Form.Group controlId={`form-${name}`} key={name} className="mb-3">
-              <Form.Label>{label}</Form.Label>
-              <Form.Control
-                type={type}
-                placeholder={`Enter ${label.toLowerCase()}`}
-                name={name}
-                value={formData[name] || ""}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          ))}
+          <Form.Group controlId="formName" className="mb-3">
+            <Form.Label>Name</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter name"
+              name="parentName"
+              value={formData.parentName || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
 
-          <h5 className="mt-4">Emergency Contact</h5>
-          {[
-            { name: "emergencyContact.name", label: "Name" },
-            { name: "emergencyContact.relation", label: "Relation" },
-            { name: "emergencyContact.phone", label: "Phone" },
-          ].map(({ name, label }) => (
-            <Form.Group controlId={`form-${name}`} key={name} className="mb-3">
-              <Form.Label>{label}</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder={`Enter emergency contact ${label.toLowerCase()}`}
-                name={name}
-                value={name.startsWith('emergencyContact.') ? 
-                  formData.emergencyContact?.[name.split('.')[1]] || "" : 
-                  formData[name] || ""}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          ))}
+          <Form.Group controlId="formEmail" className="mb-3">
+            <Form.Label>Email</Form.Label>
+            <Form.Control
+              type="email"
+              placeholder="Enter email"
+              name="parentEmail"
+              value={formData.parentEmail || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
 
-          <Form.Group controlId="formPhoto" className="mt-3">
+          <Form.Group controlId="formPhone" className="mb-3">
+            <Form.Label>Phone</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter phone number"
+              name="parentContactNumber"
+              value={formData.parentContactNumber || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formAddress" className="mb-3">
+            <Form.Label>Address</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter address"
+              name="address"
+              value={formData.address || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formOccupation" className="mb-3">
+            <Form.Label>Occupation</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter occupation"
+              name="occupation"
+              value={formData.occupation || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formRelationship" className="mb-3">
+            <Form.Label>Relationship</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter relationship"
+              name="relationship"
+              value={formData.relationship || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="formPhoto" className="mb-3">
             <Form.Label>Profile Photo</Form.Label>
             <Form.Control
               type="file"
               name="photo"
-              onChange={handleFileChange}
+              onChange={handlePhotoChange}
+              accept="image/*"
             />
-            {parentData?.photo && (
-              <div className="mt-2">
-                <small className="text-muted">Current photo: {parentData.photo}</small>
-              </div>
-            )}
+            <Form.Text className="text-muted">
+              Upload a new photo to change your profile picture.
+            </Form.Text>
           </Form.Group>
 
-          <div className="text-center mt-4">
-            <Button variant="primary" type="submit" disabled={isUpdating} className="me-2">
-              {isUpdating ? "Updating..." : "Update Profile"}
-            </Button>
-            <Button variant="secondary" onClick={handleEditToggle} disabled={isUpdating}>
+          <div className="d-flex justify-content-center gap-2 mt-4">
+            <Button
+              variant="secondary"
+              onClick={handleEditToggle}
+              disabled={isUpdating}
+            >
               Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={isUpdating}>
+              {isUpdating ? "Updating..." : "Save Changes"}
             </Button>
           </div>
         </Form>
       )}
+
+      {/* Password Change Modal */}
+      <ChangeParentPassword
+        show={showPasswordModal}
+        handleClose={handleClosePasswordModal}
+      />
     </div>
   );
 };
 
-export default ParentProfileManage;
+export default ParentProfileManage; 

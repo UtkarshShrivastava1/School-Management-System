@@ -70,7 +70,7 @@ const upload = multer({
 });
 // Route for teacher login
 router.post(
-  "/auth/login",
+  "/login",
   [
     body("teacherID").trim().notEmpty().withMessage("Teacher ID is required"),
     body("password").trim().notEmpty().withMessage("Password is required"),
@@ -96,16 +96,19 @@ router.post("/validate", verifyTeacherToken, async (req, res) => {
 //================================================================================================
 //------------------------------------------------------------------------------------------------
 // Route: Get teacher profile using GET "/api/teacher/auth/teacherprofile"
-// Route: Get teacher profile using GET "/api/teacher/auth/teacherprofile"
-router.get("/auth/teacherprofile", verifyTeacherToken, async (req, res) => {
+router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
   try {
-    const teacherID = req.teacher?.id; // Extract teacher ID from middleware
+    // Get teacherID from middleware, first try _id then id
+    const teacherID = req.teacher?._id || req.teacher?.id;
 
     if (!teacherID) {
+      console.error("Teacher ID missing in token:", req.teacher);
       return res
         .status(400)
         .json({ message: "Teacher ID is missing in token" });
     }
+
+    console.log("Fetching teacher profile with ID:", teacherID);
 
     // Validate teacherID format
     if (!mongoose.Types.ObjectId.isValid(teacherID)) {
@@ -121,6 +124,11 @@ router.get("/auth/teacherprofile", verifyTeacherToken, async (req, res) => {
     // Remove sensitive data (e.g., password)
     const { password, ...teacherData } = teacher;
 
+    console.log("Teacher data retrieved:", {
+      teacherID: teacherData.teacherID,
+      name: teacherData.name
+    });
+
     res.status(200).json({ teacher: teacherData });
   } catch (error) {
     console.error("Error fetching teacher profile:", error.message);
@@ -129,11 +137,11 @@ router.get("/auth/teacherprofile", verifyTeacherToken, async (req, res) => {
 });
 
 //------------------------------------------------------------------------------------------------
-// Route: Update teacher info using PUT "/api/teacher/auth/teacherprofile"
+// Route: Update teacher info using PUT "/api/teacher/auth/updateteacherinfo"
 router.put(
-  "/auth/teacherprofile",
-  verifyTeacherToken,
-  upload.single("photo"),
+  "/updateteacherinfo",
+  verifyTeacherToken, // Middleware to verify teacher token
+  upload.single("photo"), // Middleware to handle photo upload
   [
     body("name").optional().trim(),
     body("email").optional().isEmail().withMessage("Invalid email format"),
@@ -141,17 +149,9 @@ router.put(
     body("designation").optional().trim(),
     body("department").optional().trim(),
     body("address").optional().trim(),
-    body("religion").optional().trim(),
-    body("category").optional().trim(),
-    body("bloodgroup").optional().trim(),
-    body("emergencyContact").optional().isObject().withMessage("Emergency contact must be an object"),
-    body("emergencyContact.name").optional().trim(),
-    body("emergencyContact.relation").optional().trim(),
-    body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
-    body("experience").optional().isNumeric().withMessage("Experience must be a numeric value"),
-    body("highestQualification").optional().trim()
+    body("experience").optional().isNumeric().withMessage("Experience must be a number"),
   ],
-  handleValidationErrors,
+  handleValidationErrors, // Middleware to handle validation errors
   async (req, res) => {
     try {
       const teacherID = req.teacher?.id;
@@ -174,13 +174,43 @@ router.put(
         designation,
         department,
         address,
-        religion,
-        category,
-        bloodgroup,
-        emergencyContact,
         experience,
-        highestQualification
+        subjects,
       } = req.body;
+      
+      console.log("Update request received for teacher:", { 
+        teacherID, 
+        name, 
+        email,
+        phone,
+        experience,
+        hasPhoto: !!req.file
+      });
+      
+      const photo = req.file ? req.file.filename : null; // Handle uploaded photo
+
+      // First try to find by req.body.teacherID
+      let teacher = await Teacher.findOne({ teacherID });
+      
+      // If not found, try to find by ID from token
+      if (!teacher && req.teacher) {
+        const tokenID = req.teacher._id || req.teacher.id;
+        if (tokenID) {
+          console.log("Teacher not found by teacherID, trying token ID:", tokenID);
+          teacher = await Teacher.findById(tokenID);
+        }
+      }
+      
+      if (!teacher) {
+        console.error("Teacher not found for ID:", teacherID);
+        return res.status(404).json({ message: "Teacher not found" });
+      }
+
+      console.log("Teacher found:", { 
+        id: teacher._id, 
+        teacherID: teacher.teacherID, 
+        name: teacher.name 
+      });
 
       // Update fields if provided
       if (name) teacher.name = name;
@@ -189,65 +219,32 @@ router.put(
       if (designation) teacher.designation = designation;
       if (department) teacher.department = department;
       if (address) teacher.address = address;
-      if (religion) teacher.religion = religion;
-      if (category) teacher.category = category;
-      if (bloodgroup) teacher.bloodgroup = bloodgroup;
-      if (emergencyContact) {
-        try {
-          // Parse emergencyContact if it's a string
-          const contactData = typeof emergencyContact === 'string'
-            ? JSON.parse(emergencyContact)
-            : emergencyContact;
-            
-          teacher.emergencyContact = {
-            name: contactData.name || teacher.emergencyContact?.name || "",
-            relation: contactData.relation || teacher.emergencyContact?.relation || "",
-            phone: contactData.phone || teacher.emergencyContact?.phone || "",
-          };
-        } catch (err) {
-          console.error("Error processing emergencyContact:", err);
+      if (experience !== undefined) teacher.experience = experience;
+      if (subjects) teacher.subjects = subjects;
+      if (photo) teacher.photo = photo; // Update photo if provided
+
+      // Save the updated teacher document
+      const updatedTeacher = await teacher.save();
+      console.log("Teacher updated successfully:", { 
+        id: updatedTeacher._id, 
+        teacherID: updatedTeacher.teacherID,
+        updatedFields: {
+          email: !!email,
+          phone: !!phone,
+          name: !!name,
+          designation: !!designation,
+          department: !!department,
+          address: !!address,
+          experience: experience !== undefined,
+          subjects: !!subjects,
+          photo: !!photo
         }
-      }
-      
-      // Handle numeric fields
-      if (experience !== undefined && experience !== null) {
-        // Ensure experience is stored as a number
-        teacher.experience = Number(experience);
-        console.log(`Setting experience to: ${typeof teacher.experience} - ${teacher.experience}`);
-      }
-      
-      if (highestQualification) {
-        teacher.highestQualification = highestQualification;
-      }
-
-      // Handle photo upload if present
-      if (req.file) {
-        teacher.photo = req.file.filename; // Store just the filename, not the full path
-        console.log("New photo set:", teacher.photo);
-      }
-
-      // Add to action history
-      if (!teacher.actionHistory) {
-        teacher.actionHistory = [];
-      }
-      teacher.actionHistory.push("Profile updated on " + new Date().toISOString());
-
-      console.log("Saving teacher updates:", {
-        name: teacher.name,
-        email: teacher.email,
-        experience: teacher.experience,
-        updatedFields: req.body
       });
-      
-      await teacher.save();
-      console.log("Teacher saved successfully");
 
-      // Remove sensitive data
-      const { password, ...teacherData } = teacher.toObject();
-
-      res.json({
-        message: "Profile updated successfully",
-        teacher: teacherData
+      // Respond with the updated teacher data
+      res.status(200).json({
+        message: "Teacher information updated successfully",
+        teacher: updatedTeacher,
       });
     } catch (error) {
       console.error("Error updating teacher profile:", error);
@@ -262,7 +259,7 @@ router.put(
 //----------------------------------------------------------------
 // Route: Change teacher password using PUT "/api/teacher/auth/changeteacherpassword"
 router.put(
-  "/auth/changeteacherpassword",
+  "/changeteacherpassword",
   verifyTeacherToken,
   [
     body("currentPassword")
@@ -286,37 +283,55 @@ router.put(
   handleValidationErrors,
   async (req, res) => {
     try {
-      // Log the request body for debugging
-      console.log("Password change request body:", req.body);
+      console.log("Password change request received:", { 
+        teacherID: req.body.teacherID,
+        passwordLength: req.body.newPassword?.length,
+        confirmMatch: req.body.newPassword === req.body.confirmNewPassword
+      });
 
-      const teacherID = req.teacher?.id;
-      if (!teacherID) {
-        return res.status(401).json({ message: "Unauthorized - Invalid token" });
-      }
+      const { teacherID, newPassword } = req.body;
 
-      const { currentPassword, newPassword } = req.body;
-
-      const teacher = await Teacher.findById(teacherID);
+      // Fetch the teacher document using teacherID
+      console.log("Fetching teacher from DB with teacherID:", teacherID);
+      const teacher = await Teacher.findOne({ teacherID });
       if (!teacher) {
         return res.status(404).json({ message: "Teacher not found" });
       }
 
-      // Verify current password
-      const isMatch = await bcrypt.compare(currentPassword, teacher.password);
-      if (!isMatch) {
-        return res.status(401).json({ message: "Current password is incorrect" });
-      }
+      console.log("Teacher found:", { 
+        id: teacher._id, 
+        teacherID: teacher.teacherID,
+        name: teacher.name
+      });
 
-      // Hash new password
+      // Hash the new password and update it
+      console.log("Generating salt for password hashing...");
       const salt = await bcrypt.genSalt(10);
-      teacher.password = await bcrypt.hash(newPassword, salt);
+      console.log("Salt generated");
+
+      console.log("Hashing new password...");
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      console.log("Password hashed successfully");
+      
+      // Update password in the database
+      teacher.password = hashedPassword;
 
       // Add to action history
       teacher.actionHistory.push("Password changed");
 
       await teacher.save();
 
-      res.json({ message: "Password changed successfully" });
+      // Validate the password was saved correctly by checking if it can be verified
+      const verifyPasswordUpdate = await bcrypt.compare(newPassword, teacher.password);
+      console.log("Password verification check:", verifyPasswordUpdate ? "Success" : "Failed");
+
+      if (!verifyPasswordUpdate) {
+        return res.status(500).json({ message: "Password update failed verification" });
+      }
+
+      // Respond with a success message
+      console.log("Password updated successfully for teacherID:", teacherID);
+      res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
       console.error("Error changing password:", error);
       res.status(500).json({ 
@@ -328,189 +343,5 @@ router.put(
 );
 
 // Route to fetch assigned classes for the logged-in teacher
-router.get("/auth/assigned-classes", verifyTeacherToken, getAssignedClasses);
-
-// Teacher Profile Routes
-router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
-  try {
-    const teacherID = req.teacher?.id;
-    if (!teacherID) {
-      return res.status(400).json({ message: "Teacher ID is missing in token" });
-    }
-
-    const teacher = await Teacher.findById(teacherID);
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
-
-    res.status(200).json({ teacher });
-  } catch (error) {
-    console.error("Error fetching teacher profile:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Update teacher profile
-router.put("/teacherprofile", verifyTeacherToken, upload.single("photo"), [
-  body("teacherID").notEmpty().withMessage("Teacher ID is required"),
-  body("email").optional().isEmail().withMessage("Invalid email format"),
-  body("phone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone number must be 10 digits"),
-  body("name").optional().trim().notEmpty().withMessage("Name cannot be empty"),
-  body("designation").optional().trim(),
-  body("department").optional().trim(),
-  body("address").optional().trim(),
-  body("dob").optional().isISO8601().toDate().withMessage("Invalid DOB"),
-  body("gender").optional().isString().withMessage("Gender must be a string"),
-  body("religion").optional().isString().withMessage("Religion must be a string"),
-  body("category").optional().isString().withMessage("Category must be a string"),
-  body("bloodgroup").optional().isString().withMessage("Blood group must be a string"),
-  body("emergencyContact").optional().isObject(),
-  body("emergencyContact.name").optional().notEmpty().withMessage("Emergency contact name cannot be empty"),
-  body("emergencyContact.relation").optional().notEmpty().withMessage("Emergency contact relation cannot be empty"),
-  body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
-  body("experience").optional().isNumeric().withMessage("Experience must be numeric"),
-  body("highestQualification").optional().notEmpty().withMessage("Highest qualification cannot be empty"),
-  body("AADHARnumber").optional().isLength({ min: 12, max: 12 }).withMessage("AADHAR number must be 12 digits"),
-  body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
-  body("bankDetails").optional().isObject(),
-  body("bankDetails.accountNumber").optional().notEmpty().withMessage("Bank account number cannot be empty"),
-  body("bankDetails.bankName").optional().notEmpty().withMessage("Bank name cannot be empty"),
-  body("bankDetails.ifscCode").optional().notEmpty().withMessage("IFSC code cannot be empty"),
-], handleValidationErrors, async (req, res) => {
-  try {
-    const { teacherID } = req.body;
-    if (!teacherID) {
-      return res.status(400).json({ message: "Teacher ID is required" });
-    }
-
-    const teacher = await Teacher.findOne({ teacherID });
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
-
-    const {
-      email,
-      phone,
-      name,
-      designation,
-      department,
-      address,
-      dob,
-      gender,
-      religion,
-      category,
-      bloodgroup,
-      emergencyContact,
-      experience,
-      highestQualification,
-      AADHARnumber,
-      salary,
-      bankDetails,
-    } = req.body;
-    const photo = req.file ? req.file.filename : null;
-
-    // Update fields if provided
-    if (email) teacher.email = email;
-    if (phone) teacher.phone = phone;
-    if (name) teacher.name = name;
-    if (designation) teacher.designation = designation;
-    if (department) teacher.department = department;
-    if (address) teacher.address = address;
-    if (dob) teacher.dob = new Date(dob);
-    if (gender) teacher.gender = gender;
-    if (religion) teacher.religion = religion;
-    if (category) teacher.category = category;
-    if (bloodgroup) teacher.bloodgroup = bloodgroup;
-    if (emergencyContact) {
-      teacher.emergencyContact = {
-        name: emergencyContact.name || teacher.emergencyContact?.name || "",
-        relation: emergencyContact.relation || teacher.emergencyContact?.relation || "",
-        phone: emergencyContact.phone || teacher.emergencyContact?.phone || "",
-      };
-    }
-    if (experience) teacher.experience = experience;
-    if (highestQualification) teacher.highestQualification = highestQualification;
-    if (AADHARnumber) teacher.AADHARnumber = AADHARnumber;
-    if (salary) teacher.salary = salary;
-    if (bankDetails) {
-      teacher.bankDetails = {
-        accountNumber: bankDetails.accountNumber || teacher.bankDetails?.accountNumber || "",
-        bankName: bankDetails.bankName || teacher.bankDetails?.bankName || "",
-        ifscCode: bankDetails.ifscCode || teacher.bankDetails?.ifscCode || "",
-      };
-    }
-    if (photo) teacher.photo = photo;
-
-    // Add to action history
-    teacher.actionHistory.push("Profile updated");
-
-    await teacher.save();
-
-    // Remove sensitive data
-    const { password, ...teacherData } = teacher.toObject();
-
-    res.json({
-      message: "Profile updated successfully",
-      teacher: teacherData
-    });
-  } catch (error) {
-    console.error("Error updating teacher profile:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
-    });
-  }
-});
-
-// Change teacher password
-router.put("/changeteacherpassword", verifyTeacherToken, [
-  body("teacherID").notEmpty().withMessage("Teacher ID is required"),
-  body("currentPassword").trim().notEmpty().withMessage("Current password is required"),
-  body("newPassword")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters long")
-    .matches(/\d/)
-    .withMessage("Password must contain at least one number")
-    .matches(/[!@#$%^&*]/)
-    .withMessage("Password must contain at least one special character"),
-  body("confirmNewPassword")
-    .custom((value, { req }) => value === req.body.newPassword)
-    .withMessage("Passwords do not match"),
-], handleValidationErrors, async (req, res) => {
-  try {
-    const { teacherID, currentPassword, newPassword } = req.body;
-    if (!teacherID) {
-      return res.status(400).json({ message: "Teacher ID is required" });
-    }
-
-    const teacher = await Teacher.findOne({ teacherID });
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
-
-    // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, teacher.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Current password is incorrect" });
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    teacher.password = await bcrypt.hash(newPassword, salt);
-
-    // Add to action history
-    teacher.actionHistory.push("Password changed");
-
-    await teacher.save();
-
-    res.json({ message: "Password changed successfully" });
-  } catch (error) {
-    console.error("Error changing password:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
-    });
-  }
-});
-
+router.get("/assigned-classes", verifyTeacherToken, getAssignedClasses);
 module.exports = router;

@@ -47,15 +47,29 @@ const {
 // Set up multer for file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = "uploads/Admin/";
+    // Determine the correct upload directory based on the field name
+    let uploadDir = "uploads/Admin/";
+    if (file.fieldname === "photo" && req.url.includes("createstudent")) {
+      uploadDir = "uploads/Student/";
+    } else if (file.fieldname === "photo" && req.url.includes("createteacher")) {
+      uploadDir = "uploads/Teacher/";
+    } else if (file.fieldname === "parentPhoto") {
+      uploadDir = "uploads/Parent/";
+    }
+    
     const fs = require("fs");
     if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-    cb(null, uploadDir);
+    
+    console.log(`Saving ${file.fieldname} to directory: ${uploadDir}`);
+    cb(null, uploadDir); // Store files in appropriate folder
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    // Generate a unique filename based on current timestamp
+    const fileName = Date.now() + path.extname(file.originalname);
+    console.log(`Generated filename: ${fileName} for field: ${file.fieldname}`);
+    cb(null, fileName);
   },
 });
 
@@ -74,13 +88,56 @@ const upload = multer({
   },
 });
 
+// Configure multer for multiple file uploads
+const uploadFields = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    // Only allow images with specific file extensions and MIME types
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      return cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
+// Configure multer for multiple file uploads
+const uploadFields = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    // Only allow images with specific file extensions and MIME types
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      return cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
 // Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('Validation errors:', errors.array());
     return res.status(400).json({
       message: "Validation error",
-      errors: errors.array(),
+      errors: errors.array().map(err => ({
+        field: err.param,
+        message: err.msg,
+        value: err.value
+      }))
     });
   }
   next();
@@ -360,53 +417,150 @@ router.put("/changeadminpassword", verifyAdminToken, [
       error: error.message 
     });
   }
-});
+);
+//================================================================================================
+//================================================================================================
 
-// Teacher Management Routes
-router.post("/createteacher", verifyAdminToken, upload.single("photo"), [
-  body("name").notEmpty().withMessage("Name is required"),
-  body("email").isEmail().withMessage("Valid email is required"),
-  body("phone").isLength({ min: 10, max: 10 }).withMessage("Phone must be 10 digits"),
-  body("designation").notEmpty().withMessage("Designation is required"),
-  body("address").notEmpty().withMessage("Address is required"),
-  body("dob").notEmpty().withMessage("Date of Birth is required"),
-  body("gender").notEmpty().withMessage("Gender is required"),
-  body("department").notEmpty().withMessage("Department is required"),
-  body("religion").optional().isString().withMessage("Religion must be a string"),
-  body("category").optional().isString().withMessage("Category must be a string"),
-  body("bloodgroup").optional().isString().withMessage("Blood group must be a string"),
-  body("emergencyContact").optional().isObject().withMessage("Emergency contact must be an object"),
-  body("emergencyContact.name").optional().notEmpty().withMessage("Emergency contact name is required"),
-  body("emergencyContact.relation").optional().notEmpty().withMessage("Emergency contact relation is required"),
-  body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
-  body("experience").optional().isNumeric().withMessage("Experience must be a numeric value"),
-  body("highestQualification").optional().notEmpty().withMessage("Highest qualification is required"),
-  body("AADHARnumber").optional().isLength({ min: 12, max: 12 }).withMessage("AADHAR number must be 12 digits"),
-  body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
-  body("bankDetails").optional().isObject().withMessage("Bank details must be an object"),
-  body("bankDetails.accountNumber").optional().notEmpty().withMessage("Bank account number is required"),
-  body("bankDetails.bankName").optional().notEmpty().withMessage("Bank name is required"),
-  body("bankDetails.ifscCode").optional().notEmpty().withMessage("IFSC code is required"),
-], handleValidationErrors, createTeacher);
+//----------------------------------------------------------------
+// Route to create a teacher
+// Route: Create an teacher using POST "/api/admin/auth/createteacher"
+router.post(
+  "/createteacher",
+  verifyAdminToken, // Verify teacher token
+  upload.single("photo"), // Handle file upload for teacher's photo
+  [
+    // Existing validations
+    body("name").notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("phone")
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone must be 10 digits"),
+    body("designation").notEmpty().withMessage("Designation is required"),
+    body("address").notEmpty().withMessage("Address is required"),
+    body("dob").notEmpty().withMessage("Date of Birth is required"),
+    body("gender").notEmpty().withMessage("Gender is required"),
+    body("department").notEmpty().withMessage("Department is required"),
+    body("religion")
+      .optional()
+      .isString()
+      .withMessage("Religion must be a string"),
+    body("category")
+      .optional()
+      .isString()
+      .withMessage("Category must be a string"),
+    body("bloodgroup")
+      .optional()
+      .isString()
+      .withMessage("Blood group must be a string"),
+    // Validations for new fields
+    body("emergencyContact")
+      .optional()
+      .isObject()
+      .withMessage("Emergency contact must be an object"),
+    body("emergencyContact.name")
+      .optional()
+      .notEmpty()
+      .withMessage("Emergency contact name is required"),
+    body("emergencyContact.relation")
+      .optional()
+      .notEmpty()
+      .withMessage("Emergency contact relation is required"),
+    body("emergencyContact.phone")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Emergency contact phone must be 10 digits"),
 
-// Student Management Routes
-router.post("/createstudent", verifyAdminToken, upload.single("photo"), [
-  body("studentName").notEmpty().withMessage("Student name is required."),
-  body("studentEmail").isEmail().withMessage("A valid student email is required."),
-  body("studentPhone").isMobilePhone().withMessage("A valid student phone number is required."),
-  body("studentAddress").notEmpty().withMessage("Student address is required."),
-  body("studentDOB").notEmpty().withMessage("Student DOB is required."),
-  body("studentGender").isString().withMessage("Invalid student gender."),
-  body("religion").optional().isString().withMessage("Invalid religion."),
-  body("category").optional().isString().withMessage("Invalid category."),
-  body("bloodgroup").optional().isString().withMessage("Invalid blood group."),
-  body("parentName").notEmpty().withMessage("Parent name is required."),
-  body("parentContactNumber").isMobilePhone().withMessage("A valid parent contact number is required."),
-  body("parentEmail").isEmail().withMessage("A valid parent email is required."),
-  body("studentFatherName").notEmpty().withMessage("Student father name is required."),
-  body("studentMotherName").notEmpty().withMessage("Student mother name is required."),
-  body("relationship").isString().withMessage("Invalid relationship."),
-], handleValidationErrors, createStudent);
+    body("experience")
+      .optional()
+      .isNumeric()
+      .withMessage("Experience must be a numeric value"),
+
+    body("highestQualification")
+      .optional()
+      .notEmpty()
+      .withMessage("Highest qualification is required"),
+
+    body("AADHARnumber")
+      .optional()
+      .isLength({ min: 12, max: 12 })
+      .withMessage("AADHAR number must be 12 digits"),
+    body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
+    body("bankDetails")
+      .optional()
+      .isObject()
+      .withMessage("Bank details must be an object"),
+    body("bankDetails.accountNumber")
+      .optional()
+      .notEmpty()
+      .withMessage("Bank account number is required"),
+    body("bankDetails.bankName")
+      .optional()
+      .notEmpty()
+      .withMessage("Bank name is required"),
+    body("bankDetails.ifscCode")
+      .optional()
+      .notEmpty()
+      .withMessage("IFSC code is required"),
+  ],
+  handleValidationErrors, // Handle validation errors
+  createTeacher // Call the controller function for teacher creation
+);
+
+//================================================================================================
+//================================================================================================
+router.post(
+  "/createstudent",
+  verifyAdminToken, // Verify admin token
+  uploadFields.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'parentPhoto', maxCount: 1 }
+  ]), // Handle file uploads for both student and parent photos
+  [
+    // Validation middleware
+    body("studentName").notEmpty().withMessage("Student name is required."),
+    body("studentEmail")
+      .isEmail()
+      .withMessage("A valid student email is required."),
+    body("studentPhone")
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone number must be 10 digits"),
+    body("studentAddress")
+      .notEmpty()
+      .withMessage("Student address is required."),
+    body("studentDOB").notEmpty().withMessage("Student DOB is required."),
+    body("studentGender").isString().withMessage("Invalid student gender."), // Now accepts any string
+    body("className")
+      .notEmpty()
+      .withMessage("Class is required.")
+      .isIn(['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'])
+      .withMessage("Class must be in format 'Class X' where X is a number from 1 to 12."),
+    body("religion").optional().isString().withMessage("Invalid religion."),
+    body("category").optional().isString().withMessage("Invalid category."),
+    body("bloodgroup")
+      .optional()
+      .isString()
+      .withMessage("Invalid blood group."),
+
+    body("parentName").notEmpty().withMessage("Parent name is required."),
+    body("parentContactNumber")
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Parent contact number must be 10 digits"),
+    body("parentEmail")
+      .isEmail()
+      .withMessage("A valid parent email is required."),
+    body("studentFatherName")
+      .notEmpty()
+      .withMessage("Student father name is required."),
+    body("studentMotherName")
+      .notEmpty()
+      .withMessage("Student mother name is required."),
+
+    // Validate relationship for the parent
+    body("relationship").isString().withMessage("Invalid relationship."), // Now accepts any string
+  ],
+  handleValidationErrors, // Add this line to handle validation errors
+  createStudent
+);
 
 // Class Management Routes
 router.post("/createclass", verifyAdminToken, createClass);

@@ -7,18 +7,16 @@ import {
 } from "react-router-dom";
 // Page imports
 import About from "./pages/About";
-
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import Navbar from "./components/Navbar";
-import ParentDashboardPage from "./pages/Parent/ParentDashboardPage";
 import Signin from "./pages/Signin";
 import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
 import AdminRoutes from "./Routes/Admin/AdminRoutes";
 import ParentRoutes from "./Routes/Parent/ParentRoutes";
 import StudentRoutes from "./Routes/Student/StudentRoutes";
 import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
-import "./toast.css"; // Import custom toast styles
+import StudentRoutes from "./Routes/Student/StudentRoutes";
+import ParentRoutes from "./Routes/Parent/ParentRoutes";
+import Navbar from "./components/Navbar";
+import { ToastContainer } from "react-toastify";
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -36,7 +34,19 @@ const App = () => {
     async (token) => {
       console.log("Validating token...");
       try {
-        const response = await fetch(`${API_URL}/api/admin/auth/validate`, {
+        // Get the stored role to determine which validation endpoint to use
+        const storedRole = localStorage.getItem("userRole");
+        let validationEndpoint = "/api/admin/auth/validate";
+        
+        if (storedRole === "teacher") {
+          validationEndpoint = "/api/teacher/auth/validate";
+        } else if (storedRole === "student") {
+          validationEndpoint = "/api/student/auth/validate";
+        } else if (storedRole === "parent") {
+          validationEndpoint = "/api/parent/auth/validate";
+        }
+
+        const response = await fetch(`${API_URL}${validationEndpoint}`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -53,12 +63,15 @@ const App = () => {
         } else {
           console.error("Token validation failed. Logging out.");
           localStorage.removeItem("token");
+          localStorage.removeItem("userRole");
           setIsLoggedIn(false);
           setUser(null);
           setUserRole(null);
         }
       } catch (error) {
         console.error("Error validating token:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("userRole");
         setIsLoggedIn(false);
         setUser(null);
         setUserRole(null);
@@ -67,7 +80,7 @@ const App = () => {
       }
     },
     [API_URL]
-  ); // Dependencies for useCallback
+  );
 
   useEffect(() => {
     console.log("Checking for token in local storage...");
@@ -80,15 +93,22 @@ const App = () => {
       setIsLoggedIn(false);
       setLoading(false);
     }
-  }, [validateToken]); // Now validateToken is stable
+  }, [validateToken]);
 
   const handleLogout = () => {
     console.log("Logging out...");
+    // Clear all state
+    setIsLoggedIn(false);
+    setUserRole(null);
+    setUser(null);
+    
+    // Clear all localStorage items
     localStorage.removeItem("token");
     localStorage.removeItem("userRole");
-    setIsLoggedIn(false);
-    setUser(null);
-    setUserRole(null);
+    localStorage.removeItem("adminInfo");
+    localStorage.removeItem("teacherInfo");
+    localStorage.removeItem("studentInfo");
+    localStorage.removeItem("parentInfo");
   };
 
   if (loading) {
@@ -99,82 +119,47 @@ const App = () => {
     <Router>
       <Navbar
         isLoggedIn={isLoggedIn}
+        setIsLoggedIn={setIsLoggedIn}
         userRole={userRole}
-        user={user}
-        handleLogout={handleLogout}
+        setUserRole={setUserRole}
       />
       <Routes>
         <Route
           path="/"
-          element={
-            <Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />
-          }
+          element={<Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />}
         />
         <Route
           path="/signin"
-          element={
-            <Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />
-          }
+          element={<Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />}
         />
-
         <Route
           path="/about"
-          element={
-            <About setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />
-          }
+          element={<About setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />}
         />
         {isLoggedIn && userRole === "admin" && (
           <Route
             path="/admin/*"
-            element={
-              <AdminRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
-            }
+            element={<AdminRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
           />
         )}
         {isLoggedIn && userRole === "teacher" && (
           <Route
             path="/teacher/*"
-            element={
-              <TeacherRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
-            }
+            element={<TeacherRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
           />
         )}
         {isLoggedIn && userRole === "student" && (
           <Route
             path="/student/*"
-            element={
-              <StudentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
-            }
+            element={<StudentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
           />
         )}
         {isLoggedIn && userRole === "parent" && (
           <Route
             path="/parent/*"
-            element={
-              <ParentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
-            }
+            element={<ParentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
           />
         )}
-        <Route
-          path="/student/student-dashboard"
-          element={
-            isLoggedIn && userRole === "student" ? (
-              <StudentDashboardPage />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-        <Route
-          path="/parent/parent-dashboard"
-          element={
-            isLoggedIn && userRole === "parent" ? (
-              <ParentDashboardPage />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
       </Routes>
       <ToastContainer
         position="top-right"
