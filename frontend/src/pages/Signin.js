@@ -95,7 +95,24 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
       // Store user info
       const userInfo = response.data[role] || response.data.data;
       if (userInfo) {
-        localStorage.setItem(`${role}Info`, JSON.stringify(userInfo));
+        // Make sure the ID field is properly stored for each role
+        const enhancedUserInfo = {
+          ...userInfo,
+          [`${role}ID`]: userId // Ensure the ID is explicitly added
+        };
+        
+        console.log(`Storing ${role} info:`, enhancedUserInfo);
+        localStorage.setItem(`${role}Info`, JSON.stringify(enhancedUserInfo));
+        
+        // Verify the data was stored correctly
+        try {
+          const storedData = JSON.parse(localStorage.getItem(`${role}Info`));
+          console.log(`Verified ${role} info in localStorage:`, storedData);
+        } catch (storageError) {
+          console.error("Error verifying localStorage data:", storageError);
+        }
+      } else {
+        console.warn(`No ${role} info received from server to store in localStorage`);
       }
 
       // Update app state

@@ -98,13 +98,17 @@ router.post("/validate", verifyTeacherToken, async (req, res) => {
 // Route: Get teacher profile using GET "/api/teacher/auth/teacherprofile"
 router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
   try {
-    const teacherID = req.teacher?.id; // Extract teacher ID from middleware
+    // Get teacherID from middleware, first try _id then id
+    const teacherID = req.teacher?._id || req.teacher?.id;
 
     if (!teacherID) {
+      console.error("Teacher ID missing in token:", req.teacher);
       return res
         .status(400)
         .json({ message: "Teacher ID is missing in token" });
     }
+
+    console.log("Fetching teacher profile with ID:", teacherID);
 
     // Validate teacherID format
     if (!mongoose.Types.ObjectId.isValid(teacherID)) {
@@ -120,6 +124,11 @@ router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
     // Remove sensitive data (e.g., password)
     const { password, ...teacherData } = teacher;
 
+    console.log("Teacher data retrieved:", {
+      teacherID: teacherData.teacherID,
+      name: teacherData.name
+    });
+
     res.status(200).json({ teacher: teacherData });
   } catch (error) {
     console.error("Error fetching teacher profile:", error.message);
@@ -128,9 +137,9 @@ router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
 });
 
 //------------------------------------------------------------------------------------------------
-// Route: Update teacher info using PUT "/api/teachers/auth/updateteacherinfo"
+// Route: Update teacher info using PUT "/api/teacher/auth/updateteacherinfo"
 router.put(
-  "/auth/updateteacherinfo",
+  "/updateteacherinfo",
   verifyTeacherToken, // Middleware to verify teacher token
   upload.single("photo"), // Middleware to handle photo upload
   [
@@ -148,6 +157,7 @@ router.put(
     body("designation").optional().trim(),
     body("department").optional().trim(),
     body("address").optional().trim(),
+    body("experience").optional().isNumeric().withMessage("Experience must be a number"),
   ],
   handleValidationErrors, // Middleware to handle validation errors
   async (req, res) => {
@@ -160,14 +170,43 @@ router.put(
         designation,
         department,
         address,
+        experience,
+        subjects,
       } = req.body;
+      
+      console.log("Update request received for teacher:", { 
+        teacherID, 
+        name, 
+        email,
+        phone,
+        experience,
+        hasPhoto: !!req.file
+      });
+      
       const photo = req.file ? req.file.filename : null; // Handle uploaded photo
 
-      // Fetch the teacher document using teacherID
-      const teacher = await Teacher.findOne({ teacherID });
+      // First try to find by req.body.teacherID
+      let teacher = await Teacher.findOne({ teacherID });
+      
+      // If not found, try to find by ID from token
+      if (!teacher && req.teacher) {
+        const tokenID = req.teacher._id || req.teacher.id;
+        if (tokenID) {
+          console.log("Teacher not found by teacherID, trying token ID:", tokenID);
+          teacher = await Teacher.findById(tokenID);
+        }
+      }
+      
       if (!teacher) {
+        console.error("Teacher not found for ID:", teacherID);
         return res.status(404).json({ message: "Teacher not found" });
       }
+
+      console.log("Teacher found:", { 
+        id: teacher._id, 
+        teacherID: teacher.teacherID, 
+        name: teacher.name 
+      });
 
       // Update the fields if provided
       if (email) teacher.email = email;
@@ -176,10 +215,27 @@ router.put(
       if (designation) teacher.designation = designation;
       if (department) teacher.department = department;
       if (address) teacher.address = address;
+      if (experience !== undefined) teacher.experience = experience;
+      if (subjects) teacher.subjects = subjects;
       if (photo) teacher.photo = photo; // Update photo if provided
 
       // Save the updated teacher document
       const updatedTeacher = await teacher.save();
+      console.log("Teacher updated successfully:", { 
+        id: updatedTeacher._id, 
+        teacherID: updatedTeacher.teacherID,
+        updatedFields: {
+          email: !!email,
+          phone: !!phone,
+          name: !!name,
+          designation: !!designation,
+          department: !!department,
+          address: !!address,
+          experience: experience !== undefined,
+          subjects: !!subjects,
+          photo: !!photo
+        }
+      });
 
       // Respond with the updated teacher data
       res.status(200).json({
@@ -196,7 +252,7 @@ router.put(
 //----------------------------------------------------------------
 // Route: Update/change teacher password using PUT "/api/teacher/auth/changeteacherpassword"
 router.put(
-  "/auth/changeteacherpassword",
+  "/changeteacherpassword",
   verifyTeacherToken,
   [
     body("teacherID").notEmpty().withMessage("Teacher ID is required"),
@@ -214,7 +270,11 @@ router.put(
   handleValidationErrors,
   async (req, res) => {
     try {
-      console.log("Request received:", req.body); // Log incoming request body
+      console.log("Password change request received:", { 
+        teacherID: req.body.teacherID,
+        passwordLength: req.body.newPassword?.length,
+        confirmMatch: req.body.newPassword === req.body.confirmNewPassword
+      });
 
       const { teacherID, newPassword } = req.body;
 
@@ -226,18 +286,34 @@ router.put(
         return res.status(404).json({ message: "Teacher not found" });
       }
 
-      console.log("Teacher found:", teacher); // Log the teacher document
+      console.log("Teacher found:", { 
+        id: teacher._id, 
+        teacherID: teacher.teacherID,
+        name: teacher.name
+      });
 
       // Hash the new password and update it
       console.log("Generating salt for password hashing...");
       const salt = await bcrypt.genSalt(10);
-      console.log("Salt generated:", salt);
+      console.log("Salt generated");
 
       console.log("Hashing new password...");
-      teacher.password = await bcrypt.hash(newPassword, salt);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      console.log("Password hashed successfully");
+      
+      // Update password in the database
+      teacher.password = hashedPassword;
 
       console.log("Saving updated teacher document...");
       await teacher.save();
+
+      // Validate the password was saved correctly by checking if it can be verified
+      const verifyPasswordUpdate = await bcrypt.compare(newPassword, teacher.password);
+      console.log("Password verification check:", verifyPasswordUpdate ? "Success" : "Failed");
+
+      if (!verifyPasswordUpdate) {
+        return res.status(500).json({ message: "Password update failed verification" });
+      }
 
       // Respond with a success message
       console.log("Password updated successfully for teacherID:", teacherID);
@@ -250,5 +326,5 @@ router.put(
 );
 
 // Route to fetch assigned classes for the logged-in teacher
-router.get("/auth/assigned-classes", verifyTeacherToken, getAssignedClasses);
+router.get("/assigned-classes", verifyTeacherToken, getAssignedClasses);
 module.exports = router;

@@ -4,7 +4,13 @@ const multer = require("multer");
 const { body, validationResult } = require("express-validator");
 const path = require("path");
 const fs = require("fs");
-const { parentLogin } = require("../controllers/parentController"); // Parent login controller
+const bcrypt = require("bcryptjs");
+const { 
+  parentLogin, 
+  getParentProfile, 
+  updateParentInfo,
+  changeParentPassword 
+} = require("../controllers/parentController"); // Import all controller functions
 const Parent = require("../models/ParentModel"); // Importing Parent model
 const { verifyParentToken } = require("../middleware/authMiddleware");
 const mongoose = require("mongoose"); // Ensure mongoose is imported
@@ -29,12 +35,17 @@ const storage = multer.diskStorage({
     // Ensure the 'uploads' directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`Created parent upload directory: ${uploadDir}`);
     }
+    
+    console.log(`Saving parent photo to: ${uploadDir}`);
     cb(null, uploadDir); // Store files in "uploads/Parent" folder
   },
   filename: (req, file, cb) => {
     // Generate a unique filename based on current timestamp
-    cb(null, Date.now() + path.extname(file.originalname));
+    const filename = Date.now() + path.extname(file.originalname);
+    console.log(`Generated parent photo filename: ${filename}`);
+    cb(null, filename);
   },
 });
 
@@ -80,34 +91,58 @@ router.post(
 
 //------------------------------------------------------------------------------------------------
 // Route: Get parent profile using GET "/api/parent/auth/parentprofile"
-router.get("/parentprofile", verifyParentToken, async (req, res) => {
-  try {
-    const parentID = req.parent?.id; // Ensure `parent` object is available in the request
-    if (!parentID) {
-      return res.status(400).json({ message: "Parent ID is missing in token" });
-    }
+router.get(
+  "/parentprofile", 
+  verifyParentToken, 
+  getParentProfile
+);
 
-    // Validate parentID format (optional but recommended)
-    if (!mongoose.Types.ObjectId.isValid(parentID)) {
-      return res.status(400).json({ message: "Invalid parent ID format" });
-    }
+//------------------------------------------------------------------------------------------------
+// Route: Update parent info using PUT "/api/parent/auth/updateparentinfo"
+//------------------------------------------------------------------------------------------------
+router.put(
+  "/updateparentinfo",
+  verifyParentToken, // Middleware to verify parent token
+  upload.single("photo"), // Middleware to handle photo upload
+  [
+    body("parentID").notEmpty().withMessage("Parent ID is required"),
+    body("parentEmail").optional().isEmail().withMessage("Invalid email format"),
+    body("parentContactNumber")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone number must be 10 digits"),
+    body("parentName")
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage("Name cannot be empty"),
+    body("occupation").optional().trim(),
+    body("relationship").optional().trim(),
+    body("address").optional().trim(),
+  ],
+  handleValidationErrors, // Middleware to handle validation errors
+  updateParentInfo
+);
 
-    // Fetch parent profile from the database using the parent ID
-    const parent = await Parent.findById(parentID).lean();
-    if (!parent) {
-      return res.status(404).json({ message: "Parent not found" });
-    }
-
-    // Remove sensitive data (e.g., password) from the response
-    const { password, ...parentData } = parent;
-
-    // Return the parent profile data
-    res.status(200).json({ parent: parentData });
-  } catch (error) {
-    console.error("Error fetching parent profile:", error.message);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+//------------------------------------------------------------------------------------------------
+// Route: Update/change parent password using PUT "/api/parent/auth/changeparentpassword"
+//------------------------------------------------------------------------------------------------
+router.put(
+  "/changeparentpassword",
+  verifyParentToken,
+  [
+    body("currentPassword").notEmpty().withMessage("Current password is required"),
+    body("newPassword")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters long")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number")
+      .matches(/[!@#$%^&*]/)
+      .withMessage("Password must contain at least one special character"),
+  ],
+  handleValidationErrors,
+  changeParentPassword
+);
 
 // Export the router
 module.exports = router;

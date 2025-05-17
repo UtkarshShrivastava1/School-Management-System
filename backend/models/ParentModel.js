@@ -12,6 +12,11 @@ const parentSchema = new mongoose.Schema(
       match: /^PRNT\d{5}$/, // Parent ID format (e.g., PRNT12345)
     },
     parentPassword: { type: String, required: true }, // Hashed password for security
+    // Additional fields for profile
+    address: { type: String, default: "" },
+    occupation: { type: String, default: "" },
+    relationship: { type: String, default: "Parent" },
+    photo: { type: String, default: "" },
     children: [
       {
         student: { type: mongoose.Schema.Types.ObjectId, ref: "Student" }, // Reference to the Student
