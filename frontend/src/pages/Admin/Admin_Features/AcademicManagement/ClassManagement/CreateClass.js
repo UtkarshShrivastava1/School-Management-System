@@ -16,6 +16,8 @@ import "./CreateClass.css";
 const CreateClass = () => {
   const [standardName, setStandardName] = useState("");
   const [classStrength, setClassStrength] = useState("");
+  const [section, setSection] = useState("");
+
   const [subjects, setSubjects] = useState([]); // Array of subject objects
   const [teachers, setTeachers] = useState([]); // Fetched teacher list for dropdown
   const [errorMessage, setErrorMessage] = useState("");
@@ -93,10 +95,12 @@ const CreateClass = () => {
     }
     try {
       const payload = {
-        standardName,
+        standardName: `Class ${standardName.trim()}`,
+        section: section.trim(),
         classStrength: parseInt(classStrength, 10),
         subjects,
       };
+
       const response = await axios.post(
         `${API_URL}/api/admin/auth/createclass`,
         payload,
@@ -164,6 +168,24 @@ const CreateClass = () => {
             placeholder="Enter standard name"
             required
           />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="section">Section:</label>
+          <select
+            id="section"
+            name="section"
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            required
+          >
+            <option value="">Select Section</option>
+            {["A", "B", "C", "D", "E"].map((sec) => (
+              <option key={sec} value={sec}>
+                {sec}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">
