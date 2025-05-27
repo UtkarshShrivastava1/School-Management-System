@@ -144,14 +144,6 @@ const createStudent = async (req, res) => {
       return res.status(400).json({ message: "Parent email already exists." });
     }
 
-    // Generate IDs for student and parent
-    const studentID = await generateStudentID();
-    const parentID = `PRNT${Math.floor(10000 + Math.random() * 90000)}`;
-
-    // Set default passwords
-    const studentPlainPassword = "student@123";
-    const parentPlainPassword = "parent@123";
-
     // Create new Student document
     const newStudent = new Student({
       studentName,
@@ -575,4 +567,15 @@ exports.updateStudentInfo = async (req, res) => {
     console.error("Error updating student information:", error);
     res.status(500).json({ message: "Server error. Please try again." });
   }
+};
+
+// Remove the incorrect exports.createStudent function and replace with proper exports
+module.exports = {
+  createStudent,
+  studentLogin,
+  getAllStudents,
+  assignStudentToClass,
+  searchStudents,
+  getStudentProfile: exports.getStudentProfile,
+  updateStudentInfo: exports.updateStudentInfo
 };

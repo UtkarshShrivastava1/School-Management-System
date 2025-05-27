@@ -5,19 +5,18 @@ const generateToken = require("../config/generateToken");
 // Parent Login
 const parentLogin = async (req, res) => {
   try {
-  const { parentID, password } = req.body;
+    const { parentID, password } = req.body;
 
-  console.log("Parent login attempt:", { parentID });
+    console.log("Parent login attempt:", { parentID });
 
-  // Validate input
-  if (!parentID || !password) {
-    console.log("Missing credentials:", { parentID: !!parentID, password: !!password });
-    return res
-      .status(400)
-      .json({ message: "Both parent ID and password are required." });
-  }
+    // Validate input
+    if (!parentID || !password) {
+      console.log("Missing credentials:", { parentID: !!parentID, password: !!password });
+      return res
+        .status(400)
+        .json({ message: "Both parent ID and password are required." });
+    }
 
-  try {
     // Find parent by parentID
     const parent = await Parent.findOne({ parentID });
     console.log("Parent lookup result:", parent ? "Found" : "Not found");
@@ -218,4 +217,12 @@ exports.changeParentPassword = async (req, res) => {
     console.error("Error changing parent password:", error);
     res.status(500).json({ message: "Server error. Please try again." });
   }
+};
+
+// Export all functions
+module.exports = {
+  parentLogin,
+  getParentProfile: exports.getParentProfile,
+  updateParentInfo: exports.updateParentInfo,
+  changeParentPassword: exports.changeParentPassword
 };

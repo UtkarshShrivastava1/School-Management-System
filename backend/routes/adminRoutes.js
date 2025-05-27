@@ -88,26 +88,7 @@ const upload = multer({
   },
 });
 
-// Configure multer for multiple file uploads
-const uploadFields = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    // Only allow images with specific file extensions and MIME types
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      return cb(new Error("Only image files are allowed"));
-    }
-  },
-});
-
-// Configure multer for multiple file uploads
+// Configure multer for multiple file     s
 const uploadFields = multer({
   storage,
   fileFilter: (req, file, cb) => {
@@ -417,7 +398,7 @@ router.put("/changeadminpassword", verifyAdminToken, [
       error: error.message 
     });
   }
-);
+});
 //================================================================================================
 //================================================================================================
 
@@ -528,7 +509,7 @@ router.post(
       .notEmpty()
       .withMessage("Student address is required."),
     body("studentDOB").notEmpty().withMessage("Student DOB is required."),
-    body("studentGender").isString().withMessage("Invalid student gender."), // Now accepts any string
+    body("studentGender").isString().withMessage("Invalid student gender."),
     body("className")
       .notEmpty()
       .withMessage("Class is required.")
@@ -556,9 +537,9 @@ router.post(
       .withMessage("Student mother name is required."),
 
     // Validate relationship for the parent
-    body("relationship").isString().withMessage("Invalid relationship."), // Now accepts any string
+    body("relationship").isString().withMessage("Invalid relationship."),
   ],
-  handleValidationErrors, // Add this line to handle validation errors
+  handleValidationErrors,
   createStudent
 );
 

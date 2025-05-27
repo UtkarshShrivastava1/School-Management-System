@@ -14,12 +14,18 @@ const classSchema = new mongoose.Schema(
     },
     section: {
       type: String,
-      required: true
+      required: true,
+      enum: ["A", "B", "C", "D", "E"]
     },
     classId: {
       type: String,
       required: true,
       unique: true,
+    },
+    classStrength: {
+      type: Number,
+      required: true,
+      min: 1
     },
     subjects: [
       {
@@ -65,11 +71,12 @@ const classSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-classSchema.virtual("classStrength").get(function () {
-  return this.students.length;
+// Drop any existing indexes
+classSchema.indexes().forEach(index => {
+  classSchema.index(index[0], { unique: false });
 });
-// Make className + section unique together
-classSchema.index({ className: 1, section: 1 }, { unique: true });
 
+// Create the compound unique index
+classSchema.index({ className: 1, section: 1 }, { unique: true });
 
 module.exports = mongoose.model("Class", classSchema);

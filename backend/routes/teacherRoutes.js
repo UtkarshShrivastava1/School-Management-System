@@ -159,7 +159,7 @@ router.put(
         return res.status(401).json({ message: "Unauthorized - Invalid token" });
       }
 
-      const teacher = await Teacher.findById(teacherID);
+      // const teacher = await Teacher.findById(teacherID);
       if (!teacher) {
         return res.status(404).json({ message: "Teacher not found" });
       }
