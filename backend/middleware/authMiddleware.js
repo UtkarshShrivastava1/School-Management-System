@@ -136,9 +136,90 @@ const verifyParentToken = (req, res, next) => {
   verifyTokenAndRole(req, res, next, "parent");
 };
 
+// Protect routes - verify token
+const protect = async (req, res, next) => {
+  try {
+    let token;
+
+    // Check for token in headers
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ message: "Not authorized to access this route" });
+    }
+
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Find user based on role
+      let user;
+      switch (decoded.role) {
+        case "admin":
+          user = await Admin.findById(decoded.id);
+          if (user) req.admin = user;
+          break;
+        case "parent":
+          user = await Parent.findById(decoded.id);
+          if (user) req.parent = user;
+          break;
+        case "student":
+          user = await Student.findById(decoded.id);
+          if (user) req.student = user;
+          break;
+        case "teacher":
+          user = await Teacher.findById(decoded.id);
+          if (user) req.teacher = user;
+          break;
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Add user role to request
+      req.user = {
+        id: user._id,
+        role: decoded.role,
+      };
+
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: "Not authorized to access this route" });
+    }
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Authorize by role
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized to access this route" });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: `User role ${req.user.role} is not authorized to access this route`,
+      });
+    }
+
+    next();
+  };
+};
+
 module.exports = {
   verifyAdminToken,
   verifyTeacherToken,
   verifyStudentToken,
   verifyParentToken,
+  protect,
+  authorize,
 };

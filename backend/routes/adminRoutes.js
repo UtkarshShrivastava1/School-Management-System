@@ -8,6 +8,7 @@ const Admin = require("../models/AdminModel"); // Ensure this import is correct
 const Teacher = require("../models/TeacherModel"); // Importing Teacher model
 const Student = require("../models/StudentModel"); // Importing Teacher model
 const Parent = require("../models/ParentModel"); // Importing Teacher model
+const studentController = require("../controllers/studentController");
 
 // Import verifyAdminToken middleware
 const { verifyAdminToken } = require("../middleware/authMiddleware");
@@ -47,6 +48,7 @@ const {
   markTeacherAttendance,
   fetchTeacherAttendanceRecords,
 } = require("../controllers/TeacherAttendanceController");
+const feeController = require("../controllers/feeController");
 // Set up multer for file storage (handling file uploads)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -732,4 +734,14 @@ router.get("/classes/:classId", getClassDetails);
 router.put("/edit-class/:classId", updateClass);
 // Delete a specific class
 router.delete("/classes/:classId", deleteClass);
+
+// Get students by class
+router.get("/students/class/:classId", verifyAdminToken, studentController.getStudentsByClass);
+
+// Update class fee settings
+router.post("/class-fee/update", verifyAdminToken, feeController.updateClassFee);
+
+// Add cleanup route for duplicate class enrollments
+router.post("/cleanup-duplicate-enrollments", verifyAdminToken, studentController.cleanupDuplicateEnrollments);
+
 module.exports = router;

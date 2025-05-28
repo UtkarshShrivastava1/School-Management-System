@@ -328,7 +328,74 @@ exports.getAllStudents = async (req, res, next) => {
 };
 //================================================================================================================================
 
-// Controller to assign a Student to a class
+// Add this new function to clean up duplicate enrollments
+exports.cleanupDuplicateEnrollments = async (req, res) => {
+  try {
+    console.log("Starting cleanup of duplicate enrollments...");
+    
+    // Start a session for transaction
+    const session = await Student.startSession();
+    session.startTransaction();
+
+    try {
+      // Find all students
+      const students = await Student.find({}).session(session);
+      let fixedCount = 0;
+
+      for (const student of students) {
+        if (student.enrolledClasses && student.enrolledClasses.length > 1) {
+          console.log(`Found student ${student.studentID} in multiple classes:`, student.enrolledClasses);
+            
+            // Keep only the most recent class
+          const mostRecentClass = student.enrolledClasses[student.enrolledClasses.length - 1];
+            
+          // Remove student from all classes
+            await Class.updateMany(
+              { students: student._id },
+              { $pull: { students: student._id } },
+              { session }
+            );
+            
+          // Add student to the correct class
+            await Class.findByIdAndUpdate(
+              mostRecentClass,
+              { $addToSet: { students: student._id } },
+              { session }
+            );
+            
+            // Update student's enrolledClasses
+            student.enrolledClasses = [mostRecentClass];
+            await student.save({ session });
+            
+            fixedCount++;
+            console.log(`Fixed student ${student.studentID} - now in class ${mostRecentClass}`);
+        }
+      }
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        message: `Fixed ${fixedCount} students with duplicate class enrollments`,
+        fixedCount
+      });
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error cleaning up duplicate enrollments:", error);
+    res.status(500).json({
+      message: "Error cleaning up duplicate enrollments",
+      error: error.message
+    });
+  }
+};
+
+// Update the assignStudentToClass function
 exports.assignStudentToClass = async (req, res) => {
   const { studentID, classId } = req.body;
 
@@ -340,57 +407,77 @@ exports.assignStudentToClass = async (req, res) => {
   }
 
   try {
-    // Find the student by studentID
-    const student = await Student.findOne({ studentID });
-    if (!student) {
-      return res.status(404).json({
-        message: "Student not found.",
+    console.log(`Assigning student ${studentID} to class ${classId}...`);
+
+    // Start a session for transaction
+    const session = await Student.startSession();
+    session.startTransaction();
+
+    try {
+      // Find the student by studentID
+      const student = await Student.findOne({ studentID }).session(session);
+      if (!student) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: "Student not found.",
+        });
+      }
+
+      // Find the class by classId
+      const classDoc = await Class.findById(classId).session(session);
+      if (!classDoc) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: "Class not found.",
+        });
+      }
+
+      // Remove student from all other classes
+      await Class.updateMany(
+        { students: student._id },
+        { $pull: { students: student._id } },
+        { session }
+      );
+
+      // Add student to the new class
+      await Class.findByIdAndUpdate(
+        classDoc._id,
+        { $addToSet: { students: student._id } },
+        { session }
+      );
+
+      // Update student's enrolledClasses to only contain the new class
+      student.enrolledClasses = [classDoc._id];
+      await student.save({ session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      console.log(`Successfully assigned student ${studentID} to class ${classId}`);
+
+      res.status(200).json({
+        message: "Student assigned to class successfully.",
+        data: {
+          studentID: student.studentID,
+          studentName: student.studentName,
+          classId: classDoc.classId,
+          className: classDoc.className,
+        }
       });
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
-
-    // Find the class by classId
-    const classDoc = await Class.findOne({ classId });
-    if (!classDoc) {
-      return res.status(404).json({
-        message: "Class not found.",
-      });
-    }
-
-    // Check if the student is already assigned to the class
-    if (classDoc.students.some((id) => id.equals(student._id))) {
-      return res.status(400).json({
-        message: "Student is already assigned to this class.",
-      });
-    }
-
-    // Add the student to the class's 'students' array
-    classDoc.students.push(student._id);
-
-    // Save the updated class document
-    await classDoc.save();
-
-    // Add the class to the student's 'enrolledClasses' array
-    if (!student.enrolledClasses.some((id) => id.equals(classDoc._id))) {
-      student.enrolledClasses.push(classDoc._id);
-
-      // Save the updated student document
-      await student.save();
-    }
-
-    // Respond with success message
-    res.status(200).json({
-      message: "Student assigned to class successfully.",
-      data: {
-        studentID: student.studentID,
-        studentName: student.studentName,
-        classId: classDoc.classId,
-        className: classDoc.className,
-      },
-    });
   } catch (error) {
     console.error("Error assigning student to class:", error);
     res.status(500).json({
       message: "Server error. Please try again later.",
+      error: error.message
     });
   }
 };
@@ -540,7 +627,7 @@ exports.getStudentProfile = async (req, res) => {
   }
 };
 
-// Controller to update student profile info
+// Update the updateStudentInfo function to preserve class data
 exports.updateStudentInfo = async (req, res) => {
   try {
     console.log("Updating student profile, request body:", req.body);
@@ -556,21 +643,25 @@ exports.updateStudentInfo = async (req, res) => {
       studentAddress
     } = req.body;
     
-    // Find student by ID
+    // Find student by ID and preserve enrolledClasses
     const student = await Student.findById(studentId);
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
     }
     
+    // Store the current enrolledClasses
+    const currentEnrolledClasses = student.enrolledClasses;
+    
     console.log("Found student to update:", {
       id: student._id,
       studentID: student.studentID,
       name: student.studentName,
-      currentPhoto: student.photo || "No photo"
+      currentPhoto: student.photo || "No photo",
+      enrolledClasses: currentEnrolledClasses
     });
     
     // Handle photo upload if provided
-    let photoFilename = student.photo; // Default to existing photo
+    let photoFilename = student.photo;
     if (req.file) {
       photoFilename = req.file.filename;
       console.log("New photo will be saved:", photoFilename);
@@ -583,6 +674,9 @@ exports.updateStudentInfo = async (req, res) => {
     if (studentAddress !== undefined) student.studentAddress = studentAddress;
     if (photoFilename) student.photo = photoFilename;
     
+    // Ensure enrolledClasses is preserved
+    student.enrolledClasses = currentEnrolledClasses;
+    
     // Save updated student
     const updatedStudent = await student.save();
     console.log("Student updated successfully with photo:", updatedStudent.photo);
@@ -594,5 +688,57 @@ exports.updateStudentInfo = async (req, res) => {
   } catch (error) {
     console.error("Error updating student information:", error);
     res.status(500).json({ message: "Server error. Please try again." });
+  }
+};
+
+// Controller to get students by class
+exports.getStudentsByClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    // Find the class
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+      
+    // Get all students enrolled in this class
+    const students = await Student.find({
+      enrolledClasses: classId
+    })
+    .select("studentName studentID feeDetails")
+    .lean();
+      
+    // Format the response to include all fee details
+    const formattedStudents = students.map(student => {
+      // Get fee details for this specific class
+      const classFeeDetails = student.feeDetails && student.feeDetails[classId] 
+        ? student.feeDetails[classId] 
+        : {
+            classFee: classDoc.baseFee || 0,
+            totalAmount: classDoc.baseFee || 0,
+            status: 'pending',
+            lastUpdated: new Date(),
+            dueDate: classDoc.feeDueDate || null,
+            lateFeePerDay: classDoc.lateFeePerDay || 0
+          };
+
+      return {
+        _id: student._id,
+        studentName: student.studentName,
+        studentID: student.studentID,
+        feeDetails: {
+          [classId]: classFeeDetails
+        }
+      };
+    });
+
+    res.status(200).json({
+      message: "Students retrieved successfully",
+      data: formattedStudents
+    });
+  } catch (error) {
+    console.error("Error in getStudentsByClass:", error);
+    res.status(500).json({ message: "Error retrieving students", error: error.message });
   }
 };
