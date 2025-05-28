@@ -3,32 +3,90 @@ const mongoose = require("mongoose");
 const studentSchema = new mongoose.Schema(
   {
     // Basic Information
-    studentName: { type: String, required: true }, // Full name of the student
-    photo: { type: String }, // Path/URL to the student's photo, optional during creation
-    studentGender: {
+    studentName: {
       type: String,
       required: true,
     },
-    studentDOB: { type: Date, required: true }, // Date of Birth
-    religion: { type: String, required: false }, // Religion of the student (optional)
-    category: { type: String, required: false }, // Category (optional, e.g., General, OBC, SC/ST)
-    bloodgroup: { type: String, required: false }, // Blood group of the student (optional)
-
-    // Contact Information
+    studentID: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    studentPassword: {
+      type: String,
+      required: true,
+    },
     studentEmail: {
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
-      trim: true,
-      match: [/\S+@\S+\.\S+/, "Please use a valid email address"], // Email validation
     },
     studentPhone: {
       type: String,
       required: true,
-      match: [/^\d{10}$/, "Phone number must be 10 digits"], // Phone validation
     },
-    studentAddress: { type: String, required: true }, // Full address of the student
+    studentAddress: {
+      type: String,
+      required: true,
+    },
+    studentDOB: {
+      type: Date,
+      required: true,
+    },
+    studentGender: {
+      type: String,
+      required: true,
+    },
+    studentDateOfAdmission: {
+      type: Date,
+      default: Date.now,
+    },
+    studentFatherName: {
+      type: String,
+      required: true,
+    },
+    studentMotherName: {
+      type: String,
+      required: true,
+    },
+    religion: String,
+    category: String,
+    bloodgroup: String,
+    photo: String,
+    parent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Parent",
+    },
+    enrolledClasses: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      unique: true // Ensure each class appears only once
+    }],
+    feeDetails: {
+      type: Map,
+      of: {
+        classFee: Number,
+        totalAmount: Number,
+        status: {
+          type: String,
+          enum: ['pending', 'paid', 'overdue'],
+          default: 'pending'
+        },
+        lastUpdated: Date,
+        dueDate: Date,
+        lateFeePerDay: Number,
+        lateFeeAmount: Number,
+        paymentDate: Date,
+        paymentMethod: String,
+        receiptNumber: String
+      },
+      default: new Map()
+    },
+    registeredBy: {
+      adminID: String,
+      name: String,
+    },
+    // Contact Information
     emergencyContact: {
       // Optional emergency contact information
       name: String, // Name of the emergency contact person
@@ -40,42 +98,19 @@ const studentSchema = new mongoose.Schema(
     },
 
     // Academic Information
-    studentID: {
-      type: String,
-      required: true,
-      unique: true,
-      match: /^STU\d{5}$/, // Student ID format (e.g., STU12345)
-    },
-    studentPassword: { type: String, required: true }, // Hashed password for authentication
     studentDateOfAdmission: { type: Date, required: true }, // Admission date
-    enrolledClasses: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Class",
-      },
-    ],
+    actionHistory: [{ type: String }], // Array of logged actions performed by the student
 
     // Family Information
     studentFatherName: { type: String, required: true }, // Father's name
     studentMotherName: { type: String, required: true }, // Mother's name
 
-    parent: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Parent",
-      required: false, // Reference to Parent document
-    },
-    // New field to track who created this admin
-    registeredBy: {
-      adminID: { type: String, required: true },
-      name: { type: String, required: true },
-    },
     // Optional Identification Information
     AADHARnumber: { type: String }, // AADHAR number (optional, for India)
 
     // Activity Information
     lastLogin: { type: Date }, // Last login timestamp
     loginHistory: [{ type: Date }], // Array of login timestamps
-    actionHistory: [{ type: String }], // Array of logged actions performed by the student
 
     // Role Information
     role: { type: String, default: "student" }, // Role in the system (default: "student")
@@ -100,11 +135,16 @@ const studentSchema = new mongoose.Schema(
       },
     ],
   },
-
-  { timestamps: true } // Automatically adds createdAt and updatedAt timestamps
+  { timestamps: true }
 );
 
-const Student =
-  mongoose.models.Student || mongoose.model("Student", studentSchema);
+// Add a pre-save middleware to ensure unique classes
+studentSchema.pre('save', async function(next) {
+  if (this.isModified('enrolledClasses')) {
+    // Remove any duplicate class IDs
+    this.enrolledClasses = [...new Set(this.enrolledClasses.map(id => id.toString()))];
+  }
+  next();
+});
 
-module.exports = Student;
+module.exports = mongoose.model("Student", studentSchema);

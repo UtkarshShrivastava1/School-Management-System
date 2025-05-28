@@ -22,6 +22,20 @@ const classSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    // Fee-related fields
+    baseFee: {
+      type: Number,
+      default: 0
+    },
+    lateFeePerDay: {
+      type: Number,
+      default: 0
+    },
+    feeDueDate: {
+      type: Date,
+      default: null
+    },
+    // ✅ Change subjects to store ObjectId references
     classStrength: {
       type: Number,
       required: true,
@@ -31,14 +45,14 @@ const classSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Subject",
+        ref: "Subject",
       },
     ],
-    students: [
-      {
+    students: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Student",
-      },
-    ],
+      unique: true // Ensure each student appears only once in a class
+    }],
     teachers: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -70,6 +84,15 @@ const classSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Add a pre-save middleware to ensure unique students
+classSchema.pre('save', async function(next) {
+  if (this.isModified('students')) {
+    // Remove any duplicate student IDs
+    this.students = [...new Set(this.students.map(id => id.toString()))];
+  }
+  next();
+});
 
 // Drop any existing indexes
 classSchema.indexes().forEach(index => {
