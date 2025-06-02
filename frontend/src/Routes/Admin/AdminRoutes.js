@@ -36,6 +36,7 @@ import NotificationCreation from "../../pages/Admin/Admin_Features/NotificationC
 
 import ManageStudentFees from "../../pages/Admin/Admin_Features/AcademicManagement/StudentManagement/ManageStudentFees";
 import ManageClassFees from "../../pages/Admin/Admin_Features/AcademicManagement/StudentManagement/ManageClassFees";
+import ManageFeeApprovals from "../../pages/Admin/Admin_Features/AcademicManagement/StudentManagement/ManageFeeApprovals";
 
 const AdminRoutes = ({ isLoggedIn, userRole }) => {
   if (!isLoggedIn || userRole !== "admin")
@@ -92,6 +93,7 @@ const AdminRoutes = ({ isLoggedIn, userRole }) => {
 
       <Route path="/manage-student-fees" element={<ManageStudentFees />} />
       <Route path="/manage-class-fees" element={<ManageClassFees />} />
+      <Route path="/manage-fee-approvals" element={<ManageFeeApprovals />} />
     </Routes>
   );
 };

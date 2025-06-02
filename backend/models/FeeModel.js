@@ -31,7 +31,7 @@ const feeSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "overdue"],
+      enum: ["pending", "paid", "overdue", "under_process", "cancelled"],
       default: "pending",
     },
     paymentDate: {
@@ -68,6 +68,19 @@ const feeSchema = new mongoose.Schema(
         transactionReference: String,
       },
     },
+    paymentApproval: {
+      status: {
+        type: String,
+        enum: ["pending", "approved", "rejected"],
+        default: "pending"
+      },
+      approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Admin"
+      },
+      approvedAt: Date,
+      rejectionReason: String
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
@@ -76,6 +89,9 @@ const feeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Create a compound index to prevent duplicate fees
+feeSchema.index({ student: 1, class: 1, feeType: 1, academicYear: 1, dueDate: 1 }, { unique: true });
 
 // Generate receipt number before saving
 feeSchema.pre("save", async function (next) {

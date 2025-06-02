@@ -262,8 +262,8 @@ exports.updateClassFee = async (req, res) => {
 
     const updatePromises = students.map(async (student) => {
       try {
-        // Calculate total amount including any late fees
-        let totalAmount = Number(baseFee);
+        // Calculate monthly fee amount
+        const monthlyFee = Number(baseFee) / 12;
         const currentDate = new Date();
         const dueDate = feeDueDate ? new Date(feeDueDate) : null;
         
@@ -273,15 +273,51 @@ exports.updateClassFee = async (req, res) => {
         if (dueDate && currentDate > dueDate) {
           const daysLate = Math.ceil((currentDate - dueDate) / (1000 * 60 * 60 * 24));
           lateFeeAmount = daysLate * Number(lateFeePerDay);
-          totalAmount = Number(baseFee) + lateFeeAmount;
           status = 'overdue';
         }
 
-        // Create the fee details update
+        // Check for existing fee record for this month
+        const existingFee = await Fee.findOne({
+          student: student._id,
+          class: classId,
+          feeType: 'monthly',
+          academicYear: new Date().getFullYear().toString(),
+          dueDate: dueDate || new Date()
+        });
+
+        if (existingFee) {
+          // Update existing fee record
+          existingFee.amount = monthlyFee;
+          existingFee.totalAmount = monthlyFee + lateFeeAmount;
+          existingFee.lateFeeAmount = lateFeeAmount;
+          existingFee.status = status;
+          await existingFee.save();
+          console.log("Updated existing fee record for student:", student.studentID);
+        } else {
+          // Create a new fee record for this month
+          const feeRecord = new Fee({
+            student: student._id,
+            class: classId,
+            academicYear: new Date().getFullYear().toString(),
+            feeType: "monthly",
+            amount: monthlyFee,
+            dueDate: dueDate || new Date(),
+            status: status,
+            totalAmount: monthlyFee + lateFeeAmount,
+            lateFeeAmount: lateFeeAmount,
+            createdBy: req.admin._id
+          });
+
+          await feeRecord.save();
+          console.log("Created new fee record for student:", student.studentID);
+        }
+
+        // Update the student's fee details
         const feeDetailsUpdate = {
           [`feeDetails.${classId}`]: {
             classFee: Number(baseFee),
-            totalAmount: totalAmount,
+            monthlyFee: monthlyFee,
+            totalAmount: monthlyFee + lateFeeAmount,
             status: status,
             lastUpdated: currentDate,
             dueDate: dueDate,
@@ -290,82 +326,159 @@ exports.updateClassFee = async (req, res) => {
           }
         };
 
-        // Update the student document using findOneAndUpdate
-        console.log("Updating student:", student.studentID);
+        // Update the student document
         const updatedStudent = await Student.findOneAndUpdate(
           { _id: student._id },
           { $set: feeDetailsUpdate },
-          { new: true, upsert: true }
+          { new: true }
         );
 
-        // Check for existing fee record for this month
-        const existingFee = await Fee.findOne({
-          student: student._id,
-          class: classId,
-          academicYear: new Date().getFullYear().toString(),
-          feeType: "monthly",
-          createdAt: {
-            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-            $lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
-          }
-        });
-
-        if (!existingFee) {
-          // Create a new fee record only if one doesn't exist for this month
-          const feeRecord = new Fee({
-            student: student._id,
-            class: classId,
-            academicYear: new Date().getFullYear().toString(),
-            feeType: "monthly",
-            amount: Number(baseFee),
-            dueDate: dueDate || new Date(),
-            status: status,
-            totalAmount: totalAmount,
-            lateFeeAmount: lateFeeAmount,
-            createdBy: req.admin._id
-          });
-
-          await feeRecord.save();
-        }
-
         return updatedStudent;
-      } catch (studentError) {
-        console.error("Error updating student:", student.studentID, studentError);
-        throw studentError;
+      } catch (error) {
+        console.error("Error updating student fee:", error);
+        throw error;
       }
     });
 
-    // Wait for all student updates to complete
-    const updatedStudents = await Promise.all(updatePromises);
-    console.log("All student updates completed");
-
-    // Fetch updated class data
-    const updatedClass = await Class.findById(classId);
+    await Promise.all(updatePromises);
 
     res.status(200).json({
       message: "Class fee settings updated successfully",
-      updatedClass: {
-        id: updatedClass._id,
-        className: updatedClass.className,
-        baseFee: updatedClass.baseFee,
-        lateFeePerDay: updatedClass.lateFeePerDay,
-        feeDueDate: updatedClass.feeDueDate
-      },
-      updatedStudents: updatedStudents.map(student => ({
-        id: student._id,
-        studentID: student.studentID,
-        studentName: student.studentName,
-        feeDetails: student.feeDetails ? student.feeDetails[classId] : null
-      })),
-      updatedStudentsCount: students.length
+      class: classDoc
     });
   } catch (error) {
     console.error("Error updating class fee:", error);
-    console.error("Error stack:", error.stack);
     res.status(500).json({
-      message: "Error updating class fee settings",
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: "Error updating class fee",
+      error: error.message
+    });
+  }
+};
+
+// Approve or reject fee payment
+exports.handleFeeApproval = async (req, res) => {
+  try {
+    const { feeId } = req.params;
+    const { action, rejectionReason } = req.body;
+
+    const fee = await Fee.findById(feeId);
+    if (!fee) {
+      return res.status(404).json({ message: 'Fee record not found' });
+    }
+
+    if (fee.status !== 'under_process') {
+      return res.status(400).json({ message: 'Fee is not pending approval' });
+    }
+
+    if (action === 'approve') {
+      fee.status = 'paid';
+      fee.paymentApproval = {
+        status: 'approved',
+        approvedBy: req.admin._id,
+        approvedAt: new Date()
+      };
+    } else if (action === 'reject') {
+      fee.status = 'cancelled';
+      fee.paymentApproval = {
+        status: 'rejected',
+        approvedBy: req.admin._id,
+        approvedAt: new Date(),
+        rejectionReason: rejectionReason || 'Payment rejected by admin'
+      };
+    } else {
+      return res.status(400).json({ message: 'Invalid action' });
+    }
+
+    await fee.save();
+
+    res.json({
+      message: `Payment ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+      fee
+    });
+  } catch (error) {
+    console.error('Error handling fee approval:', error);
+    res.status(500).json({ message: 'Error processing approval' });
+  }
+};
+
+// Get pending fee approvals
+exports.getPendingApprovals = async (req, res) => {
+  try {
+    const pendingFees = await Fee.find({ status: 'pending' })
+      .populate('student', 'studentName')
+      .populate('class', 'className')
+      .sort({ paymentDate: -1 });
+
+    res.json({
+      success: true,
+      fees: pendingFees
+    });
+  } catch (error) {
+    console.error('Error fetching pending approvals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching pending approvals',
+      error: error.message
+    });
+  }
+};
+
+// Approve or reject a fee payment
+exports.approveFeePayment = async (req, res) => {
+  try {
+    const { feeId } = req.params;
+    const { action, rejectionReason } = req.body;
+
+    const fee = await Fee.findById(feeId);
+    if (!fee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Fee payment not found'
+      });
+    }
+
+    if (fee.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'This fee payment has already been processed'
+      });
+    }
+
+    if (action === 'approve') {
+      fee.status = 'paid';
+      fee.approvedBy = req.admin._id;
+      fee.approvalDate = new Date();
+    } else if (action === 'reject') {
+      if (!rejectionReason) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rejection reason is required'
+        });
+      }
+      fee.status = 'rejected';
+      fee.rejectionReason = rejectionReason;
+      fee.rejectedBy = req.admin._id;
+      fee.rejectionDate = new Date();
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid action'
+      });
+    }
+
+    await fee.save();
+
+    res.json({
+      success: true,
+      message: action === 'approve' ? 'Payment approved successfully' : 'Payment rejected',
+      fee
+    });
+  } catch (error) {
+    console.error('Error processing fee approval:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing fee approval',
+      error: error.message
     });
   }
 }; 

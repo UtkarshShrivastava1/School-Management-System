@@ -9,7 +9,10 @@ const {
   parentLogin, 
   getParentProfile, 
   updateParentInfo,
-  changeParentPassword 
+  changeParentPassword,
+  getChildFees,
+  payFee,
+  getChildProfile
 } = require("../controllers/parentController"); // Import all controller functions
 const Parent = require("../models/ParentModel"); // Importing Parent model
 const { verifyParentToken } = require("../middleware/authMiddleware");
@@ -143,6 +146,15 @@ router.put(
   handleValidationErrors,
   changeParentPassword
 );
+
+// Get child fees
+router.get('/child-fees', verifyParentToken, getChildFees);
+
+// Pay fee
+router.post('/pay-fee', verifyParentToken, payFee);
+
+// Get child profile
+router.get("/childprofile", verifyParentToken, getChildProfile);
 
 // Export the router
 module.exports = router;

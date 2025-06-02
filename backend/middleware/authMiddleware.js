@@ -17,10 +17,8 @@ const verifyTokenAndRole = async (req, res, next, role) => {
     token = req.cookies.token;
   }
   
-  const headerRole = req.header("X-User-Role");
   console.log("Authorization Header:", authHeader);
   console.log("Token received:", token ? "Token exists" : "No token");
-  console.log("Header Role:", headerRole);
   console.log("Required Role:", role);
 
   if (!token) {
@@ -33,15 +31,13 @@ const verifyTokenAndRole = async (req, res, next, role) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded Token:", decoded);
     
-    // Get user ID and provided role
+    // Get user ID and token role
     const userId = decoded.id;
     const tokenRole = decoded.role;
     
-    // Check if either token role or header role matches required role
-    const roleMatches = tokenRole === role || headerRole === role;
-
-    if (!roleMatches) {
-      console.error(`Role mismatch. Token role: ${tokenRole}, Header role: ${headerRole}, Required role: ${role}`);
+    // Check if token role matches required role
+    if (tokenRole !== role) {
+      console.error(`Role mismatch. Token role: ${tokenRole}, Required role: ${role}`);
       return res.status(403).json({ message: "Unauthorized role. Please log in with correct credentials." });
     }
 

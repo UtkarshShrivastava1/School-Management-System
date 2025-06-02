@@ -8,6 +8,7 @@ import {
   FaBell,
   FaUserAlt,
   FaBars,
+  FaMoneyCheckAlt,
 } from "react-icons/fa";
 import { Row, Col, Card, Nav } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -82,6 +83,11 @@ const dashboardSections = [
             icon: <FaUserGraduate size={50} />,
             title: "Student Management",
             page: "student-management",
+          },
+          {
+            icon: <FaMoneyCheckAlt size={50} />,
+            title: "Manage Fee Approvals",
+            page: "manage-fee-approvals",
           },
         ],
       },
@@ -188,6 +194,16 @@ const AdminDashboardPage = () => {
                               <Card
                                 className="dashboard-card shadow-sm"
                                 onClick={() => handleCardClick(card.page)}
+                                style={{
+                                  cursor: "pointer",
+                                  transition: "transform 0.2s",
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.transform = "scale(1.05)")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.transform = "scale(1)")
+                                }
                               >
                                 <Card.Body className="text-center">
                                   <div className="card-icon mb-3">
@@ -209,6 +225,16 @@ const AdminDashboardPage = () => {
                           <Card
                             className="dashboard-card shadow-sm"
                             onClick={() => handleCardClick(card.page)}
+                            style={{
+                              cursor: "pointer",
+                              transition: "transform 0.2s",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.transform = "scale(1.05)")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.transform = "scale(1)")
+                            }
                           >
                             <Card.Body className="text-center">
                               <div className="card-icon mb-3">{card.icon}</div>

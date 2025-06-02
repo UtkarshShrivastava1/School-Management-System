@@ -135,4 +135,8 @@ router.delete('/:id', verifyAdminToken, async (req, res) => {
 // Class fee management routes
 router.post('/class-fee/update', verifyAdminToken, feeController.updateClassFee);
 
+// Fee approval routes
+router.get('/pending-approvals', verifyAdminToken, feeController.getPendingApprovals);
+router.post('/:feeId/approve', verifyAdminToken, feeController.handleFeeApproval);
+
 module.exports = router; 

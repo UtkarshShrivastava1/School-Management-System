@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
 const { createNotification, getTeacherNotifications, getStudentNotifications, getParentNotifications } = require("../controllers/notificationController");
-const { verifyAdminToken, verifyTeacherToken, verifyStudentToken, verifyParentToken } = require("../middleware/authMiddleware");
+const { verifyAdminToken, verifyTeacherToken, verifyStudentToken, verifyParentToken, protect, authorize } = require("../middleware/authMiddleware");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -80,6 +80,11 @@ router.get("/student", verifyStudentToken, getStudentNotifications);
 
 // GET /api/notifications/parent
 router.get("/parent", verifyParentToken, getParentNotifications);
+
+// Basic route for testing
+router.get("/", (req, res) => {
+  res.json({ message: "Notification routes working" });
+});
 
 // Error handling for routes
 router.use((err, req, res, next) => {

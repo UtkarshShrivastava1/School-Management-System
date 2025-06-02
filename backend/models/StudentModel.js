@@ -36,6 +36,7 @@ const studentSchema = new mongoose.Schema(
     studentGender: {
       type: String,
       required: true,
+      enum: ["Male", "Female", "Other"],
     },
     studentDateOfAdmission: {
       type: Date,
@@ -52,15 +53,18 @@ const studentSchema = new mongoose.Schema(
     religion: String,
     category: String,
     bloodgroup: String,
-    photo: String,
+    photo: {
+      type: String,
+      default: "",
+    },
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Parent",
+      required: true
     },
     enrolledClasses: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Class",
-      unique: true // Ensure each class appears only once
+      ref: "Class"
     }],
     feeDetails: {
       type: Map,
@@ -134,6 +138,14 @@ const studentSchema = new mongoose.Schema(
         },
       },
     ],
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    admissionDate: {
+      type: Date,
+      default: Date.now
+    }
   },
   { timestamps: true }
 );
@@ -147,4 +159,9 @@ studentSchema.pre('save', async function(next) {
   next();
 });
 
-module.exports = mongoose.model("Student", studentSchema);
+// Create indexes for better query performance
+studentSchema.index({ parent: 1 });
+
+const Student = mongoose.model("Student", studentSchema);
+
+module.exports = Student;
