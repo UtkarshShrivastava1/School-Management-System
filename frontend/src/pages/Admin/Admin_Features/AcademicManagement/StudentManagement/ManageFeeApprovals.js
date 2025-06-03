@@ -87,6 +87,9 @@ const ManageFeeApprovals = () => {
         setPendingFees(pendingFees.filter(fee => fee._id !== feeId));
         setShowRejectionDialog(false);
         setRejectionReason('');
+
+        // Dispatch event to notify other components about fee status update
+        window.dispatchEvent(new Event('feeStatusUpdated'));
       } else {
         toast.error(response.data.message || 'Failed to process approval.');
       }

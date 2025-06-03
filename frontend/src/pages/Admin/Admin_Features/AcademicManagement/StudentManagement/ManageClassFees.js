@@ -167,46 +167,65 @@ const ManageClassFees = () => {
     const today = new Date();
     const currentMonth = getCurrentMonth();
     
-    let lateFeeAmount = 0;
-    let status = 'pending';
+    // Get fee details for this class
+    const classId = classData._id.toString();
+    const feeDetails = student.feeDetails?.get?.(classId) || {};
     
-    if (student.feeDetails?.status === 'paid' && 
-        student.feeDetails?.paidMonth === currentMonth.month &&
-        student.feeDetails?.paidYear === currentMonth.year) {
+    // If fee is already paid or under process, return those details
+    if (feeDetails.status === 'paid' || feeDetails.status === 'under_process') {
       return {
-        ...student.feeDetails,
+        ...feeDetails,
+        classFee: baseFee,
+        monthlyFee: monthlyFee,
+        totalAmount: feeDetails.totalAmount || monthlyFee,
+        lateFeeAmount: feeDetails.lateFeeAmount || 0,
+        status: feeDetails.status,
+        dueDate: feeDetails.dueDate || (dueDate ? dueDate.toISOString() : null),
+        lastUpdated: feeDetails.lastUpdated || new Date().toISOString(),
+        paymentDate: feeDetails.paymentDate,
+        paymentMethod: feeDetails.paymentMethod,
+        transactionId: feeDetails.transactionId,
+        paidMonth: feeDetails.paidMonth || currentMonth.month,
+        paidYear: feeDetails.paidYear || currentMonth.year,
+        paymentApproval: feeDetails.paymentApproval
+      };
+    }
+    
+    // If fee is cancelled, return cancelled status
+    if (feeDetails.status === 'cancelled') {
+      return {
+        ...feeDetails,
         classFee: baseFee,
         monthlyFee: monthlyFee,
         totalAmount: monthlyFee,
         lateFeeAmount: 0,
-        status: 'paid',
-        dueDate: dueDate ? dueDate.toISOString() : null,
-        lastUpdated: new Date().toISOString(),
-        paidMonth: currentMonth.month,
-        paidYear: currentMonth.year
+        status: 'cancelled',
+        dueDate: feeDetails.dueDate || (dueDate ? dueDate.toISOString() : null),
+        lastUpdated: feeDetails.lastUpdated || new Date().toISOString(),
+        rejectionReason: feeDetails.rejectionReason,
+        paymentApproval: feeDetails.paymentApproval
       };
     }
+    
+    // Calculate late fee and status for pending fees
+    let lateFeeAmount = 0;
+    let status = 'pending';
     
     if (dueDate) {
       const diffDays = Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24));
       if (diffDays > 0) {
         lateFeeAmount = diffDays * lateFeePerDay;
         status = 'overdue';
-      } else if (diffDays === 0) {
-        status = 'pending';
-      } else {
-        status = 'pending';
       }
     }
     
-    const totalAmount = monthlyFee + lateFeeAmount;
-    
     return {
+      ...feeDetails,
       classFee: baseFee,
       monthlyFee: monthlyFee,
-      totalAmount,
-      lateFeeAmount,
-      status,
+      totalAmount: monthlyFee + lateFeeAmount,
+      lateFeeAmount: lateFeeAmount,
+      status: status,
       dueDate: dueDate ? dueDate.toISOString() : null,
       lastUpdated: new Date().toISOString(),
       currentMonth: currentMonth.month,
@@ -271,13 +290,12 @@ const ManageClassFees = () => {
         
         if (!calculatedFeeDetails) return student;
 
-        let status = 'pending';
-        if (existingFeeDetails.status === 'paid') {
-          status = 'paid';
-        } else if (calculatedFeeDetails.status === 'overdue') {
-          status = 'overdue';
-        } else {
-          status = 'pending';
+        // Preserve the original status if it's paid, under_process, or cancelled
+        let status = calculatedFeeDetails.status;
+        if (existingFeeDetails.status === 'paid' || 
+            existingFeeDetails.status === 'under_process' || 
+            existingFeeDetails.status === 'cancelled') {
+          status = existingFeeDetails.status;
         }
 
         return {
@@ -286,7 +304,12 @@ const ManageClassFees = () => {
           feeDetails: {
             ...calculatedFeeDetails,
             status,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            paymentDate: existingFeeDetails.paymentDate,
+            paymentMethod: existingFeeDetails.paymentMethod,
+            transactionId: existingFeeDetails.transactionId,
+            rejectionReason: existingFeeDetails.rejectionReason,
+            paymentApproval: existingFeeDetails.paymentApproval
           }
         };
       });
@@ -606,6 +629,36 @@ const ManageClassFees = () => {
       </div>
     );
   };
+
+  // Add refresh interval for fee status updates
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      if (selectedClass) {
+        fetchStudents(selectedClass._id);
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [selectedClass]);
+
+  // Add function to refresh student data
+  const refreshStudentData = async () => {
+    if (selectedClass) {
+      await fetchStudents(selectedClass._id);
+    }
+  };
+
+  // Add event listener for fee status updates
+  useEffect(() => {
+    const handleFeeUpdate = () => {
+      refreshStudentData();
+    };
+
+    window.addEventListener('feeStatusUpdated', handleFeeUpdate);
+    return () => {
+      window.removeEventListener('feeStatusUpdated', handleFeeUpdate);
+    };
+  }, [selectedClass]);
 
   if (loading && !selectedClass) {
     return (

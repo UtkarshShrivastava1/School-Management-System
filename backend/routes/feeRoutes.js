@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Fee = require('../models/FeeModel');
-const { verifyAdminToken, verifyTeacherToken } = require('../middleware/authMiddleware');
+const { verifyAdminToken, verifyTeacherToken, verifyAdminOrTeacherToken } = require('../middleware/authMiddleware');
 const feeController = require('../controllers/feeController');
 
 // Get all fees
@@ -16,6 +16,10 @@ router.get('/', verifyAdminToken, async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+
+// Fee approval routes - must be before /:id route
+router.get('/pending-approvals', verifyAdminOrTeacherToken, feeController.getPendingApprovals);
+router.post('/:feeId/approve', verifyAdminOrTeacherToken, feeController.handleFeeApproval);
 
 // Get fees by class
 router.get('/class/:classId', [verifyAdminToken, verifyTeacherToken], async (req, res) => {
@@ -134,9 +138,5 @@ router.delete('/:id', verifyAdminToken, async (req, res) => {
 
 // Class fee management routes
 router.post('/class-fee/update', verifyAdminToken, feeController.updateClassFee);
-
-// Fee approval routes
-router.get('/pending-approvals', verifyAdminToken, feeController.getPendingApprovals);
-router.post('/:feeId/approve', verifyAdminToken, feeController.handleFeeApproval);
 
 module.exports = router; 

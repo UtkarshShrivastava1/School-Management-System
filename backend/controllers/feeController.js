@@ -1,6 +1,7 @@
 const Fee = require("../models/FeeModel");
 const Student = require("../models/StudentModel");
 const Class = require("../models/ClassModel");
+const Teacher = require("../models/TeacherModel");
 const { validationResult } = require("express-validator");
 
 // Create a new fee record
@@ -361,30 +362,143 @@ exports.handleFeeApproval = async (req, res) => {
     const { feeId } = req.params;
     const { action, rejectionReason } = req.body;
 
-    const fee = await Fee.findById(feeId);
+    const fee = await Fee.findById(feeId)
+      .populate('student')
+      .populate('class');
+      
     if (!fee) {
       return res.status(404).json({ message: 'Fee record not found' });
     }
 
-    if (fee.status !== 'under_process') {
+    // Allow both 'under_process' and 'pending' statuses
+    if (fee.status !== 'under_process' && fee.status !== 'pending') {
       return res.status(400).json({ message: 'Fee is not pending approval' });
     }
 
+    // Get the approver ID based on role
+    const approverId = req.admin?._id || req.teacher?._id;
+    const approverRole = req.admin ? 'admin' : 'teacher';
+
     if (action === 'approve') {
+      // Update fee record
       fee.status = 'paid';
+      fee.paymentDate = new Date();
       fee.paymentApproval = {
         status: 'approved',
-        approvedBy: req.admin._id,
+        approvedBy: approverId,
+        approvedByRole: approverRole,
         approvedAt: new Date()
       };
+
+      // Update student's fee details
+      if (fee.student && fee.class) {
+        const student = fee.student;
+        const classId = fee.class._id.toString();
+
+        // Get existing fee details for the class
+        const existingFeeDetails = student.feeDetails.get(classId) || {};
+        
+        // Update the student's fee details
+        const updatedFeeDetails = {
+          ...existingFeeDetails,
+          status: 'paid',
+          lastUpdated: new Date(),
+          paymentDate: new Date(),
+          paymentMethod: fee.paymentMethod || 'online',
+          transactionId: fee.transactionId,
+          totalAmount: fee.totalAmount,
+          lateFeeAmount: fee.lateFeeAmount || 0,
+          dueDate: fee.dueDate,
+          paidMonth: new Date().getMonth() + 1,
+          paidYear: new Date().getFullYear(),
+          paymentApproval: {
+            status: 'approved',
+            approvedBy: approverId,
+            approvedByRole: approverRole,
+            approvedAt: new Date()
+          }
+        };
+
+        // Update the student document using $set with the Map structure
+        const updatedStudent = await Student.findByIdAndUpdate(
+          student._id,
+          { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
+          { new: true }
+        );
+
+        if (!updatedStudent) {
+          throw new Error('Failed to update student fee details');
+        }
+
+        // Update all fee records for this student and class to reflect the paid status
+        await Fee.updateMany(
+          {
+            student: student._id,
+            class: fee.class._id,
+            status: { $in: ['pending', 'overdue'] }
+          },
+          {
+            $set: {
+              status: 'paid',
+              paymentDate: new Date(),
+              paymentMethod: fee.paymentMethod || 'online',
+              transactionId: fee.transactionId,
+              paymentApproval: {
+                status: 'approved',
+                approvedBy: approverId,
+                approvedByRole: approverRole,
+                approvedAt: new Date()
+              }
+            }
+          }
+        );
+      }
     } else if (action === 'reject') {
+      // Update fee record
       fee.status = 'cancelled';
       fee.paymentApproval = {
         status: 'rejected',
-        approvedBy: req.admin._id,
+        approvedBy: approverId,
+        approvedByRole: approverRole,
         approvedAt: new Date(),
-        rejectionReason: rejectionReason || 'Payment rejected by admin'
+        rejectionReason: rejectionReason || `Payment rejected by ${approverRole}`
       };
+
+      // Update student's fee details
+      if (fee.student && fee.class) {
+        const student = fee.student;
+        const classId = fee.class._id.toString();
+
+        // Get existing fee details for the class
+        const existingFeeDetails = student.feeDetails.get(classId) || {};
+        
+        // Update the student's fee details
+        const updatedFeeDetails = {
+          ...existingFeeDetails,
+          status: 'cancelled',
+          lastUpdated: new Date(),
+          rejectionReason: rejectionReason || `Payment rejected by ${approverRole}`,
+          dueDate: fee.dueDate,
+          paymentApproval: {
+            status: 'rejected',
+            approvedBy: approverId,
+            approvedByRole: approverRole,
+            approvedAt: new Date(),
+            rejectionReason: rejectionReason || `Payment rejected by ${approverRole}`
+          }
+        };
+
+        // Update the student document using $set with the Map structure
+        const updatedStudent = await Student.findByIdAndUpdate(
+          student._id,
+          { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
+          { new: true }
+        );
+
+        if (!updatedStudent) {
+          throw new Error('Failed to update student fee details');
+        }
+      }
     } else {
       return res.status(400).json({ message: 'Invalid action' });
     }
@@ -392,19 +506,42 @@ exports.handleFeeApproval = async (req, res) => {
     await fee.save();
 
     res.json({
+      success: true,
       message: `Payment ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
       fee
     });
   } catch (error) {
     console.error('Error handling fee approval:', error);
-    res.status(500).json({ message: 'Error processing approval' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error processing approval',
+      error: error.message 
+    });
   }
 };
 
 // Get pending fee approvals
 exports.getPendingApprovals = async (req, res) => {
   try {
-    const pendingFees = await Fee.find({ status: 'pending' })
+    // Get the user's role and ID
+    const isAdmin = !!req.admin;
+    const isTeacher = !!req.teacher;
+    const userId = req.admin?._id || req.teacher?._id;
+
+    // Base query for pending fees
+    const query = { status: 'under_process' };
+
+    // If teacher, only show fees for their assigned classes
+    if (isTeacher) {
+      const teacher = await Teacher.findById(userId).populate('assignedClasses');
+      if (!teacher) {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      const classIds = teacher.assignedClasses.map(c => c._id);
+      query.class = { $in: classIds };
+    }
+
+    const pendingFees = await Fee.find(query)
       .populate('student', 'studentName')
       .populate('class', 'className')
       .sort({ paymentDate: -1 });

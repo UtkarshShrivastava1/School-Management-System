@@ -410,7 +410,10 @@ const payFee = async (req, res) => {
     });
 
     // Find the fee record
-    const fee = await Fee.findById(feeId);
+    const fee = await Fee.findById(feeId)
+      .populate('student')
+      .populate('class');
+      
     if (!fee) {
       console.log('Fee not found:', feeId);
       return res.status(404).json({ message: 'Fee record not found' });
@@ -436,12 +439,12 @@ const payFee = async (req, res) => {
 
     // Check if the fee's student ID matches any of the parent's children
     const isAuthorized = parent.children.some(
-      child => child.student._id.toString() === fee.student.toString()
+      child => child.student._id.toString() === fee.student._id.toString()
     );
 
     if (!isAuthorized) {
       console.log('Unauthorized payment attempt:', {
-        feeStudentId: fee.student.toString(),
+        feeStudentId: fee.student._id.toString(),
         parentChildrenIds: parent.children.map(c => c.student._id.toString())
       });
       return res.status(403).json({ message: 'Unauthorized to pay this fee' });
@@ -463,6 +466,32 @@ const payFee = async (req, res) => {
       approvedBy: null,
       approvedAt: null
     };
+
+    // Update student's fee details
+    const student = fee.student;
+    const classId = fee.class._id.toString();
+
+    // Get existing fee details for the class
+    const existingFeeDetails = student.feeDetails.get(classId) || {};
+    
+    // Update the student's fee details
+    const updatedFeeDetails = {
+      ...existingFeeDetails,
+      status: 'under_process',
+      lastUpdated: new Date(),
+      paymentDate: new Date(),
+      paymentMethod: paymentMethod,
+      transactionId: transactionId,
+      totalAmount: fee.totalAmount,
+      lateFeeAmount: fee.lateFeeAmount || 0
+    };
+
+    // Update the student document using $set with the Map structure
+    await Student.findByIdAndUpdate(
+      student._id,
+      { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
+      { new: true }
+    );
 
     await fee.save();
     console.log('Fee updated successfully:', {
