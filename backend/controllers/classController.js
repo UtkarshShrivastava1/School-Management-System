@@ -2,74 +2,72 @@ const Class = require("../models/ClassModel");
 const Subject = require("../models/SubjectModel");
 const Teacher = require("../models/TeacherModel");
 
-const generateClassId = (standardName, sectionName) => {
-  return `CLASS_${standardName.toUpperCase()}_${sectionName}`;
-};
-
 const generateSubjectCode = (subjectName) => {
   const subjectCodePrefix = subjectName.slice(0, 4).toUpperCase();
   const randomCode = Math.floor(Math.random() * 1000) + 100;
   return `${subjectCodePrefix}${randomCode}`;
 };
-
 const generateSubjectId = (subjectCode) => {
   return `SUB_${subjectCode}`;
 };
 
+const generateClassId = (standardName, sectionName) => {
+  return `CLASS_${standardName.toUpperCase().replace(" ", "_")}_${sectionName}`;
+};
+
 const createClass = async (req, res) => {
   try {
-    const { standardName, classStrength, subjects } = req.body;
+    const { standardName, classStrength, section, subjects } = req.body;
+    console.log("Incoming body =>", req.body);
 
     if (
       !standardName ||
+      !section ||
       !classStrength ||
       !Array.isArray(subjects) ||
       subjects.length === 0
     ) {
       return res.status(400).json({
         message:
-          "Please provide standardName, classStrength, and a list of subjects with assigned teachers.",
+          "Please provide standardName, section, classStrength, and a list of subjects with assigned teachers.",
+      });
+    }
+    const allowedSections = ["A", "B", "C", "D", "E"];
+
+    if (!allowedSections.includes(section.toUpperCase())) {
+      return res.status(400).json({
+        message: "Section must be one of A, B, C, D, or E.",
       });
     }
 
-    // Validate each subject input (subjectCode is optional)
-    for (const subject of subjects) {
-      if (!subject.subjectName || !subject.teacherId) {
-        return res.status(400).json({
-          message:
-            "Each subject must include a subjectName and an assigned teacherId.",
-        });
-      }
+    if (!classStrength || parseInt(classStrength, 10) <= 0) {
+      setErrorMessage("Class strength must be greater than 0.");
+      return;
+    }
+    
+
+    // Check for duplicate class with same name and section
+    const existingClass = await Class.findOne({
+      className: standardName,
+      section: section.toUpperCase(),
+    });
+    if (existingClass) {
+      return res.status(400).json({
+        message: "A class with the same name and section already exists.",
+      });
     }
 
-    // Determine the next section for the class
-    const existingClasses = await Class.find({
-      className: new RegExp(`^${standardName}[A-Z]?$`),
-    });
-    const nextSection =
-      existingClasses.length > 0
-        ? String.fromCharCode(
-            Math.max(
-              ...existingClasses.map((cls) =>
-                cls.className.slice(-1).charCodeAt(0)
-              )
-            ) + 1
-          )
-        : "A";
-    const className = `${standardName}${nextSection}`;
-    const classId = generateClassId(standardName, nextSection);
+    const classId = generateClassId(standardName, section.toUpperCase());
 
-    // Arrays and maps for processing subjects and teacher assignments
-    const subjectIds = []; // Custom subjectId strings for the Class document
-    const processedSubjects = []; // { subjectId, subjectObjectId, teacherObjectId }
-    const teacherToSubjects = {}; // Map: teacher _id (as string) => array of subject _id strings
+    const subjectObjectIds = [];
+    const processedSubjects = [];
+    const teacherToSubjects = {};
 
     for (const {
       subjectName,
       teacherId,
       subjectCode: inputSubjectCode,
     } of subjects) {
-      // Look up teacher by custom teacherID (e.g., "TCHR1234")
       const teacher = await Teacher.findOne({ teacherID: teacherId });
       if (!teacher) {
         return res.status(400).json({
@@ -77,38 +75,30 @@ const createClass = async (req, res) => {
         });
       }
 
-      // Process subject by subjectName
       let subject = await Subject.findOne({ subjectName });
       if (!subject) {
-        // If a subject code is provided, use it; otherwise, generate one.
-        const subjectCode = inputSubjectCode
-          ? inputSubjectCode
-          : generateSubjectCode(subjectName);
+        const subjectCode =
+          inputSubjectCode || generateSubjectCode(subjectName);
         const subjectCustomId = generateSubjectId(subjectCode);
         subject = new Subject({
           subjectName,
           subjectCode,
           subjectId: subjectCustomId,
-          assignedTeachers: [teacher._id], // store teacher's ObjectId
-          classes: [], // initialize classes array
+          assignedTeachers: [teacher._id],
+          classes: [],
         });
         await subject.save();
-      } else {
-        // If subject exists, add teacher (if not already assigned)
-        if (!subject.assignedTeachers.includes(teacher._id)) {
-          subject.assignedTeachers.push(teacher._id);
-          await subject.save();
-        }
+      } else if (!subject.assignedTeachers.includes(teacher._id)) {
+        subject.assignedTeachers.push(teacher._id);
+        await subject.save();
       }
 
-      subjectIds.push(subject.subjectId);
+      subjectObjectIds.push(subject._id);
       processedSubjects.push({
-        subjectId: subject.subjectId,
         subjectObjectId: subject._id,
         teacherObjectId: teacher._id,
       });
 
-      // Build mapping: teacher _id -> array of subject _id's
       const teacherKey = teacher._id.toString();
       if (!teacherToSubjects[teacherKey]) {
         teacherToSubjects[teacherKey] = [];
@@ -118,24 +108,22 @@ const createClass = async (req, res) => {
       }
     }
 
-    // Create and save the class
     const newClass = new Class({
-      className,
+      className: standardName,
+      section: section.toUpperCase(),
       classId,
       students: [],
-      teachers: [], // will be updated below
-      subjects: subjectIds, // storing custom subjectId strings
+      teachers: [],
+      subjects: subjectObjectIds,
     });
     await newClass.save();
 
-    // Update each subject: add this class's ID to their 'classes' field
-    for (const processed of processedSubjects) {
-      await Subject.findByIdAndUpdate(processed.subjectObjectId, {
+    for (const { subjectObjectId } of processedSubjects) {
+      await Subject.findByIdAndUpdate(subjectObjectId, {
         $addToSet: { classes: classId },
       });
     }
 
-    // Update each teacher: add new class and update assigned subjects
     for (const teacherKey in teacherToSubjects) {
       await Teacher.findByIdAndUpdate(teacherKey, {
         $addToSet: {
@@ -145,7 +133,6 @@ const createClass = async (req, res) => {
       });
     }
 
-    // Update the class document with teacher ObjectIds
     newClass.teachers = Object.keys(teacherToSubjects);
     await newClass.save();
 
