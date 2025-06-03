@@ -106,9 +106,16 @@ const PayFee = () => {
       setSubmitting(true);
       const token = localStorage.getItem('token');
       if (!token) {
+        toast.error('Session expired. Please login again.');
         navigate('/login');
         return;
       }
+
+      console.log('Submitting payment:', {
+        feeId: selectedFee._id,
+        paymentMethod: 'online',
+        transactionId
+      });
 
       const response = await axios.post(
         `${API_URL}/api/parent/auth/pay-fee`,
@@ -125,20 +132,40 @@ const PayFee = () => {
         }
       );
 
-      toast.success('Payment submitted successfully. Waiting for admin approval.');
-      setShowPaymentDialog(false);
-      setTransactionId('');
-      fetchChildFees(); // Refresh the fees list
+      if (response.data.success) {
+        toast.success(response.data.message || 'Payment submitted successfully. Waiting for admin approval.');
+        setShowPaymentDialog(false);
+        setTransactionId('');
+        fetchChildFees(); // Refresh the fees list
+      } else {
+        throw new Error(response.data.message || 'Failed to process payment');
+      }
     } catch (error) {
       console.error('Error processing payment:', error);
-      if (error.response?.status === 401) {
-        navigate('/login');
-        return;
-      }
-      if (error.response?.status === 403) {
-        toast.error('You are not authorized to make this payment. Please contact support.');
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        const errorMessage = error.response.data?.message || error.response.data?.error || 'Failed to process payment';
+        
+        if (error.response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          navigate('/login');
+        } else if (error.response.status === 403) {
+          toast.error('You are not authorized to make this payment. Please contact support.');
+        } else if (error.response.status === 404) {
+          toast.error('Fee record not found. Please try again or contact support.');
+        } else if (error.response.status === 400) {
+          toast.error(errorMessage);
+        } else {
+          toast.error(`Error: ${errorMessage}`);
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        toast.error('No response from server. Please check your internet connection and try again.');
       } else {
-        toast.error(error.response?.data?.message || 'Failed to process payment. Please try again.');
+        // Something happened in setting up the request that triggered an Error
+        toast.error('An unexpected error occurred. Please try again later.');
       }
     } finally {
       setSubmitting(false);

@@ -450,6 +450,13 @@ const payFee = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized to pay this fee' });
     }
 
+    // Check if fee is already paid or under process
+    if (fee.status === 'paid' || fee.status === 'under_process') {
+      return res.status(400).json({ 
+        message: `Fee is already ${fee.status === 'paid' ? 'paid' : 'under process'}`
+      });
+    }
+
     // Update fee payment details
     fee.status = 'under_process';
     fee.paymentMethod = paymentMethod;
@@ -471,42 +478,61 @@ const payFee = async (req, res) => {
     const student = fee.student;
     const classId = fee.class._id.toString();
 
-    // Get existing fee details for the class
-    const existingFeeDetails = student.feeDetails.get(classId) || {};
-    
-    // Update the student's fee details
-    const updatedFeeDetails = {
-      ...existingFeeDetails,
-      status: 'under_process',
-      lastUpdated: new Date(),
-      paymentDate: new Date(),
-      paymentMethod: paymentMethod,
-      transactionId: transactionId,
-      totalAmount: fee.totalAmount,
-      lateFeeAmount: fee.lateFeeAmount || 0
-    };
+    try {
+      // Get existing fee details for the class
+      const existingFeeDetails = student.feeDetails?.get?.(classId) || {};
+      
+      // Update the student's fee details
+      const updatedFeeDetails = {
+        ...existingFeeDetails,
+        status: 'under_process',
+        lastUpdated: new Date(),
+        paymentDate: new Date(),
+        paymentMethod: paymentMethod,
+        transactionId: transactionId,
+        totalAmount: fee.totalAmount,
+        lateFeeAmount: fee.lateFeeAmount || 0
+      };
 
-    // Update the student document using $set with the Map structure
-    await Student.findByIdAndUpdate(
-      student._id,
-      { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
-      { new: true }
-    );
+      // Update the student document using $set with the Map structure
+      const updatedStudent = await Student.findByIdAndUpdate(
+        student._id,
+        { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
+        { new: true }
+      );
 
-    await fee.save();
-    console.log('Fee updated successfully:', {
-      id: fee._id,
-      status: fee.status,
-      transactionId: fee.transactionId
-    });
+      if (!updatedStudent) {
+        throw new Error('Failed to update student fee details');
+      }
 
-    res.json({
-      message: 'Payment submitted successfully. Waiting for admin approval.',
-      fee
-    });
+      // Save the fee record
+      await fee.save();
+      
+      console.log('Fee updated successfully:', {
+        id: fee._id,
+        status: fee.status,
+        transactionId: fee.transactionId
+      });
+
+      res.json({
+        success: true,
+        message: 'Payment submitted successfully. Waiting for admin approval.',
+        fee
+      });
+    } catch (updateError) {
+      console.error('Error updating student fee details:', updateError);
+      // If student update fails, revert fee status
+      fee.status = 'pending';
+      await fee.save();
+      throw new Error('Failed to update student fee details: ' + updateError.message);
+    }
   } catch (error) {
     console.error('Error processing fee payment:', error);
-    res.status(500).json({ message: 'Error processing payment' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error processing payment',
+      error: error.message 
+    });
   }
 };
 
