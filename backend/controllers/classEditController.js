@@ -60,17 +60,19 @@ const getAllClasses = async (req, res) => {
 const getClassDetails = async (req, res) => {
   try {
     const { classId } = req.params;
-    const classDoc = await Class.findOne({ classId }).populate(
-      "teachers",
-      "teacherID name"
-    );
+    const classDoc = await Class.findOne({ classId })
+      .populate("teachers", "teacherID name")
+      .populate("subjects", "subjectName subjectCode subjectId assignedTeachers");
+    
     if (!classDoc) {
       return res.status(404).json({ message: "Class not found" });
     }
-    // Retrieve subjects using the custom subjectId values stored in the class document
+
+    // Get subjects with their assigned teachers
     const subjects = await Subject.find({
-      subjectId: { $in: classDoc.subjects },
+      _id: { $in: classDoc.subjects }
     }).populate("assignedTeachers", "teacherID name");
+
     return res.status(200).json({
       message: "Class details fetched successfully",
       class: classDoc,
@@ -111,8 +113,10 @@ const updateClass = async (req, res) => {
     const { classId } = req.params;
     const {
       className,
+      section,
       subjects: updatedSubjects,
       teachers: updatedTeachers,
+      classStrength
     } = req.body;
 
     console.log("Updating class with ID:", classId);
@@ -124,15 +128,46 @@ const updateClass = async (req, res) => {
       return res.status(404).json({ message: "Class not found" });
     }
 
-    // Update class name if provided
+    // Validate class name format if provided
     if (className) {
-      console.log(
-        "Old className:",
-        classDoc.className,
-        "New className:",
-        className
-      );
-      classDoc.className = className;
+      const validClassNames = [
+        "Class 1", "Class 2", "Class 3", "Class 4", "Class 5",
+        "Class 6", "Class 7", "Class 8", "Class 9", "Class 10",
+        "Class 11", "Class 12"
+      ];
+      if (!validClassNames.includes(className)) {
+        return res.status(400).json({
+          message: "Invalid class name. Must be in format 'Class X' where X is 1-12"
+        });
+      }
+    }
+
+    // Validate section if provided
+    if (section) {
+      const validSections = ["A", "B", "C", "D", "E"];
+      if (!validSections.includes(section.toUpperCase())) {
+        return res.status(400).json({
+          message: "Invalid section. Must be one of A, B, C, D, or E"
+        });
+      }
+    }
+
+    // Check for duplicate class if either className or section is being updated
+    if (className || section) {
+      const newClassName = className || classDoc.className;
+      const newSection = section ? section.toUpperCase() : classDoc.section;
+      
+      const existingClass = await Class.findOne({
+        className: newClassName,
+        section: newSection,
+        _id: { $ne: classDoc._id } // Exclude current class
+      });
+
+      if (existingClass) {
+        return res.status(400).json({
+          message: `A class with name ${newClassName} and section ${newSection} already exists`
+        });
+      }
     }
 
     // Process subjects if provided
@@ -186,7 +221,19 @@ const updateClass = async (req, res) => {
             );
             subject.subjectCode = subj.subjectCode;
           }
+          // Update teacher assignment if provided
+          if (subj.teacherId) {
+            const teacher = await Teacher.findOne({ teacherID: subj.teacherId });
+            if (teacher) {
+              subject.assignedTeachers = [teacher._id];
+            } else {
+              return res.status(400).json({
+                message: `Teacher with ID ${subj.teacherId} not found`,
+              });
+            }
+          }
           await subject.save();
+          subjectIds.push(subject._id); // Store MongoDB _id instead of subjectId
         }
         // 3. If no matching subject is found, create a new one with a unique subjectId
         if (!subject) {
@@ -197,55 +244,75 @@ const updateClass = async (req, res) => {
             subjectCode,
             subjectId: subjectCustomId,
             assignedTeachers: [],
-            classes: [],
+            classes: [classDoc._id],
           });
-          console.log("Creating new subject:", subject);
-          await subject.save();
-        }
-        // Update teacher assignment for the subject
-        if (subj.teacherId) {
-          const teacher = await Teacher.findOne({ teacherID: subj.teacherId });
-          if (teacher) {
-            console.log(
-              `Assigning teacher ${teacher.teacherID} to subject ${subject.subjectName}`
-            );
-            subject.assignedTeachers = [teacher._id];
-            await subject.save();
-          } else {
-            console.log(
-              `Teacher ${subj.teacherId} not found for subject ${subj.subjectName}`
-            );
+          // Assign teacher if provided
+          if (subj.teacherId) {
+            const teacher = await Teacher.findOne({ teacherID: subj.teacherId });
+            if (teacher) {
+              subject.assignedTeachers = [teacher._id];
+            } else {
+              return res.status(400).json({
+                message: `Teacher with ID ${subj.teacherId} not found`,
+              });
+            }
           }
+          await subject.save();
+          subjectIds.push(subject._id); // Store MongoDB _id instead of subjectId
         }
-        subjectIds.push(subject.subjectId);
       }
-      // Update the class document's subjects with the unique list of subjectIds
-      classDoc.subjects = Array.from(new Set(subjectIds));
-      console.log("Updated class subjects:", classDoc.subjects);
+      classDoc.subjects = subjectIds;
     }
 
-    // Update class teacher assignments if provided
+    // Update class fields if provided
+    if (className) classDoc.className = className;
+    if (section) classDoc.section = section.toUpperCase();
+    
+    // Handle classStrength - use existing value if not provided
+    if (classStrength) {
+      const strength = parseInt(classStrength, 10);
+      if (isNaN(strength) || strength < 1) {
+        return res.status(400).json({
+          message: "Class strength must be a positive number"
+        });
+      }
+      classDoc.classStrength = strength;
+    }
+    // If classStrength is not provided, keep the existing value
+
+    // Update teachers if provided
     if (updatedTeachers && Array.isArray(updatedTeachers)) {
-      let teacherObjIds = [];
-      for (const tid of updatedTeachers) {
-        const teacher = await Teacher.findOne({ teacherID: tid });
-        if (teacher) teacherObjIds.push(teacher._id);
+      const teacherIds = [];
+      for (const teacherId of updatedTeachers) {
+        const teacher = await Teacher.findOne({ teacherID: teacherId });
+        if (!teacher) {
+          return res.status(400).json({
+            message: `Teacher with ID ${teacherId} not found`,
+          });
+        }
+        teacherIds.push(teacher._id);
       }
-      classDoc.teachers = teacherObjIds;
-      console.log("Updated class teachers:", classDoc.teachers);
+      classDoc.teachers = teacherIds;
     }
 
-    const updatedDoc = await classDoc.save();
-    console.log("Updated class document:", updatedDoc);
+    // Save the updated class
+    await classDoc.save();
+
+    // Return the updated class with populated fields
+    const updatedClass = await Class.findById(classDoc._id)
+      .populate("teachers", "teacherID name")
+      .populate("subjects", "subjectName subjectCode subjectId");
+
     return res.status(200).json({
       message: "Class updated successfully",
-      class: updatedDoc,
+      class: updatedClass,
     });
   } catch (error) {
     console.error("Error updating class:", error);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: error.message });
+    return res.status(500).json({
+      message: "Server error while updating class",
+      error: error.message,
+    });
   }
 };
 

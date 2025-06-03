@@ -1,10 +1,11 @@
 import React from "react";
-import { FaUserGraduate, FaUserCircle, FaClipboardList } from "react-icons/fa";
+import { FaUserGraduate, FaUserCircle, FaClipboardList, FaMoneyBillWave } from "react-icons/fa";
 import { Row, Col, Card } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./StudentManagement.css";
 import { FaArrowLeft } from "react-icons/fa";
+
 const studentManagementSections = [
   {
     title: "Student Management",
@@ -24,6 +25,11 @@ const studentManagementSections = [
         icon: <FaClipboardList size={50} />,
         title: "Track Student Attendance",
         page: "track-student-attendance",
+      },
+      {
+        icon: <FaMoneyBillWave size={50} />,
+        title: "Manage Class Fees",
+        page: "manage-class-fees",
       },
     ],
   },

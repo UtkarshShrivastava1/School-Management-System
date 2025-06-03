@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
 import axios from "axios";
-import {
-  FaChalkboard,
-  FaBook,
-  FaPlusCircle,
-  FaEdit,
-  FaTrash,
-  FaArrowLeft,
-} from "react-icons/fa";
-import { Card, Button, ListGroup } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./ClassManagement.css";
+import React, { useEffect, useState } from "react";
+import { Button, Card, ListGroup } from "react-bootstrap";
+import {
+  FaArrowLeft,
+  FaBook,
+  FaChalkboard,
+  FaEdit,
+  FaPlusCircle,
+  FaTrash,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import "./ClassManagement.css";
 
 const ClassManagement = () => {
   const [classes, setClasses] = useState([]);
@@ -71,7 +71,7 @@ const ClassManagement = () => {
   };
 
   const handleViewDetails = (classId) => {
-    navigate(`/admin/class-details/${classId}`);
+    navigate(`/admin/edit-class/${classId}?showDetails=true`);
   };
 
   const handleEdit = (classId) => {

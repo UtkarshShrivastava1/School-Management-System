@@ -13,6 +13,8 @@ const {
 } = require("../controllers/parentController"); // Import all controller functions
 const Parent = require("../models/ParentModel"); // Importing Parent model
 const { verifyParentToken } = require("../middleware/authMiddleware");
+// const Parent = require("../models/ParentModel");
+// const bcrypt = require("bcryptjs");
 
 // Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {

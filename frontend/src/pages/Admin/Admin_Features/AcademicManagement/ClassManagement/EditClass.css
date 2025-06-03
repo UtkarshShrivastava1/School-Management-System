@@ -119,3 +119,73 @@
   padding: 20px;
   color: #555;
 }
+
+.editClass-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.editClass-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.editClass-details-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Details Modal Styles */
+.class-details {
+  padding: 20px;
+}
+
+.details-section {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.details-section h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.subjects-list,
+.teachers-list,
+.students-list,
+.attendance-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.subject-item,
+.teacher-item,
+.student-item,
+.attendance-item {
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.subject-item p,
+.teacher-item p,
+.student-item p,
+.attendance-item p {
+  margin: 5px 0;
+  color: #495057;
+}
+
+.attendance-item {
+  background-color: #fff;
+  border-left: 4px solid #007bff;
+}

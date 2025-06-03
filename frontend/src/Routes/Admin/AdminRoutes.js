@@ -34,6 +34,9 @@ import AssignTeacherToClass from "../../pages/Admin/Admin_Features/AcademicManag
 // Import the NotificationCreation component at the top
 import NotificationCreation from "../../pages/Admin/Admin_Features/NotificationCreation";
 
+import ManageStudentFees from "../../pages/Admin/Admin_Features/AcademicManagement/StudentManagement/ManageStudentFees";
+import ManageClassFees from "../../pages/Admin/Admin_Features/AcademicManagement/StudentManagement/ManageClassFees";
+
 const AdminRoutes = ({ isLoggedIn, userRole }) => {
   if (!isLoggedIn || userRole !== "admin")
     return <Navigate to="/signin" replace />;
@@ -86,6 +89,9 @@ const AdminRoutes = ({ isLoggedIn, userRole }) => {
 
       {/* Add the route inside the Routes component */}
       <Route path="/notifications" element={<NotificationCreation />} />
+
+      <Route path="/manage-student-fees" element={<ManageStudentFees />} />
+      <Route path="/manage-class-fees" element={<ManageClassFees />} />
     </Routes>
   );
 };
