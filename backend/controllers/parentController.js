@@ -1,10 +1,9 @@
 const bcrypt = require("bcryptjs");
-const Parent = require("../models/ParentModel");
-const generateToken = require("../config/generateToken");
+const Parent = require("../models/ParentModel"); // Importing Parent model
+const generateToken = require("../config/generateToken"); // Importing token generator
 
-// Parent Login
-const parentLogin = async (req, res) => {
-  try {
+// Controller for logging in parents
+exports.parentLogin = async (req, res) => {
   const { parentID, password } = req.body;
 
   console.log("Parent login attempt:", { parentID });
@@ -23,11 +22,7 @@ const parentLogin = async (req, res) => {
     console.log("Parent lookup result:", parent ? "Found" : "Not found");
 
     if (!parent) {
-      return res.status(404).json({ message: "Parent not found" });
-    }
-
-    if (!parent.parentPassword) {
-      return res.status(500).json({ message: "Parent account is not properly set up" });
+      return res.status(404).json({ message: "Parent not found." });
     }
 
     // Verify password
@@ -47,6 +42,7 @@ const parentLogin = async (req, res) => {
 
     // Return success response with token and parent details
     res.json({
+      message: "Login successful",
       token,
       parent: {
         parentID: parent.parentID,

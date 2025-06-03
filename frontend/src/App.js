@@ -13,8 +13,8 @@ import AdminRoutes from "./Routes/Admin/AdminRoutes";
 import ParentRoutes from "./Routes/Parent/ParentRoutes";
 import StudentRoutes from "./Routes/Student/StudentRoutes";
 import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
-import StudentRoutes from "./Routes/Student/StudentRoutes";
-import ParentRoutes from "./Routes/Parent/ParentRoutes";
+// import StudentRoutes from "./Routes/Student/StudentRoutes";
+// import ParentRoutes from "./Routes/Parent/ParentRoutes";
 import Navbar from "./components/Navbar";
 import { ToastContainer } from "react-toastify";
 

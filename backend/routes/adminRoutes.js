@@ -4,16 +4,19 @@ const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const multer = require("multer");
 const path = require("path");
-const Admin = require("../models/AdminModel");
-const Teacher = require("../models/TeacherModel");
-const Student = require("../models/StudentModel");
-const Parent = require("../models/ParentModel");
+const Admin = require("../models/AdminModel"); // Ensure this import is correct
+const Teacher = require("../models/TeacherModel"); // Importing Teacher model
+const Student = require("../models/StudentModel"); // Importing Teacher model
+const Parent = require("../models/ParentModel"); // Importing Teacher model
+
+// Import verifyAdminToken middleware
 const { verifyAdminToken } = require("../middleware/authMiddleware");
 const bcrypt = require("bcryptjs");
-
 // Import controller functions
+
 const {
   getAllClasses,
+
   getClassDetails,
   updateClass,
   deleteClass,
@@ -24,7 +27,7 @@ const {
   getAllTeachers,
   assignTeacherToSubject,
   assignTeacherToClass,
-} = require("../controllers/teacherController");
+} = require("../controllers/teacherController"); // Assuming you have the controller set up
 const {
   createStudent,
   getAllStudents,
@@ -33,6 +36,7 @@ const {
 } = require("../controllers/studentController");
 const {
   createClass,
+
   assignSubjectsToClass,
 } = require("../controllers/classController");
 const {
@@ -43,8 +47,7 @@ const {
   markTeacherAttendance,
   fetchTeacherAttendanceRecords,
 } = require("../controllers/TeacherAttendanceController");
-
-// Set up multer for file storage
+// Set up multer for file storage (handling file uploads)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Determine the correct upload directory based on the field name
@@ -58,6 +61,8 @@ const storage = multer.diskStorage({
     }
     
     const fs = require("fs");
+
+    // Ensure the 'uploads' directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -73,23 +78,8 @@ const storage = multer.diskStorage({
   },
 });
 
+// Configure multer to handle file type validation
 const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpg|jpeg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      return cb(new Error("Only image files are allowed"));
-    }
-  },
-});
-
-// Configure multer for multiple file uploads
-const uploadFields = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
@@ -142,17 +132,14 @@ const handleValidationErrors = (req, res, next) => {
   }
   next();
 };
-
-// Auth Routes
-router.post("/login", [
-  body("adminID").trim().notEmpty().withMessage("Admin ID is required"),
-  body("password").trim().notEmpty().withMessage("Password is required"),
-], handleValidationErrors, loginAdmin);
-
+//================================================================================================
+//================================================================================================
+// Route: Validate the admin token (verify token in request header)
 router.post("/validate", verifyAdminToken, async (req, res) => {
   try {
-    const user = req.admin;
+    const user = req.admin; // The admin info attached to the request
     if (user) {
+      // Return user details from the decoded token
       res.status(200).json({ name: user.name });
     } else {
       res.status(401).json({ error: "Invalid token" });
@@ -161,261 +148,376 @@ router.post("/validate", verifyAdminToken, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+//================================================================================================
+//================================================================================================
+//------------------------------------------------------------------------------------------------
+// Route: Create an admin using POST "/api/admin/auth/createadmin"
+router.post(
+  "/createadmin",
+  verifyAdminToken, // Verify admin token
+  upload.single("photo"), // Handle file upload for admin's photo
+  [
+    // Existing validations
+    body("name").notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("phone")
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone must be 10 digits"),
+    body("designation").notEmpty().withMessage("Designation is required"),
+    body("address").notEmpty().withMessage("Address is required"),
+    body("dob").notEmpty().withMessage("Date of Birth is required"),
+    body("gender").notEmpty().withMessage("Gender is required"),
+    body("department").notEmpty().withMessage("Department is required"),
+    body("religion")
+      .optional()
+      .isString()
+      .withMessage("Religion must be a string"),
+    body("category")
+      .optional()
+      .isString()
+      .withMessage("Category must be a string"),
+    body("bloodgroup")
+      .optional()
+      .isString()
+      .withMessage("Blood group must be a string"),
+    // Validations for new fields
+    body("emergencyContact")
+      .optional()
+      .isObject()
+      .withMessage("Emergency contact must be an object"),
+    body("emergencyContact.name")
+      .optional()
+      .notEmpty()
+      .withMessage("Emergency contact name is required"),
+    body("emergencyContact.relation")
+      .optional()
+      .notEmpty()
+      .withMessage("Emergency contact relation is required"),
+    body("emergencyContact.phone")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Emergency contact phone must be 10 digits"),
 
-// Admin Profile Routes
+    body("experience")
+      .optional()
+      .isNumeric()
+      .withMessage("Experience must be a numeric value"),
+
+    body("highestQualification")
+      .optional()
+      .notEmpty()
+      .withMessage("Highest qualification is required"),
+
+    body("AADHARnumber")
+      .optional()
+      .isLength({ min: 12, max: 12 })
+      .withMessage("AADHAR number must be 12 digits"),
+    body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
+    body("bankDetails")
+      .optional()
+      .isObject()
+      .withMessage("Bank details must be an object"),
+    body("bankDetails.accountNumber")
+      .optional()
+      .notEmpty()
+      .withMessage("Bank account number is required"),
+    body("bankDetails.bankName")
+      .optional()
+      .notEmpty()
+      .withMessage("Bank name is required"),
+    body("bankDetails.ifscCode")
+      .optional()
+      .notEmpty()
+      .withMessage("IFSC code is required"),
+  ],
+  handleValidationErrors, // Handle validation errors
+  createAdmin // Call the controller function for admin creation
+);
+//================================================================================================
+//================================================================================================
+
+//------------------------------------------------------------------------------------------------
+// Route: Admin login using POST "/api/admin/auth/login"
+router.post(
+  "/login",
+  [
+    body("adminID").trim().notEmpty().withMessage("Admin ID is required"),
+    body("password").trim().notEmpty().withMessage("Password is required"),
+  ],
+  handleValidationErrors, // Handle validation errors
+  loginAdmin // Delegate to login controller
+);
+//------------------------------------------------------------------------------------------------
+//================================================================================================
+//================================================================================================
+
+// Route: Validate the admin token (verify token in request header)
+router.post("/validate", verifyAdminToken, async (req, res) => {
+  try {
+    const user = req.admin; // The admin info attached to the request
+    if (user) {
+      // Return user details from the decoded token
+      res.status(200).json({ name: user.name });
+    } else {
+      res.status(401).json({ error: "Invalid token" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+//================================================================================================
+//================================================================================================
+
+//------------------------------------------------------------------------------------------------
+// Route: Get admin profile using GET "/api/admin/auth/adminprofile"
 router.get("/adminprofile", verifyAdminToken, async (req, res) => {
   try {
-    // The admin object is already attached to req by the verifyAdminToken middleware
-    const admin = req.admin;
+    const adminID = req.admin?.id; // Ensure `admin` object is available in the request
+    if (!adminID) {
+      return res.status(400).json({ message: "Admin ID is missing in token" });
+    }
+
+    // Fetch admin profile from the database using the admin ID
+    const admin = await Admin.findById(adminID);
     if (!admin) {
       return res.status(404).json({ message: "Admin not found" });
     }
 
+    // Return the admin profile data
     res.status(200).json({ admin });
+    console.log(admin);
   } catch (error) {
     console.error("Error fetching admin profile:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
+//================================================================================================
+//================================================================================================
 
-// Update admin profile
-router.put("/adminprofile", verifyAdminToken, upload.single("photo"), [
-  body("adminID").notEmpty().withMessage("Admin ID is required"),
-  body("email").optional().isEmail().withMessage("Invalid email format"),
-  body("phone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone number must be 10 digits"),
-  body("name").optional().trim().notEmpty().withMessage("Name cannot be empty"),
-  body("designation").optional().trim(),
-  body("department").optional().trim(),
-  body("address").optional().trim(),
-  body("dob").optional().isISO8601().toDate().withMessage("Invalid DOB"),
-  body("gender").optional().isString().withMessage("Gender must be a string"),
-  body("religion").optional().isString().withMessage("Religion must be a string"),
-  body("category").optional().isString().withMessage("Category must be a string"),
-  body("bloodgroup").optional().isString().withMessage("Blood group must be a string"),
-  body("emergencyContact").optional().custom((value, { req }) => {
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        if (typeof parsed === 'object' && parsed !== null) {
-          return true;
-        }
-      } catch (e) {
-        throw new Error('Emergency contact must be a valid JSON object');
+//------------------------------------------------------------------------------------------------
+// Route: Update admin info using PUT "/api/admin/auth/updateadmininfo"
+//------------------------------------------------------------------------------------------------
+// Route: Update admin info using PUT "/api/admin/auth/updateadmininfo"
+router.put(
+  "/updateadmininfo",
+  verifyAdminToken, // Middleware to verify admin token
+  upload.single("photo"), // Middleware to handle photo upload
+  [
+    // Validation rules
+    body("adminID").notEmpty().withMessage("Admin ID is required"),
+    body("email").optional().isEmail().withMessage("Invalid email format"),
+    body("phone")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone number must be 10 digits"),
+    body("name")
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage("Name cannot be empty"),
+    body("designation").optional().trim(),
+    body("department").optional().trim(),
+    body("address").optional().trim(),
+    body("dob").optional().isISO8601().toDate().withMessage("Invalid DOB"),
+    body("gender").optional().isString().withMessage("Gender must be a string"),
+    body("religion")
+      .optional()
+      .isString()
+      .withMessage("Religion must be a string"),
+    body("category")
+      .optional()
+      .isString()
+      .withMessage("Category must be a string"),
+    body("bloodgroup")
+      .optional()
+      .isString()
+      .withMessage("Blood group must be a string"),
+    body("emergencyContact").optional().isObject(),
+    body("emergencyContact.name")
+      .optional()
+      .notEmpty()
+      .withMessage("Emergency contact name cannot be empty"),
+    body("emergencyContact.relation")
+      .optional()
+      .notEmpty()
+      .withMessage("Emergency contact relation cannot be empty"),
+    body("emergencyContact.phone")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Emergency contact phone must be 10 digits"),
+
+    body("experience")
+      .optional()
+      .isNumeric()
+      .withMessage("Experience must be numeric"),
+
+    body("highestQualification")
+      .optional()
+      .notEmpty()
+      .withMessage("Highest qualification cannot be empty"),
+
+    body("AADHARnumber")
+      .optional()
+      .isLength({ min: 12, max: 12 })
+      .withMessage("AADHAR number must be 12 digits"),
+    body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
+    body("bankDetails").optional().isObject(),
+    body("bankDetails.accountNumber")
+      .optional()
+      .notEmpty()
+      .withMessage("Bank account number cannot be empty"),
+    body("bankDetails.bankName")
+      .optional()
+      .notEmpty()
+      .withMessage("Bank name cannot be empty"),
+    body("bankDetails.ifscCode")
+      .optional()
+      .notEmpty()
+      .withMessage("IFSC code cannot be empty"),
+  ],
+  handleValidationErrors, // Middleware to handle validation errors
+  async (req, res) => {
+    try {
+      const {
+        adminID,
+        email,
+        phone,
+        name,
+        designation,
+        department,
+        address,
+        dob,
+        gender,
+        religion,
+        category,
+        bloodgroup,
+        emergencyContact,
+        experience,
+        highestQualification,
+        AADHARnumber,
+        salary,
+        bankDetails,
+      } = req.body;
+      const photo = req.file ? req.file.filename : null; // Handle uploaded photo
+
+      // Fetch the admin document using adminID
+      const admin = await Admin.findOne({ adminID });
+      if (!admin) {
+        return res.status(404).json({ message: "Admin not found" });
       }
-    } 
-    else if (typeof value === 'object' && value !== null) {
-      return true;
-    }
-    throw new Error('Emergency contact must be an object');
-  }),
-  body("emergencyContact.name").optional().notEmpty().withMessage("Emergency contact name cannot be empty"),
-  body("emergencyContact.relation").optional().notEmpty().withMessage("Emergency contact relation cannot be empty"),
-  body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
-  body("experience").optional().isNumeric().withMessage("Experience must be numeric"),
-  body("highestQualification").optional().notEmpty().withMessage("Highest qualification cannot be empty"),
-  body("AADHARnumber").optional().isLength({ min: 12, max: 12 }).withMessage("AADHAR number must be 12 digits"),
-  body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
-  body("bankDetails").optional().custom((value, { req }) => {
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        if (typeof parsed === 'object' && parsed !== null) {
-          return true;
-        }
-      } catch (e) {
-        throw new Error('Bank details must be a valid JSON object');
-      }
-    } 
-    else if (typeof value === 'object' && value !== null) {
-      return true;
-    }
-    throw new Error('Bank details must be an object');
-  }),
-  body("bankDetails.accountNumber").optional().notEmpty().withMessage("Bank account number cannot be empty"),
-  body("bankDetails.bankName").optional().notEmpty().withMessage("Bank name cannot be empty"),
-  body("bankDetails.ifscCode").optional().notEmpty().withMessage("IFSC code cannot be empty"),
-], (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    console.error("Validation errors:", errors.array());
-    return res.status(400).json({
-      message: "Validation error",
-      errors: errors.array(),
-    });
-  }
-  console.log("Validation passed, proceeding to update profile");
-  next();
-}, async (req, res) => {
-  try {
-    console.log("Admin profile update request received:", req.body);
-    
-    const { adminID } = req.body;
-    if (!adminID) {
-      console.error("Admin ID is missing in request body");
-      return res.status(400).json({ message: "Admin ID is required" });
-    }
 
-    console.log("Looking for admin with ID:", adminID);
-    const admin = await Admin.findOne({ adminID });
-    if (!admin) {
-      console.log("Admin not found with ID:", adminID);
-      return res.status(404).json({ message: "Admin not found" });
-    }
-    
-    console.log("Admin found:", admin.adminID);
+      // Ensure registeredBy fields are not updated
+      const { registeredBy } = admin.toObject();
+      const updatedAdminData = { ...req.body, registeredBy }; // Preserve the registeredBy field
 
-    const {
-      email,
-      phone,
-      name,
-      designation,
-      department,
-      address,
-      dob,
-      gender,
-      religion,
-      category,
-      bloodgroup,
-      emergencyContact,
-      experience,
-      highestQualification,
-      AADHARnumber,
-      salary,
-      bankDetails,
-    } = req.body;
-    const photo = req.file ? req.file.filename : null;
-    console.log("Photo received:", photo);
+      // Ensure the update excludes registeredBy fields
+      delete updatedAdminData.registeredBy; // If registeredBy is included in req.body, remove it explicitly
 
-    // Update fields if provided
-    if (email) admin.email = email;
-    if (phone) admin.phone = phone;
-    if (name) admin.name = name;
-    if (designation) admin.designation = designation;
-    if (department) admin.department = department;
-    if (address) admin.address = address;
-    if (dob) admin.dob = new Date(dob);
-    if (gender) admin.gender = gender;
-    if (religion) admin.religion = religion;
-    if (category) admin.category = category;
-    if (bloodgroup) admin.bloodgroup = bloodgroup;
-    
-    // Handle emergencyContact
-    if (emergencyContact) {
-      try {
-        // If emergencyContact is a string (JSON), parse it
-        const contactData = typeof emergencyContact === 'string' 
-          ? JSON.parse(emergencyContact) 
-          : emergencyContact;
-          
+      // Update the admin document with the valid fields
+      if (email) admin.email = email;
+      if (phone) admin.phone = phone;
+      if (name) admin.name = name;
+      if (designation) admin.designation = designation;
+      if (department) admin.department = department;
+      if (address) admin.address = address;
+      if (dob) admin.dob = new Date(dob);
+      if (gender) admin.gender = gender;
+      if (religion) admin.religion = religion;
+      if (category) admin.category = category;
+      if (bloodgroup) admin.bloodgroup = bloodgroup;
+      if (emergencyContact) {
         admin.emergencyContact = {
-          name: contactData.name || admin.emergencyContact?.name || "",
-          relation: contactData.relation || admin.emergencyContact?.relation || "",
-          phone: contactData.phone || admin.emergencyContact?.phone || "",
+          name: emergencyContact.name || admin.emergencyContact.name,
+          relation:
+            emergencyContact.relation || admin.emergencyContact.relation,
+          phone: emergencyContact.phone || admin.emergencyContact.phone,
         };
-      } catch (err) {
-        console.error("Error processing emergencyContact:", err);
       }
-    }
-    
-    if (experience) admin.experience = experience;
-    if (highestQualification) admin.highestQualification = highestQualification;
-    if (AADHARnumber) admin.AADHARnumber = AADHARnumber;
-    if (salary) admin.salary = salary;
-    
-    // Handle bankDetails
-    if (bankDetails) {
-      try {
-        // If bankDetails is a string (JSON), parse it
-        const bankData = typeof bankDetails === 'string' 
-          ? JSON.parse(bankDetails) 
-          : bankDetails;
-          
+      if (experience) admin.experience = experience;
+      if (highestQualification)
+        admin.highestQualification = highestQualification;
+      if (AADHARnumber) admin.AADHARnumber = AADHARnumber;
+      if (salary) admin.salary = salary;
+      if (bankDetails) {
         admin.bankDetails = {
-          accountNumber: bankData.accountNumber || admin.bankDetails?.accountNumber || "",
-          bankName: bankData.bankName || admin.bankDetails?.bankName || "",
-          ifscCode: bankData.ifscCode || admin.bankDetails?.ifscCode || "",
+          accountNumber:
+            bankDetails.accountNumber || admin.bankDetails.accountNumber,
+          bankName: bankDetails.bankName || admin.bankDetails.bankName,
+          ifscCode: bankDetails.ifscCode || admin.bankDetails.ifscCode,
         };
-      } catch (err) {
-        console.error("Error processing bankDetails:", err);
       }
+      if (photo) admin.photo = photo; // Update photo if provided
+
+      // Save the updated admin document
+      const updatedAdmin = await admin.save();
+
+      // Respond with the updated admin data
+      res.status(200).json({
+        message: "Admin information updated successfully",
+        admin: updatedAdmin,
+      });
+    } catch (error) {
+      console.error("Error updating admin info:", error);
+      res.status(500).json({ error: "Server error" });
     }
-    
-    if (photo) admin.photo = photo;
-
-    // Add to action history
-    if (!admin.actionHistory) {
-      admin.actionHistory = [];
-    }
-    admin.actionHistory.push("Profile updated");
-
-    console.log("Saving updated admin data...");
-    await admin.save();
-    console.log("Admin data saved successfully");
-
-    // Remove sensitive data
-    const { password, ...adminData } = admin.toObject();
-
-    res.json({
-      message: "Profile updated successfully",
-      admin: adminData
-    });
-  } catch (error) {
-    console.error("Error updating admin profile:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
-    });
   }
-});
+);
+//================================================================================================
+//================================================================================================
 
-// Change admin password
-router.put("/changeadminpassword", verifyAdminToken, [
-  body("adminID").notEmpty().withMessage("Admin ID is required"),
-  body("currentPassword").trim().notEmpty().withMessage("Current password is required"),
-  body("newPassword")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters long")
-    .matches(/\d/)
-    .withMessage("Password must contain at least one number")
-    .matches(/[!@#$%^&*]/)
-    .withMessage("Password must contain at least one special character"),
-  body("confirmNewPassword")
-    .custom((value, { req }) => value === req.body.newPassword)
-    .withMessage("Passwords do not match"),
-], handleValidationErrors, async (req, res) => {
-  try {
-    const { adminID, currentPassword, newPassword } = req.body;
-    if (!adminID) {
-      return res.status(400).json({ message: "Admin ID is required" });
+//----------------------------------------------------------------
+// Route: Update/change admin password using PUT "/api/admin/auth/changeadminpassword"
+router.put(
+  "/changeadminpassword",
+  verifyAdminToken,
+  [
+    body("adminID").notEmpty().withMessage("Admin ID is required"),
+    body("newPassword")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters long")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number")
+      .matches(/[!@#$%^&*]/)
+      .withMessage("Password must contain at least one special character"),
+    body("confirmNewPassword")
+      .custom((value, { req }) => value === req.body.newPassword)
+      .withMessage("Passwords do not match"),
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      console.log("Request received:", req.body); // Log incoming request body
+
+      const { adminID, newPassword } = req.body;
+
+      // Fetch the admin document using adminID
+      console.log("Fetching admin from DB with adminID:", adminID);
+      const admin = await Admin.findOne({ adminID });
+      if (!admin) {
+        console.log("Admin not found for adminID:", adminID); // Log if admin is not found
+        return res.status(404).json({ message: "Admin not found" });
+      }
+
+      console.log("Admin found:", admin); // Log the admin document
+
+      // Hash the new password and update it
+      console.log("Generating salt for password hashing...");
+      const salt = await bcrypt.genSalt(10);
+      console.log("Salt generated:", salt);
+
+      console.log("Hashing new password...");
+      admin.password = await bcrypt.hash(newPassword, salt);
+
+      console.log("Saving updated admin document...");
+      await admin.save();
+
+      // Respond with a success message
+      console.log("Password updated successfully for adminID:", adminID);
+      res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Error updating password:", error); // Log the error details
+      res.status(500).json({ error: "An unexpected error occurred" });
     }
-
-    const admin = await Admin.findOne({ adminID });
-    if (!admin) {
-      return res.status(404).json({ message: "Admin not found" });
-    }
-
-    // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, admin.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Current password is incorrect" });
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    admin.password = await bcrypt.hash(newPassword, salt);
-
-    // Add to action history
-    admin.actionHistory.push("Password changed");
-
-    await admin.save();
-
-    res.json({ message: "Password changed successfully" });
-  } catch (error) {
-    console.error("Error changing password:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
-    });
   }
 );
 //================================================================================================
@@ -562,31 +664,72 @@ router.post(
   createStudent
 );
 
-// Class Management Routes
+//================================================================================================
+//================================================================================================
 router.post("/createclass", verifyAdminToken, createClass);
-router.get("/classes", verifyAdminToken, getAllClasses);
-router.get("/classes/:classId", verifyAdminToken, getClassDetails);
-router.put("/edit-class/:classId", verifyAdminToken, updateClass);
-router.delete("/classes/:classId", verifyAdminToken, deleteClass);
+//===============================================================================================
+//================================================================================================
 
-// Subject Management Routes
 router.post("/createsubject", verifyAdminToken, createSubject);
+//===============================================================================================
+//================================================================================================
+
+//===============================================================================================
+//================================================================================================
+
+//===============================================================================================
+//================================================================================================
 router.get("/subjects", verifyAdminToken, getAllSubjects);
-
-// Teacher Assignment Routes
-router.post("/assign-teacher-to-subject", verifyAdminToken, assignTeacherToSubject);
-router.post("/assign-teacher-to-class", verifyAdminToken, assignTeacherToClass);
-
-// Student Assignment Routes
-router.post("/assign-students-class", verifyAdminToken, assignStudentToClass);
-
-// Attendance Routes
-router.post("/teacher-attendance-mark", verifyAdminToken, markTeacherAttendance);
-router.get("/teacher-attendance-records", verifyAdminToken, fetchTeacherAttendanceRecords);
-
-// Search Routes
-router.get("/students/search", verifyAdminToken, searchStudents);
+//===============================================================================================
+//================================================================================================
 router.get("/teachers", verifyAdminToken, getAllTeachers);
+//===============================================================================================
+//================================================================================================
 router.get("/students", verifyAdminToken, getAllStudents);
+//===============================================================================================
+//================================================================================================
+router.post(
+  "/assign-teacher-to-subject",
+  verifyAdminToken,
+  assignTeacherToSubject
+);
 
+//===============================================================================================
+//================================================================================================
+router.post("/assign-teacher-to-class", verifyAdminToken, assignTeacherToClass);
+//===============================================================================================
+//================================================================================================
+// Route to mark attendance for a teacher
+router.post(
+  "/teacher-attendance-mark",
+  verifyAdminToken,
+  markTeacherAttendance
+);
+
+// Route to get attendance records for a specific teacher
+router.get(
+  "/teacher-attendance-records",
+  verifyAdminToken,
+  fetchTeacherAttendanceRecords
+);
+
+//===============================================================================================
+//================================================================================================
+// Route to get attendance records for a specific teacher
+router.post("/assign-students-class", verifyAdminToken, assignStudentToClass); // =================================================================================================
+// =================================================================================================
+// =================================================================================================
+router.get("/students/search", verifyAdminToken, searchStudents);
+
+// =================================================================================================
+// =================================================================================================
+// Fetch all classes
+router.get("/classes", getAllClasses);
+// Get details of a specific class
+router.get("/classes/:classId", getClassDetails);
+
+// Update a specific class
+router.put("/edit-class/:classId", updateClass);
+// Delete a specific class
+router.delete("/classes/:classId", deleteClass);
 module.exports = router;

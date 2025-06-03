@@ -159,11 +159,6 @@ router.put(
         return res.status(401).json({ message: "Unauthorized - Invalid token" });
       }
 
-      const teacher = await Teacher.findById(teacherID);
-      if (!teacher) {
-        return res.status(404).json({ message: "Teacher not found" });
-      }
-
       // Log the request body for debugging
       console.log("Update request body:", req.body);
 
@@ -187,18 +182,19 @@ router.put(
         hasPhoto: !!req.file
       });
       
-      const photo = req.file ? req.file.filename : null; // Handle uploaded photo
+      // Handle uploaded photo
+      const photo = req.file ? req.file.filename : null; 
 
-      // First try to find by req.body.teacherID
-      let teacher = await Teacher.findOne({ teacherID });
+      // Find teacher by ID from token or by teacherID if provided in the body
+      let teacher;
       
-      // If not found, try to find by ID from token
-      if (!teacher && req.teacher) {
-        const tokenID = req.teacher._id || req.teacher.id;
-        if (tokenID) {
-          console.log("Teacher not found by teacherID, trying token ID:", tokenID);
-          teacher = await Teacher.findById(tokenID);
-        }
+      // First try to find by token ID
+      teacher = await Teacher.findById(teacherID);
+      
+      // If not found and teacherID is in request body, try that
+      if (!teacher && req.body.teacherID) {
+        console.log("Teacher not found by token ID, trying body teacherID:", req.body.teacherID);
+        teacher = await Teacher.findOne({ teacherID: req.body.teacherID });
       }
       
       if (!teacher) {

@@ -4,7 +4,6 @@ const Parent = require("../models/ParentModel"); // Import Parent model
 const generateToken = require("../config/generateToken"); // Helper for JWT token generation
 const { validationResult } = require("express-validator"); // For input validation
 const Class = require("../models/ClassModel");
-const jwt = require("jsonwebtoken");
 //================================================================================================================================
 // Function to generate a unique studentID
 const generateStudentID = async () => {
@@ -52,28 +51,7 @@ exports.createStudent = async (req, res, next) => {
       return res.status(400).json({ message: "Logged-in admin not found" });
     }
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    student.studentPassword = await bcrypt.hash(newPassword, salt);
-
-    // Add to action history
-    student.actionHistory.push("Password changed");
-
-    await student.save();
-
-    res.json({ message: "Password changed successfully" });
-  } catch (error) {
-    console.error("Error changing password:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
-    });
-  }
-};
-
-// Create Student (Admin function)
-const createStudent = async (req, res) => {
-  try {
+    // Destructure request body
     const {
       studentName,
       studentEmail,
@@ -144,13 +122,8 @@ const createStudent = async (req, res) => {
       return res.status(400).json({ message: "Parent email already exists." });
     }
 
-    // Generate IDs for student and parent
-    const studentID = await generateStudentID();
-    const parentID = `PRNT${Math.floor(10000 + Math.random() * 90000)}`;
-
-    // Set default passwords
-    const studentPlainPassword = "student@123";
-    const parentPlainPassword = "parent@123";
+    // Automatically set today's date for studentDateOfAdmission
+    const studentDateOfAdmission = new Date();
 
     // Create new Student document
     const newStudent = new Student({
@@ -205,7 +178,7 @@ const createStudent = async (req, res) => {
     // Save parent to database
     const savedParent = await newParent.save();
 
-    // Update student with parent reference
+    // Update the student document to include the parent reference
     savedStudent.parent = savedParent._id;
     await savedStudent.save();
 
@@ -258,17 +231,22 @@ const createStudent = async (req, res) => {
 
 //-----------------------------------------------------------------------------------------------------
 // Controller for logging in students
-const studentLogin = async (req, res) => {
-  try {
+exports.studentLogin = async (req, res) => {
   const { studentID, password } = req.body;
 
+  // Validate input
   if (!studentID || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    return res
+      .status(400)
+      .json({ message: "Both student ID and password are required." });
   }
 
+  try {
+    // Find student by studentID
     const student = await Student.findOne({ studentID });
+
     if (!student) {
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(404).json({ message: "Student not found." });
     }
 
     // Verify password
@@ -286,6 +264,7 @@ const studentLogin = async (req, res) => {
 
     // Return success response with token and student details
     res.json({
+      message: "Login successful",
       token,
       role: "student", // Explicitly include role in response
       student: {
@@ -297,57 +276,71 @@ const studentLogin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Student login error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error logging in student:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
   }
 };
 
 //==================================================================================================
 
 // Controller for fetching all students
-const getAllStudents = async (req, res) => {
+exports.getAllStudents = async (req, res, next) => {
   try {
+    // Fetch all students from the database
     const students = await Student.find()
-      .populate({
-        path: 'parent',
-        select: 'parentName parentID parentEmail parentContactNumber',
-        model: 'Parent'
-      })
-      .populate({
-        path: 'enrolledClasses',
-        select: 'className classId',
-        model: 'Class'
-      })
-      .select('-studentPassword');
+      .populate("parent", "parentID parentName") // Optionally populate parent info if needed
+      .select("-studentPassword"); // Exclude password from the response
 
-    res.json({
+    // If no students found, return a message
+    if (students.length === 0) {
+      return res.status(404).json({ message: "No students found." });
+    }
+
+    // Format the student data for better readability
+    const formattedStudents = students.map((student) => ({
+      studentID: student.studentID,
+      studentName: student.studentName,
+      studentEmail: student.studentEmail,
+      studentPhone: student.studentPhone,
+      studentAddress: student.studentAddress,
+      studentDOB: student.studentDOB,
+      studentGender: student.studentGender,
+      studentDateOfAdmission: student.studentDateOfAdmission,
+      studentFatherName: student.studentFatherName,
+      studentMotherName: student.studentMotherName,
+      religion: student.religion,
+      category: student.category,
+      bloodgroup: student.bloodgroup,
+      photo: student.photo,
+      parentID: student.parent ? student.parent.parentID : null, // Assuming 'parent' is populated
+      parentName: student.parent ? student.parent.parentName : null,
+    }));
+
+    // Send the response back with the list of students
+    res.status(200).json({
       message: "Students fetched successfully",
-      students: students.map(student => ({
-        ...student.toObject(),
-        enrolledClasses: student.enrolledClasses.map(cls => ({
-          className: cls.className,
-          classId: cls.classId
-        }))
-      }))
+      data: formattedStudents,
     });
   } catch (error) {
-    console.error("Get all students error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error fetching students:", error);
+    next(error); // Use a global error handler middleware
   }
 };
 //================================================================================================================================
 
 // Controller to assign a Student to a class
-const assignStudentToClass = async (req, res) => {
-  try {
+exports.assignStudentToClass = async (req, res) => {
   const { studentID, classId } = req.body;
 
+  // Validate input
   if (!studentID || !classId) {
     return res.status(400).json({
       message: "Both studentID and classId are required.",
     });
   }
 
+  try {
+    // Find the student by studentID
     const student = await Student.findOne({ studentID });
     if (!student) {
       return res.status(404).json({
@@ -355,6 +348,7 @@ const assignStudentToClass = async (req, res) => {
       });
     }
 
+    // Find the class by classId
     const classDoc = await Class.findOne({ classId });
     if (!classDoc) {
       return res.status(404).json({
@@ -362,25 +356,28 @@ const assignStudentToClass = async (req, res) => {
       });
     }
 
-    // Check if student is already in the class
-    if (student.enrolledClasses.includes(classDoc._id)) {
+    // Check if the student is already assigned to the class
+    if (classDoc.students.some((id) => id.equals(student._id))) {
       return res.status(400).json({
-        message: "Student is already enrolled in this class.",
+        message: "Student is already assigned to this class.",
       });
     }
 
-    // Add class to student's enrolled classes
-    student.enrolledClasses.push(classDoc._id);
-    await student.save();
-
-    // Add student to class's students array
+    // Add the student to the class's 'students' array
     classDoc.students.push(student._id);
+
+    // Save the updated class document
     await classDoc.save();
 
-    // Add to student's action history
-    student.actionHistory.push(`Enrolled in class ${classDoc.className}`);
-      await student.save();
+    // Add the class to the student's 'enrolledClasses' array
+    if (!student.enrolledClasses.some((id) => id.equals(classDoc._id))) {
+      student.enrolledClasses.push(classDoc._id);
 
+      // Save the updated student document
+      await student.save();
+    }
+
+    // Respond with success message
     res.status(200).json({
       message: "Student assigned to class successfully.",
       data: {
@@ -400,49 +397,72 @@ const assignStudentToClass = async (req, res) => {
 
 //===================================================================================================
 // Controller for searching/filtering students
-const searchStudents = async (req, res) => {
+exports.searchStudents = async (req, res, next) => {
   try {
-    const { name, studentID, className, gender, category, religion } = req.query;
-    const query = {};
+    // Extract query parameters
+    const { name, studentID, className, gender, category, religion } =
+      req.query;
 
-    if (name) query.studentName = { $regex: name, $options: "i" };
-    if (studentID) query.studentID = studentID;
-    if (gender) query.studentGender = gender;
-    if (category) query.category = category;
-    if (religion) query.religion = religion;
+    // Initialize the dynamic filter object
+    const filter = {};
 
-    let students = await Student.find(query)
-      .populate({
-        path: 'parent',
-        select: 'parentName parentID parentEmail parentContactNumber',
-        model: 'Parent'
-      })
-      .populate({
-        path: 'enrolledClasses',
-        select: 'className classId',
-        model: 'Class'
-      })
-      .select('-studentPassword');
-
-    // Filter by class if specified
+    // Dynamically add filters only if query parameters are provided
+    if (name) {
+      filter.studentName = { $regex: name, $options: "i" }; // Case-insensitive partial match
+    }
+    if (studentID) {
+      filter.studentID = studentID; // Exact match
+    }
     if (className) {
-      const classDoc = await Class.findOne({ className });
-      if (classDoc) {
-        students = students.filter(student => 
-          student.enrolledClasses.some(cls => cls._id.equals(classDoc._id))
-        );
+      // Match classId from the className if provided
+      const classData = await Class.findOne({ className }).select("classId"); // Assuming Class model exists
+      if (classData) {
+        filter.classId = classData.classId;
       }
     }
+    if (gender) {
+      filter.studentGender = gender; // Exact match for gender
+    }
+    if (category) {
+      filter.category = category; // Exact match for category
+    }
+    if (religion) {
+      filter.religion = religion; // Exact match for religion
+    }
 
-    res.json({
+    // Fetch students based on the dynamic filter
+    const students = await Student.find(filter)
+      .populate("parent", "parentID parentName")
+      .select("-studentPassword");
+
+    // If no students are found, return a 404 response
+    if (students.length === 0) {
+      return res.status(404).json({ message: "No matching students found." });
+    }
+
+    // Format the student data
+    const formattedStudents = students.map((student) => ({
+      studentID: student.studentID, // student id mapping
+      studentName: student.studentName, //student name mapping
+      studentEmail: student.studentEmail, // student email mapping
+      studentPhone: student.studentPhone, // student phone mapping
+      studentAddress: student.studentAddress, //student address mapping
+      studentDOB: student.studentDOB, //
+      studentGender: student.studentGender,
+      studentDateOfAdmission: student.studentDateOfAdmission,
+      studentFatherName: student.studentFatherName,
+      studentMotherName: student.studentMotherName,
+      religion: student.religion,
+      category: student.category,
+      bloodgroup: student.bloodgroup,
+      photo: student.photo,
+      parentID: student.parent ? student.parent.parentID : null,
+      parentName: student.parent ? student.parent.parentName : null,
+    }));
+
+    res.status(200).json({
       message: "Students fetched successfully",
-      students: students.map(student => ({
-        ...student.toObject(),
-        enrolledClasses: student.enrolledClasses.map(cls => ({
-          className: cls.className,
-          classId: cls.classId
-        }))
-      }))
+      data: formattedStudents,
     });
   } catch (error) {
     console.error("Error searching students:", error);
