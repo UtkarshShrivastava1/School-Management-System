@@ -150,4 +150,105 @@ const createClass = async (req, res) => {
   }
 };
 
-module.exports = { createClass };
+const assignSubjectsToClass = async (req, res) => {
+  try {
+    const { classId, subjects } = req.body;
+
+    // Validate required fields
+    if (!classId || !Array.isArray(subjects) || subjects.length === 0) {
+      return res.status(400).json({
+        message: "Please provide classId and a list of subjects with assigned teachers.",
+      });
+    }
+
+    // Find the class
+    const classDoc = await Class.findOne({ classId });
+    if (!classDoc) {
+      return res.status(404).json({
+        message: "Class not found.",
+      });
+    }
+
+    const subjectObjectIds = [];
+    const processedSubjects = [];
+    const teacherToSubjects = {};
+
+    // Process each subject and teacher
+    for (const { subjectName, teacherId, subjectCode: inputSubjectCode } of subjects) {
+      // Validate teacher
+      const teacher = await Teacher.findOne({ teacherID: teacherId });
+      if (!teacher) {
+        return res.status(400).json({
+          message: `Invalid teacherId: ${teacherId}. Teacher not found.`,
+        });
+      }
+
+      // Create or update subject
+      let subject = await Subject.findOne({ subjectName });
+      if (!subject) {
+        const subjectCode = inputSubjectCode || generateSubjectCode(subjectName);
+        const subjectCustomId = generateSubjectId(subjectCode);
+        subject = new Subject({
+          subjectName,
+          subjectCode,
+          subjectId: subjectCustomId,
+          assignedTeachers: [teacher._id],
+          classes: [classDoc._id],
+        });
+        await subject.save();
+      } else if (!subject.assignedTeachers.includes(teacher._id)) {
+        subject.assignedTeachers.push(teacher._id);
+        if (!subject.classes.includes(classDoc._id)) {
+          subject.classes.push(classDoc._id);
+        }
+        await subject.save();
+      }
+
+      subjectObjectIds.push(subject._id);
+      processedSubjects.push({
+        subjectObjectId: subject._id,
+        teacherObjectId: teacher._id,
+      });
+
+      // Track teacher-subject relationships
+      const teacherKey = teacher._id.toString();
+      if (!teacherToSubjects[teacherKey]) {
+        teacherToSubjects[teacherKey] = [];
+      }
+      if (!teacherToSubjects[teacherKey].includes(subject._id.toString())) {
+        teacherToSubjects[teacherKey].push(subject._id.toString());
+      }
+    }
+
+    // Update class with new subjects
+    classDoc.subjects = subjectObjectIds;
+    await classDoc.save();
+
+    // Update teachers with class and subject references
+    for (const teacherKey in teacherToSubjects) {
+      await Teacher.findByIdAndUpdate(teacherKey, {
+        $addToSet: {
+          assignedClasses: classDoc._id,
+          assignedSubjects: { $each: teacherToSubjects[teacherKey] },
+        },
+      });
+    }
+
+    // Update class with teacher references
+    classDoc.teachers = Object.keys(teacherToSubjects);
+    await classDoc.save();
+
+    return res.status(200).json({
+      message: "Subjects assigned to class successfully.",
+      class: classDoc,
+    });
+  } catch (error) {
+    console.error("Error assigning subjects to class:", error);
+    return res.status(500).json({
+      message: "Server error while assigning subjects to class.",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { createClass, assignSubjectsToClass };

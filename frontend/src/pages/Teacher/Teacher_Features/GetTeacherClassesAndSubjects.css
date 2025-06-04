@@ -1,61 +1,213 @@
 /* GetTeacherClassesAndSubjects.css */
 
 .teachers-assignment-container {
-  padding: 20px;
-  max-width: 600px;
-  margin: auto;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.page-header h1 {
+  margin: 0;
+  flex-grow: 1;
   text-align: center;
+  color: #2c3e50;
+  font-size: 2.5rem;
+  font-weight: 600;
 }
 
 .back-button {
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: #007bff;
-  margin-bottom: 20px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  color: #2c3e50;
+}
+
+.back-button:hover {
+  background-color: #f8f9fa;
+  transform: translateX(-5px);
 }
 
 .back-icon {
-  margin-right: 10px;
+  margin-right: 0.5rem;
 }
 
-.back-text {
-  font-size: 18px;
-}
-
-.assigned-classes-to-teacher-list {
+.loading-container {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .class-card {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.class-card h3 {
-  margin-bottom: 10px;
-  color: #343a40;
+.class-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
 }
 
-.class-card ul {
-  list-style: none;
-  padding: 0;
+.class-title {
+  color: #2c3e50;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
 }
 
-.class-card li {
-  background: #007bff;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 5px;
-  margin: 5px 0;
-  display: inline-block;
+.class-icon {
+  margin-right: 0.5rem;
+  color: #3498db;
 }
 
-.no-classes {
-  color: #dc3545;
-  font-size: 18px;
+.subjects-section {
+  margin: 1rem 0;
+}
+
+.subject-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.subject-badge {
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+}
+
+.no-subjects {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.no-classes-container {
+  text-align: center;
+  padding: 3rem;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  color: #6c757d;
+}
+
+.no-classes-container svg {
+  color: #3498db;
+  margin-bottom: 1rem;
+}
+
+/* Modal Styles */
+.modal-content {
+  border-radius: 12px;
+  border: none;
+}
+
+.modal-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  padding: 1.5rem;
+}
+
+.modal-title {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 2rem;
+}
+
+.subject-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.subject-item {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.subject-item:hover {
+  background-color: #e9ecef;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .teachers-assignment-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .back-button {
+    align-self: flex-start;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
+  }
+
+  .subject-list {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions {
+    flex-direction: column;
+  }
+
+  .quick-actions button {
+    width: 100%;
+  }
 }

@@ -222,6 +222,8 @@ const authorize = (...roles) => {
 
 module.exports = {
   verifyStudentToken,
+  verifyAdminToken,
+  verifyTeacherToken,
   verifyParentToken,
   verifyAdminOrTeacherToken,
   protect,

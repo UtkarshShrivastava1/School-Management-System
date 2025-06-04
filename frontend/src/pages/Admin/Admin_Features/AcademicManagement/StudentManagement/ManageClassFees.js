@@ -333,7 +333,7 @@ const ManageClassFees = () => {
       setUpdating(true);
       // Update class fee settings
       const response = await axios.post(
-        `${API_URL}/api/admin/auth/class-fee/update`,
+        `${API_URL}/api/fees/class-fee/update`,
         {
           classId: selectedClass._id,
           baseFee: Number(feeSettings.baseFee),

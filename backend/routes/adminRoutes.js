@@ -8,6 +8,8 @@ const Admin = require("../models/AdminModel"); // Ensure this import is correct
 const Teacher = require("../models/TeacherModel"); // Importing Teacher model
 const Student = require("../models/StudentModel"); // Importing Teacher model
 const Parent = require("../models/ParentModel"); // Importing Teacher model
+const Class = require("../models/ClassModel"); // Add Class model import
+const Subject = require("../models/SubjectModel"); // Add Subject model import
 const studentController = require("../controllers/studentController");
 
 // Import verifyAdminToken middleware
@@ -151,87 +153,33 @@ router.post("/validate", verifyAdminToken, async (req, res) => {
 //================================================================================================
 //------------------------------------------------------------------------------------------------
 // Route: Create an admin using POST "/api/admin/auth/createadmin"
-router.post(
-  "/createadmin",
-  verifyAdminToken, // Verify admin token
-  upload.single("photo"), // Handle file upload for admin's photo
-  [
-    // Existing validations
-    body("name").notEmpty().withMessage("Name is required"),
-    body("email").isEmail().withMessage("Valid email is required"),
-    body("phone")
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Phone must be 10 digits"),
-    body("designation").notEmpty().withMessage("Designation is required"),
-    body("address").notEmpty().withMessage("Address is required"),
-    body("dob").notEmpty().withMessage("Date of Birth is required"),
-    body("gender").notEmpty().withMessage("Gender is required"),
-    body("department").notEmpty().withMessage("Department is required"),
-    body("religion")
-      .optional()
-      .isString()
-      .withMessage("Religion must be a string"),
-    body("category")
-      .optional()
-      .isString()
-      .withMessage("Category must be a string"),
-    body("bloodgroup")
-      .optional()
-      .isString()
-      .withMessage("Blood group must be a string"),
-    // Validations for new fields
-    body("emergencyContact")
-      .optional()
-      .isObject()
-      .withMessage("Emergency contact must be an object"),
-    body("emergencyContact.name")
-      .optional()
-      .notEmpty()
-      .withMessage("Emergency contact name is required"),
-    body("emergencyContact.relation")
-      .optional()
-      .notEmpty()
-      .withMessage("Emergency contact relation is required"),
-    body("emergencyContact.phone")
-      .optional()
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Emergency contact phone must be 10 digits"),
-
-    body("experience")
-      .optional()
-      .isNumeric()
-      .withMessage("Experience must be a numeric value"),
-
-    body("highestQualification")
-      .optional()
-      .notEmpty()
-      .withMessage("Highest qualification is required"),
-
-    body("AADHARnumber")
-      .optional()
-      .isLength({ min: 12, max: 12 })
-      .withMessage("AADHAR number must be 12 digits"),
-    body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
-    body("bankDetails")
-      .optional()
-      .isObject()
-      .withMessage("Bank details must be an object"),
-    body("bankDetails.accountNumber")
-      .optional()
-      .notEmpty()
-      .withMessage("Bank account number is required"),
-    body("bankDetails.bankName")
-      .optional()
-      .notEmpty()
-      .withMessage("Bank name is required"),
-    body("bankDetails.ifscCode")
-      .optional()
-      .notEmpty()
-      .withMessage("IFSC code is required"),
-  ],
-  handleValidationErrors, // Handle validation errors
-  createAdmin // Call the controller function for admin creation
-);
+router.post("/createadmin", verifyAdminToken, upload.single("photo"), [
+  // Existing validations
+  body("name").notEmpty().withMessage("Name is required"),
+  body("email").isEmail().withMessage("Valid email is required"),
+  body("phone").isLength({ min: 10, max: 10 }).withMessage("Phone must be 10 digits"),
+  body("designation").notEmpty().withMessage("Designation is required"),
+  body("address").notEmpty().withMessage("Address is required"),
+  body("dob").notEmpty().withMessage("Date of Birth is required"),
+  body("gender").notEmpty().withMessage("Gender is required"),
+  body("department").notEmpty().withMessage("Department is required"),
+  body("religion").optional().isString().withMessage("Religion must be a string"),
+  body("category").optional().isString().withMessage("Category must be a string"),
+  body("bloodgroup").optional().isString().withMessage("Blood group must be a string"),
+  // Validations for new fields
+  body("emergencyContact").optional().isObject().withMessage("Emergency contact must be an object"),
+  body("emergencyContact.name").optional().notEmpty().withMessage("Emergency contact name is required"),
+  body("emergencyContact.relation").optional().notEmpty().withMessage("Emergency contact relation is required"),
+  body("emergencyContact.phone").optional().isLength({ min: 10, max: 10 }).withMessage("Emergency contact phone must be 10 digits"),
+  body("experience").optional().isNumeric().withMessage("Experience must be a numeric value"),
+  body("highestQualification").optional().notEmpty().withMessage("Highest qualification is required"),
+  body("AADHARnumber").optional().isLength({ min: 12, max: 12 }).withMessage("AADHAR number must be 12 digits"),
+  body("salary").optional().isNumeric().withMessage("Salary must be numeric"),
+  body("bankDetails").optional().isObject().withMessage("Bank details must be an object"),
+  body("bankDetails.accountNumber").optional().notEmpty().withMessage("Bank account number is required"),
+  body("bankDetails.bankName").optional().notEmpty().withMessage("Bank name is required"),
+  body("bankDetails.ifscCode").optional().notEmpty().withMessage("IFSC code is required")
+], handleValidationErrors, createAdmin);
 //================================================================================================
 //================================================================================================
 
@@ -247,23 +195,6 @@ router.post(
   loginAdmin // Delegate to login controller
 );
 //------------------------------------------------------------------------------------------------
-//================================================================================================
-//================================================================================================
-
-// Route: Validate the admin token (verify token in request header)
-router.post("/validate", verifyAdminToken, async (req, res) => {
-  try {
-    const user = req.admin; // The admin info attached to the request
-    if (user) {
-      // Return user details from the decoded token
-      res.status(200).json({ name: user.name });
-    } else {
-      res.status(401).json({ error: "Invalid token" });
-    }
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
 //================================================================================================
 //================================================================================================
 
@@ -485,40 +416,30 @@ router.put(
   handleValidationErrors,
   async (req, res) => {
     try {
-      console.log("Request received:", req.body); // Log incoming request body
-
+      console.log("Request received:", req.body);
       const { adminID, newPassword } = req.body;
-
-      // Fetch the admin document using adminID
       console.log("Fetching admin from DB with adminID:", adminID);
       const admin = await Admin.findOne({ adminID });
       if (!admin) {
-        console.log("Admin not found for adminID:", adminID); // Log if admin is not found
+        console.log("Admin not found for adminID:", adminID);
         return res.status(404).json({ message: "Admin not found" });
       }
-
-      console.log("Admin found:", admin); // Log the admin document
-
-      // Hash the new password and update it
+      console.log("Admin found:", admin);
       console.log("Generating salt for password hashing...");
       const salt = await bcrypt.genSalt(10);
       console.log("Salt generated:", salt);
-
       console.log("Hashing new password...");
       admin.password = await bcrypt.hash(newPassword, salt);
-
       console.log("Saving updated admin document...");
       await admin.save();
-
-      // Respond with a success message
       console.log("Password updated successfully for adminID:", adminID);
       res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
-      console.error("Error updating password:", error); // Log the error details
+      console.error("Error updating password:", error);
       res.status(500).json({ error: "An unexpected error occurred" });
     }
   }
-});
+);
 //================================================================================================
 //================================================================================================
 
@@ -611,53 +532,32 @@ router.post(
 //================================================================================================
 router.post(
   "/createstudent",
-  verifyAdminToken, // Verify admin token
+  verifyAdminToken,
   uploadFields.fields([
     { name: 'photo', maxCount: 1 },
     { name: 'parentPhoto', maxCount: 1 }
-  ]), // Handle file uploads for both student and parent photos
+  ]),
   [
-    // Validation middleware
-    body("studentName").notEmpty().withMessage("Student name is required."),
-    body("studentEmail")
-      .isEmail()
-      .withMessage("A valid student email is required."),
-    body("studentPhone")
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Phone number must be 10 digits"),
-    body("studentAddress")
-      .notEmpty()
-      .withMessage("Student address is required."),
+    // Student validations
+    body("studentName").trim().notEmpty().withMessage("Student name is required."),
+    body("studentEmail").trim().isEmail().withMessage("A valid student email is required."),
+    body("studentPhone").trim().isLength({ min: 10, max: 10 }).withMessage("Phone number must be 10 digits"),
+    body("studentAddress").trim().notEmpty().withMessage("Student address is required."),
     body("studentDOB").notEmpty().withMessage("Student DOB is required."),
-    body("studentGender").isString().withMessage("Invalid student gender."),
-    body("className")
-      .notEmpty()
-      .withMessage("Class is required.")
-      .isIn(['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'])
-      .withMessage("Class must be in format 'Class X' where X is a number from 1 to 12."),
-    body("religion").optional().isString().withMessage("Invalid religion."),
-    body("category").optional().isString().withMessage("Invalid category."),
-    body("bloodgroup")
-      .optional()
-      .isString()
-      .withMessage("Invalid blood group."),
+    body("studentGender").isIn(["Male", "Female", "Other"]).withMessage("Gender must be Male, Female, or Other"),
+    body("className").trim().notEmpty().withMessage("Class is required.")
+      .matches(/^Class [1-9]|1[0-2]$/).withMessage("Class must be in format 'Class X' where X is a number from 1 to 12"),
+    body("religion").optional().trim(),
+    body("category").optional().trim(),
+    body("bloodgroup").optional().trim(),
+    body("studentFatherName").trim().notEmpty().withMessage("Student father name is required."),
+    body("studentMotherName").trim().notEmpty().withMessage("Student mother name is required."),
 
-    body("parentName").notEmpty().withMessage("Parent name is required."),
-    body("parentContactNumber")
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Parent contact number must be 10 digits"),
-    body("parentEmail")
-      .isEmail()
-      .withMessage("A valid parent email is required."),
-    body("studentFatherName")
-      .notEmpty()
-      .withMessage("Student father name is required."),
-    body("studentMotherName")
-      .notEmpty()
-      .withMessage("Student mother name is required."),
-
-    // Validate relationship for the parent
-    body("relationship").isString().withMessage("Invalid relationship."),
+    // Parent validations
+    body("parentName").trim().notEmpty().withMessage("Parent name is required."),
+    body("parentContactNumber").trim().isLength({ min: 10, max: 10 }).withMessage("Parent contact number must be 10 digits"),
+    body("parentEmail").trim().isEmail().withMessage("A valid parent email is required."),
+    body("relationship").trim().notEmpty().withMessage("Relationship is required."),
   ],
   handleValidationErrors,
   createStudent
@@ -673,11 +573,6 @@ router.post("/createsubject", verifyAdminToken, createSubject);
 //===============================================================================================
 //================================================================================================
 
-//===============================================================================================
-//================================================================================================
-
-//===============================================================================================
-//================================================================================================
 router.get("/subjects", verifyAdminToken, getAllSubjects);
 
 // Teacher Assignment Routes
@@ -694,63 +589,64 @@ router.get("/teacher-attendance-records", verifyAdminToken, fetchTeacherAttendan
 // Search Routes
 router.get("/students/search", verifyAdminToken, searchStudents);
 
-// =================================================================================================
-// =================================================================================================
-// Fetch all classes
-router.get("/classes", getAllClasses);
-// Get details of a specific class
-router.get("/classes/:classId", getClassDetails);
-
-// Update a specific class
-router.put("/edit-class/:classId", updateClass);
-// Delete a specific class
-router.delete("/classes/:classId", deleteClass);
-
 // Get students by class
 router.get("/students/class/:classId", verifyAdminToken, studentController.getStudentsByClass);
 
-// Update class fee settings
-router.post("/class-fee/update", verifyAdminToken, feeController.updateClassFee);
-
-// Add cleanup route for duplicate class enrollments
-router.post("/cleanup-duplicate-enrollments", verifyAdminToken, studentController.cleanupDuplicateEnrollments);
-
-//===============================================================================================
-//================================================================================================
-router.post("/assign-teacher-to-class", verifyAdminToken, assignTeacherToClass);
-//===============================================================================================
-//================================================================================================
-// Route to mark attendance for a teacher
-router.post(
-  "/teacher-attendance-mark",
-  verifyAdminToken,
-  markTeacherAttendance
-);
-
-// Route to get attendance records for a specific teacher
-router.get(
-  "/teacher-attendance-records",
-  verifyAdminToken,
-  fetchTeacherAttendanceRecords
-);
-
-//===============================================================================================
-//================================================================================================
-// Route to get attendance records for a specific teacher
-router.post("/assign-students-class", verifyAdminToken, assignStudentToClass); // =================================================================================================
-// =================================================================================================
-// =================================================================================================
-router.get("/students/search", verifyAdminToken, searchStudents);
-
 // =================================================================================================
 // =================================================================================================
 // Fetch all classes
-router.get("/classes", getAllClasses);
-// Get details of a specific class
-router.get("/classes/:classId", getClassDetails);
+router.get("/classes", verifyAdminToken, getAllClasses);
 
-// Update a specific class
-router.put("/edit-class/:classId", updateClass);
-// Delete a specific class
-router.delete("/classes/:classId", deleteClass);
+// Get all teachers
+router.get("/teachers", verifyAdminToken, getAllTeachers);
+
+// Get class by classId
+router.get("/classes/:classId", verifyAdminToken, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    if (!classId) {
+      return res.status(400).json({ message: "Class ID is required" });
+    }
+
+    // First try to find by classId
+    let classDoc = await Class.findOne({ classId })
+      .populate("teachers", "teacherID name")
+      .populate("subjects", "subjectName subjectCode subjectId");
+    
+    // If not found by classId, try to find by MongoDB _id
+    if (!classDoc) {
+      try {
+        classDoc = await Class.findById(classId)
+          .populate("teachers", "teacherID name")
+          .populate("subjects", "subjectName subjectCode subjectId");
+      } catch (err) {
+        // If the classId is not a valid ObjectId, just continue with null classDoc
+        console.log("Invalid ObjectId format, continuing with classId search");
+      }
+    }
+    
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    // Get subjects with their assigned teachers
+    const subjects = await Subject.find({
+      _id: { $in: classDoc.subjects }
+    }).populate("assignedTeachers", "teacherID name");
+
+    return res.status(200).json({
+      message: "Class details fetched successfully",
+      class: classDoc,
+      subjects: subjects
+    });
+  } catch (error) {
+    console.error("Error fetching class details:", error);
+    return res.status(500).json({ 
+      message: "Error fetching class details",
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;

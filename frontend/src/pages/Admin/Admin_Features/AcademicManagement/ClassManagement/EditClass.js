@@ -1,8 +1,8 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { Button, Modal } from "react-bootstrap";
-import { FaArrowLeft, FaInfoCircle } from "react-icons/fa";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Button } from "react-bootstrap";
+import { FaArrowLeft } from "react-icons/fa";
+import { useNavigate, useParams } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./EditClass.css";
@@ -10,7 +10,6 @@ import "./EditClass.css";
 const EditClass = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
       ? process.env.REACT_APP_PRODUCTION_URL
@@ -21,17 +20,6 @@ const EditClass = () => {
   const [teachers, setTeachers] = useState([]); // Teacher list for dropdown
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [classStrength, setClassStrength] = useState(30);
-  const [showDetails, setShowDetails] = useState(false);
-  const [classDetails, setClassDetails] = useState(null);
-
-  // Check for showDetails query parameter
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    if (searchParams.get('showDetails') === 'true') {
-      handleShowDetails();
-    }
-  }, [location.search]);
 
   // Fetch teacher list for dropdown
   useEffect(() => {
@@ -56,6 +44,7 @@ const EditClass = () => {
   useEffect(() => {
     const fetchClassDetails = async () => {
       try {
+        setLoading(true);
         const res = await axios.get(
           `${API_URL}/api/admin/auth/classes/${classId}`,
           {
@@ -64,28 +53,41 @@ const EditClass = () => {
             },
           }
         );
+
+        if (!res.data || !res.data.class) {
+          throw new Error("Invalid response format");
+        }
+
         const classData = res.data.class;
         const subjectData = res.data.subjects || [];
+        
         setClassName(classData.className);
-        // Map subjects: assume each subject's assignedTeachers is populated (take the first teacher)
+        
+        // Map subjects with their assigned teachers
         const mappedSubjects = subjectData.map((subj) => ({
           subjectName: subj.subjectName,
           subjectCode: subj.subjectCode || "",
-          teacherId:
-            subj.assignedTeachers && subj.assignedTeachers.length > 0
-              ? subj.assignedTeachers[0].teacherID
-              : "",
+          teacherId: subj.assignedTeachers && subj.assignedTeachers.length > 0
+            ? subj.assignedTeachers[0].teacherID
+            : "",
         }));
+        
         setSubjects(mappedSubjects);
-        setClassStrength(classData.classStrength);
         setLoading(false);
       } catch (error) {
-        console.error("Error fetching class details", error);
-        setErrorMessage("Failed to fetch class details.");
+        console.error("Error fetching class details:", error);
+        setErrorMessage(
+          error.response?.data?.message || 
+          error.message || 
+          "Failed to fetch class details. Please try again."
+        );
         setLoading(false);
       }
     };
-    fetchClassDetails();
+
+    if (classId) {
+      fetchClassDetails();
+    }
   }, [API_URL, classId]);
 
   const handleClassNameChange = (e) => setClassName(e.target.value);
@@ -112,13 +114,6 @@ const EditClass = () => {
     setSubjects(newSubjects);
   };
 
-  const handleClassStrengthChange = (e) => {
-    const value = parseInt(e.target.value);
-    if (value >= 1) {
-      setClassStrength(value);
-    }
-  };
-
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -141,10 +136,9 @@ const EditClass = () => {
         className,
         subjects,
         teachers: uniqueTeachers,
-        classStrength,
       };
       await axios.put(
-        `${API_URL}/api/admin/auth/edit-class/${classId}`,
+        `${API_URL}/api/admin/auth/classes/${classId}`,
         payload,
         {
           headers: {
@@ -165,147 +159,20 @@ const EditClass = () => {
 
   const handleBack = () => navigate(-1);
 
-  const handleShowDetails = async () => {
-    try {
-      const res = await axios.get(
-        `${API_URL}/api/admin/auth/classes/${classId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      console.log("Class Details Response:", res.data); // Debug log
-      setClassDetails(res.data);
-      setShowDetails(true);
-    } catch (error) {
-      console.error("Error fetching class details:", error);
-      toast.error("Failed to fetch class details");
-    }
-  };
-
-  const handleCloseDetails = () => setShowDetails(false);
-
   if (loading) {
     return <div className="editClass-loading">Loading class details...</div>;
   }
 
   return (
     <div className="editClass-container">
-      <div className="editClass-header">
-        <h1>Edit Class: {classId}</h1>
-        <div className="editClass-actions">
-          <Button
-            variant="info"
-            onClick={handleShowDetails}
-            className="editClass-details-btn"
-          >
-            <FaInfoCircle /> View Details
-          </Button>
-          <div className="editClass-back-button">
-            <FaArrowLeft
-              onClick={handleBack}
-              size={24}
-              className="editClass-back-icon"
-            />
-          </div>
-        </div>
+      <h1>Edit Class: {classId}</h1>
+      <div className="editClass-back-button">
+        <FaArrowLeft
+          onClick={handleBack}
+          size={24}
+          className="editClass-back-icon"
+        />
       </div>
-
-      {/* Details Modal */}
-      <Modal show={showDetails} onHide={handleCloseDetails} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Class Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {classDetails && (
-            <div className="class-details">
-              <div className="details-section">
-                <h3>Basic Information</h3>
-                <p><strong>Class Name:</strong> {classDetails.class.className}</p>
-                <p><strong>Section:</strong> {classDetails.class.section}</p>
-                <p><strong>Class Strength:</strong> {classDetails.class.classStrength}</p>
-                <p><strong>Class ID:</strong> {classDetails.class.classId}</p>
-              </div>
-
-              <div className="details-section">
-                <h3>Subjects</h3>
-                {classDetails.subjects && classDetails.subjects.length > 0 ? (
-                  <div className="subjects-list">
-                    {classDetails.subjects.map((subject) => (
-                      <div key={subject._id} className="subject-item">
-                        <p><strong>Name:</strong> {subject.subjectName}</p>
-                        <p><strong>Code:</strong> {subject.subjectCode || 'N/A'}</p>
-                        <p><strong>ID:</strong> {subject.subjectId}</p>
-                        {subject.assignedTeachers && subject.assignedTeachers.length > 0 ? (
-                          <p><strong>Teachers:</strong> {subject.assignedTeachers.map(t => t.name).join(", ")}</p>
-                        ) : (
-                          <p><strong>Teachers:</strong> No teachers assigned</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No subjects assigned</p>
-                )}
-              </div>
-
-              <div className="details-section">
-                <h3>Teachers</h3>
-                {classDetails.class.teachers && classDetails.class.teachers.length > 0 ? (
-                  <div className="teachers-list">
-                    {classDetails.class.teachers.map((teacher) => (
-                      <div key={teacher._id} className="teacher-item">
-                        <p><strong>Name:</strong> {teacher.name}</p>
-                        <p><strong>ID:</strong> {teacher.teacherID}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No teachers assigned</p>
-                )}
-              </div>
-
-              <div className="details-section">
-                <h3>Students</h3>
-                {classDetails.class.students && classDetails.class.students.length > 0 ? (
-                  <div className="students-list">
-                    {classDetails.class.students.map((student) => (
-                      <div key={student._id} className="student-item">
-                        <p><strong>Name:</strong> {student.studentName}</p>
-                        <p><strong>ID:</strong> {student.studentID}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No students enrolled</p>
-                )}
-              </div>
-
-              {classDetails.class.attendanceHistory && classDetails.class.attendanceHistory.length > 0 && (
-                <div className="details-section">
-                  <h3>Recent Attendance</h3>
-                  <div className="attendance-list">
-                    {classDetails.class.attendanceHistory.slice(0, 5).map((record, index) => (
-                      <div key={index} className="attendance-item">
-                        <p><strong>Date:</strong> {new Date(record.date).toLocaleDateString()}</p>
-                        <p><strong>Present:</strong> {record.records.filter(r => r.status === "Present").length}</p>
-                        <p><strong>Absent:</strong> {record.records.filter(r => r.status === "Absent").length}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseDetails}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       {errorMessage && (
         <div className="editClass-error-message">{errorMessage}</div>
       )}
@@ -318,18 +185,6 @@ const EditClass = () => {
             value={className}
             onChange={handleClassNameChange}
             placeholder="Enter class name"
-            required
-          />
-        </div>
-        <div className="editClass-form-group">
-          <label htmlFor="classStrength">Class Strength:</label>
-          <input
-            type="number"
-            id="classStrength"
-            value={classStrength}
-            onChange={handleClassStrengthChange}
-            placeholder="Enter class strength"
-            min="1"
             required
           />
         </div>

@@ -60,9 +60,27 @@ const getAllClasses = async (req, res) => {
 const getClassDetails = async (req, res) => {
   try {
     const { classId } = req.params;
-    const classDoc = await Class.findOne({ classId })
+    
+    if (!classId) {
+      return res.status(400).json({ message: "Class ID is required" });
+    }
+
+    // Try to find by classId first (since that's what we're using in the frontend)
+    let classDoc = await Class.findOne({ classId })
       .populate("teachers", "teacherID name")
-      .populate("subjects", "subjectName subjectCode subjectId assignedTeachers");
+      .populate("subjects", "subjectName subjectCode subjectId");
+    
+    // If not found by classId, try to find by MongoDB _id
+    if (!classDoc) {
+      try {
+        classDoc = await Class.findById(classId)
+          .populate("teachers", "teacherID name")
+          .populate("subjects", "subjectName subjectCode subjectId");
+      } catch (err) {
+        // If the classId is not a valid ObjectId, just continue with null classDoc
+        console.log("Invalid ObjectId format, continuing with classId search");
+      }
+    }
     
     if (!classDoc) {
       return res.status(404).json({ message: "Class not found" });

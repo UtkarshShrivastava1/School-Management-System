@@ -18,10 +18,10 @@ const connectToMongo = async (uri) => {
 
 // Graceful shutdown: Close MongoDB connection when app is terminated
 process.on("SIGINT", async () => {
-  console.log("⚠️ SIGINT received. Closing MongoDB connection...".yellow);
+  console.log("⚠ SIGINT received. Closing MongoDB connection...".yellow);
   await mongoose.connection.close();
   console.log("✅ MongoDB connection closed.".yellow);
   process.exit(0);
 });
 
-module.exports = connectToMongo;
+module.exports = connectToMongo;

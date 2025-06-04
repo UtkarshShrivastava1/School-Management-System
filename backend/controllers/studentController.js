@@ -122,38 +122,7 @@ exports.createStudent = async (req, res, next) => {
       return res.status(400).json({ message: "Parent email already exists." });
     }
 
-    // Create new Student document
-    const newStudent = new Student({
-      studentName,
-      photo,
-      studentID,
-      studentPassword,
-      studentEmail,
-      studentPhone,
-      studentAddress,
-      studentDOB,
-      studentGender,
-      studentDateOfAdmission,
-      studentFatherName,
-      studentMotherName,
-      religion,
-      category,
-      bloodgroup,
-      enrolledClasses: [classDoc._id], // Add the class to enrolledClasses
-      registeredBy: {
-        adminID: loggedInAdmin.adminID,
-        name: loggedInAdmin.name,
-      },
-    });
-
-    // Save student to database
-    const savedStudent = await newStudent.save();
-
-    // Add student to class's students array
-    classDoc.students.push(savedStudent._id);
-    await classDoc.save();
-
-    // Create new Parent document
+    // Create new Parent document first
     const newParent = new Parent({
       parentName,
       parentContactNumber,
@@ -164,20 +133,53 @@ exports.createStudent = async (req, res, next) => {
       occupation: parentOccupation || "",
       relationship: relationship || "Parent",
       photo: parentPhoto || "",
-      children: [
-        {
-          student: savedStudent._id,
-          relationship: relationship,
-        },
-      ],
+      children: [] // Will be updated after student creation
     });
 
     // Save parent to database
     const savedParent = await newParent.save();
 
-    // Update the student document to include the parent reference
-    savedStudent.parent = savedParent._id;
-    await savedStudent.save();
+    // Create new Student document
+    const newStudent = new Student({
+      studentName,
+      photo,
+      studentID,
+      studentPassword,
+      studentEmail,
+      studentPhone,
+      studentAddress,
+      studentDOB: new Date(studentDOB), // Ensure DOB is a valid Date object
+      studentGender,
+      studentDateOfAdmission: new Date(),
+      studentFatherName,
+      studentMotherName,
+      religion: religion || "",
+      category: category || "",
+      bloodgroup: bloodgroup || "",
+      enrolledClasses: [classDoc._id],
+      registeredBy: {
+        adminID: loggedInAdmin.adminID,
+        name: loggedInAdmin.name,
+      },
+      role: "student",
+      isActive: true,
+      admissionDate: new Date(),
+      parent: savedParent._id // Set the parent reference
+    });
+
+    // Save student to database
+    const savedStudent = await newStudent.save();
+
+    // Update parent's children array
+    savedParent.children.push({
+      student: savedStudent._id,
+      relationship: relationship
+    });
+    await savedParent.save();
+
+    // Add student to class's students array
+    classDoc.students.push(savedStudent._id);
+    await classDoc.save();
 
     // Respond with success message and all details
     res.status(201).json({
@@ -201,7 +203,7 @@ exports.createStudent = async (req, res, next) => {
         photo: savedStudent.photo,
         parentID: savedParent.parentID,
         registeredBy: savedStudent.registeredBy,
-        className: className, // Add className to the response
+        className: className,
       },
       parent: {
         id: savedParent._id,
@@ -222,7 +224,11 @@ exports.createStudent = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error creating student and parent:", error);
-    res.status(500).json({ message: "Server error. Please try again." });
+    // Send more detailed error message
+    res.status(500).json({ 
+      message: "Server error. Please try again.",
+      error: error.message 
+    });
   }
 };
 

@@ -12,10 +12,10 @@ import {
 } from "react-bootstrap";
 import { toast , ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
+
 import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
+
 import "react-toastify/dist/ReactToastify.css";
 import ChangeTeacherPassword from "../../components/Teacher/ChangeTeacherPassword";
 
