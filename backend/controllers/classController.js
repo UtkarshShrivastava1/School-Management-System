@@ -7,6 +7,7 @@ const generateSubjectCode = (subjectName) => {
   const randomCode = Math.floor(Math.random() * 1000) + 100;
   return `${subjectCodePrefix}${randomCode}`;
 };
+
 const generateSubjectId = (subjectCode) => {
   return `SUB_${subjectCode}`;
 };
@@ -20,33 +21,30 @@ const createClass = async (req, res) => {
     const { standardName, classStrength, section, subjects } = req.body;
     console.log("Incoming body =>", req.body);
 
-    if (
-      !standardName ||
-      !section ||
-      !classStrength ||
-      !Array.isArray(subjects) ||
-      subjects.length === 0
-    ) {
+    // Validate required fields
+    if (!standardName || !section || !classStrength || !Array.isArray(subjects) || subjects.length === 0) {
       return res.status(400).json({
-        message:
-          "Please provide standardName, section, classStrength, and a list of subjects with assigned teachers.",
+        message: "Please provide standardName, section, classStrength, and a list of subjects with assigned teachers.",
       });
     }
-    const allowedSections = ["A", "B", "C", "D", "E"];
 
+    // Validate section
+    const allowedSections = ["A", "B", "C", "D", "E"];
     if (!allowedSections.includes(section.toUpperCase())) {
       return res.status(400).json({
         message: "Section must be one of A, B, C, D, or E.",
       });
     }
 
-    if (!classStrength || parseInt(classStrength, 10) <= 0) {
-      setErrorMessage("Class strength must be greater than 0.");
-      return;
+    // Validate class strength
+    const strength = parseInt(classStrength, 10);
+    if (isNaN(strength) || strength <= 0) {
+      return res.status(400).json({
+        message: "Class strength must be a positive number.",
+      });
     }
-    
 
-    // Check for duplicate class with same name and section
+    // Check for duplicate class
     const existingClass = await Class.findOne({
       className: standardName,
       section: section.toUpperCase(),
@@ -58,16 +56,13 @@ const createClass = async (req, res) => {
     }
 
     const classId = generateClassId(standardName, section.toUpperCase());
-
     const subjectObjectIds = [];
     const processedSubjects = [];
     const teacherToSubjects = {};
 
-    for (const {
-      subjectName,
-      teacherId,
-      subjectCode: inputSubjectCode,
-    } of subjects) {
+    // Process each subject and teacher
+    for (const { subjectName, teacherId, subjectCode: inputSubjectCode } of subjects) {
+      // Validate teacher
       const teacher = await Teacher.findOne({ teacherID: teacherId });
       if (!teacher) {
         return res.status(400).json({
@@ -75,10 +70,10 @@ const createClass = async (req, res) => {
         });
       }
 
+      // Create or update subject
       let subject = await Subject.findOne({ subjectName });
       if (!subject) {
-        const subjectCode =
-          inputSubjectCode || generateSubjectCode(subjectName);
+        const subjectCode = inputSubjectCode || generateSubjectCode(subjectName);
         const subjectCustomId = generateSubjectId(subjectCode);
         subject = new Subject({
           subjectName,
@@ -99,6 +94,7 @@ const createClass = async (req, res) => {
         teacherObjectId: teacher._id,
       });
 
+      // Track teacher-subject relationships
       const teacherKey = teacher._id.toString();
       if (!teacherToSubjects[teacherKey]) {
         teacherToSubjects[teacherKey] = [];
@@ -108,22 +104,26 @@ const createClass = async (req, res) => {
       }
     }
 
+    // Create new class
     const newClass = new Class({
       className: standardName,
       section: section.toUpperCase(),
       classId,
+      classStrength: strength,
       students: [],
       teachers: [],
       subjects: subjectObjectIds,
     });
     await newClass.save();
 
+    // Update subjects with class reference
     for (const { subjectObjectId } of processedSubjects) {
       await Subject.findByIdAndUpdate(subjectObjectId, {
-        $addToSet: { classes: classId },
+        $addToSet: { classes: newClass._id },
       });
     }
 
+    // Update teachers with class and subject references
     for (const teacherKey in teacherToSubjects) {
       await Teacher.findByIdAndUpdate(teacherKey, {
         $addToSet: {
@@ -133,18 +133,18 @@ const createClass = async (req, res) => {
       });
     }
 
+    // Update class with teacher references
     newClass.teachers = Object.keys(teacherToSubjects);
     await newClass.save();
 
     return res.status(201).json({
-      message:
-        "Class created successfully with subjects and assigned teachers.",
+      message: "Class created successfully with subjects and assigned teachers.",
       class: newClass,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error creating class:", error);
     return res.status(500).json({
-      message: "Server error.",
+      message: "Server error while creating class.",
       error: error.message,
     });
   }

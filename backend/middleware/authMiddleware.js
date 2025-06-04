@@ -95,7 +95,8 @@ const verifyTokenAndRole = async (req, res, next, roles) => {
     
     next();
   } catch (error) {
-    handleTokenError(error, res);
+    console.error("Teacher token verification error:", error);
+    res.status(401).json({ message: "Invalid token" });
   }
 };
 
@@ -220,8 +221,6 @@ const authorize = (...roles) => {
 };
 
 module.exports = {
-  verifyAdminToken,
-  verifyTeacherToken,
   verifyStudentToken,
   verifyParentToken,
   verifyAdminOrTeacherToken,

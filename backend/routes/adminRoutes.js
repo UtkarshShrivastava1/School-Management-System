@@ -84,13 +84,10 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
+    const allowedTypes = /jpg|jpeg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
-    // Only allow images with specific file extensions and MIME types
     if (extname && mimetype) {
       return cb(null, true);
     } else {
@@ -521,7 +518,7 @@ router.put(
       res.status(500).json({ error: "An unexpected error occurred" });
     }
   }
-);
+});
 //================================================================================================
 //================================================================================================
 
@@ -632,7 +629,7 @@ router.post(
       .notEmpty()
       .withMessage("Student address is required."),
     body("studentDOB").notEmpty().withMessage("Student DOB is required."),
-    body("studentGender").isString().withMessage("Invalid student gender."), // Now accepts any string
+    body("studentGender").isString().withMessage("Invalid student gender."),
     body("className")
       .notEmpty()
       .withMessage("Class is required.")
@@ -660,9 +657,9 @@ router.post(
       .withMessage("Student mother name is required."),
 
     // Validate relationship for the parent
-    body("relationship").isString().withMessage("Invalid relationship."), // Now accepts any string
+    body("relationship").isString().withMessage("Invalid relationship."),
   ],
-  handleValidationErrors, // Add this line to handle validation errors
+  handleValidationErrors,
   createStudent
 );
 
@@ -682,19 +679,41 @@ router.post("/createsubject", verifyAdminToken, createSubject);
 //===============================================================================================
 //================================================================================================
 router.get("/subjects", verifyAdminToken, getAllSubjects);
-//===============================================================================================
-//================================================================================================
-router.get("/teachers", verifyAdminToken, getAllTeachers);
-//===============================================================================================
-//================================================================================================
-router.get("/students", verifyAdminToken, getAllStudents);
-//===============================================================================================
-//================================================================================================
-router.post(
-  "/assign-teacher-to-subject",
-  verifyAdminToken,
-  assignTeacherToSubject
-);
+
+// Teacher Assignment Routes
+router.post("/assign-teacher-to-subject", verifyAdminToken, assignTeacherToSubject);
+router.post("/assign-teacher-to-class", verifyAdminToken, assignTeacherToClass);
+
+// Student Assignment Routes
+router.post("/assign-students-class", verifyAdminToken, assignStudentToClass);
+
+// Attendance Routes
+router.post("/teacher-attendance-mark", verifyAdminToken, markTeacherAttendance);
+router.get("/teacher-attendance-records", verifyAdminToken, fetchTeacherAttendanceRecords);
+
+// Search Routes
+router.get("/students/search", verifyAdminToken, searchStudents);
+
+// =================================================================================================
+// =================================================================================================
+// Fetch all classes
+router.get("/classes", getAllClasses);
+// Get details of a specific class
+router.get("/classes/:classId", getClassDetails);
+
+// Update a specific class
+router.put("/edit-class/:classId", updateClass);
+// Delete a specific class
+router.delete("/classes/:classId", deleteClass);
+
+// Get students by class
+router.get("/students/class/:classId", verifyAdminToken, studentController.getStudentsByClass);
+
+// Update class fee settings
+router.post("/class-fee/update", verifyAdminToken, feeController.updateClassFee);
+
+// Add cleanup route for duplicate class enrollments
+router.post("/cleanup-duplicate-enrollments", verifyAdminToken, studentController.cleanupDuplicateEnrollments);
 
 //===============================================================================================
 //================================================================================================
@@ -734,14 +753,4 @@ router.get("/classes/:classId", getClassDetails);
 router.put("/edit-class/:classId", updateClass);
 // Delete a specific class
 router.delete("/classes/:classId", deleteClass);
-
-// Get students by class
-router.get("/students/class/:classId", verifyAdminToken, studentController.getStudentsByClass);
-
-// Update class fee settings
-router.post("/class-fee/update", verifyAdminToken, feeController.updateClassFee);
-
-// Add cleanup route for duplicate class enrollments
-router.post("/cleanup-duplicate-enrollments", verifyAdminToken, studentController.cleanupDuplicateEnrollments);
-
 module.exports = router;

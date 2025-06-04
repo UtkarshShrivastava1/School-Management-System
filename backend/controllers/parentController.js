@@ -9,17 +9,16 @@ const Class = require("../models/ClassModel");
 const parentLogin = async (req, res) => {
   const { parentID, password } = req.body;
 
-  console.log("Parent login attempt:", { parentID });
+    console.log("Parent login attempt:", { parentID });
+    try{
+    // Validate input
+    if (!parentID || !password) {
+      console.log("Missing credentials:", { parentID: !!parentID, password: !!password });
+      return res
+        .status(400)
+        .json({ message: "Both parent ID and password are required." });
+    }
 
-  // Validate input
-  if (!parentID || !password) {
-    console.log("Missing credentials:", { parentID: !!parentID, password: !!password });
-    return res
-      .status(400)
-      .json({ message: "Both parent ID and password are required." });
-  }
-
-  try {
     // Find parent by parentID
     const parent = await Parent.findOne({ parentID });
     console.log("Parent lookup result:", parent ? "Found" : "Not found");

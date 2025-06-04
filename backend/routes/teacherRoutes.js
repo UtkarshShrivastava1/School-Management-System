@@ -143,17 +143,9 @@ router.put(
   verifyTeacherToken, // Middleware to verify teacher token
   upload.single("photo"), // Middleware to handle photo upload
   [
-    body("teacherID").notEmpty().withMessage("Teacher ID is required"),
+    body("name").optional().trim(),
     body("email").optional().isEmail().withMessage("Invalid email format"),
-    body("phone")
-      .optional()
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Phone number must be 10 digits"),
-    body("name")
-      .optional()
-      .trim()
-      .notEmpty()
-      .withMessage("Name cannot be empty"),
+    body("phone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone must be 10 digits"),
     body("designation").optional().trim(),
     body("department").optional().trim(),
     body("address").optional().trim(),
@@ -162,11 +154,23 @@ router.put(
   handleValidationErrors, // Middleware to handle validation errors
   async (req, res) => {
     try {
+      const teacherID = req.teacher?.id;
+      if (!teacherID) {
+        return res.status(401).json({ message: "Unauthorized - Invalid token" });
+      }
+
+      // const teacher = await Teacher.findById(teacherID);
+      if (!teacher) {
+        return res.status(404).json({ message: "Teacher not found" });
+      }
+
+      // Log the request body for debugging
+      console.log("Update request body:", req.body);
+
       const {
-        teacherID,
+        name,
         email,
         phone,
-        name,
         designation,
         department,
         address,
@@ -183,18 +187,19 @@ router.put(
         hasPhoto: !!req.file
       });
       
-      const photo = req.file ? req.file.filename : null; // Handle uploaded photo
+      // Handle uploaded photo
+      const photo = req.file ? req.file.filename : null; 
 
-      // First try to find by req.body.teacherID
-      let teacher = await Teacher.findOne({ teacherID });
+      // Find teacher by ID from token or by teacherID if provided in the body
+      let teacher;
       
-      // If not found, try to find by ID from token
-      if (!teacher && req.teacher) {
-        const tokenID = req.teacher._id || req.teacher.id;
-        if (tokenID) {
-          console.log("Teacher not found by teacherID, trying token ID:", tokenID);
-          teacher = await Teacher.findById(tokenID);
-        }
+      // First try to find by token ID
+      teacher = await Teacher.findById(teacherID);
+      
+      // If not found and teacherID is in request body, try that
+      if (!teacher && req.body.teacherID) {
+        console.log("Teacher not found by token ID, trying body teacherID:", req.body.teacherID);
+        teacher = await Teacher.findOne({ teacherID: req.body.teacherID });
       }
       
       if (!teacher) {
@@ -208,10 +213,10 @@ router.put(
         name: teacher.name 
       });
 
-      // Update the fields if provided
+      // Update fields if provided
+      if (name) teacher.name = name;
       if (email) teacher.email = email;
       if (phone) teacher.phone = phone;
-      if (name) teacher.name = name;
       if (designation) teacher.designation = designation;
       if (department) teacher.department = department;
       if (address) teacher.address = address;
@@ -243,19 +248,24 @@ router.put(
         teacher: updatedTeacher,
       });
     } catch (error) {
-      console.error("Error updating teacher info:", error);
-      res.status(500).json({ error: "Server error" });
+      console.error("Error updating teacher profile:", error);
+      res.status(500).json({ 
+        message: "Server error",
+        error: error.message 
+      });
     }
   }
 );
 
 //----------------------------------------------------------------
-// Route: Update/change teacher password using PUT "/api/teacher/auth/changeteacherpassword"
+// Route: Change teacher password using PUT "/api/teacher/auth/changeteacherpassword"
 router.put(
   "/changeteacherpassword",
   verifyTeacherToken,
   [
-    body("teacherID").notEmpty().withMessage("Teacher ID is required"),
+    body("currentPassword")
+      .notEmpty()
+      .withMessage("Current password is required"),
     body("newPassword")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters long")
@@ -264,8 +274,12 @@ router.put(
       .matches(/[!@#$%^&*]/)
       .withMessage("Password must contain at least one special character"),
     body("confirmNewPassword")
-      .custom((value, { req }) => value === req.body.newPassword)
-      .withMessage("Passwords do not match"),
+      .custom((value, { req }) => {
+        if (value !== req.body.newPassword) {
+          throw new Error("Passwords do not match");
+        }
+        return true;
+      })
   ],
   handleValidationErrors,
   async (req, res) => {
@@ -282,7 +296,6 @@ router.put(
       console.log("Fetching teacher from DB with teacherID:", teacherID);
       const teacher = await Teacher.findOne({ teacherID });
       if (!teacher) {
-        console.log("Teacher not found for teacherID:", teacherID); // Log if teacher is not found
         return res.status(404).json({ message: "Teacher not found" });
       }
 
@@ -304,7 +317,9 @@ router.put(
       // Update password in the database
       teacher.password = hashedPassword;
 
-      console.log("Saving updated teacher document...");
+      // Add to action history
+      teacher.actionHistory.push("Password changed");
+
       await teacher.save();
 
       // Validate the password was saved correctly by checking if it can be verified
@@ -319,8 +334,11 @@ router.put(
       console.log("Password updated successfully for teacherID:", teacherID);
       res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
-      console.error("Error updating password:", error); // Log the error details
-      res.status(500).json({ error: "An unexpected error occurred" });
+      console.error("Error changing password:", error);
+      res.status(500).json({ 
+        message: "Server error",
+        error: error.message 
+      });
     }
   }
 );

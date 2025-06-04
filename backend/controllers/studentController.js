@@ -122,9 +122,6 @@ exports.createStudent = async (req, res, next) => {
       return res.status(400).json({ message: "Parent email already exists." });
     }
 
-    // Automatically set today's date for studentDateOfAdmission
-    const studentDateOfAdmission = new Date();
-
     // Create new Student document
     const newStudent = new Student({
       studentName,

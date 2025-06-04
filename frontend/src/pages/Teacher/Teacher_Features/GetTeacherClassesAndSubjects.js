@@ -80,7 +80,7 @@ const GetTeacherClassesAndSubjects = () => {
                 <p>
                   <strong>Subjects:</strong>{" "}
                   {cls.assignedSubjects
-                    .map((sub) => sub.subjectName || "(No Name)")
+                    .map((sub) => sub.subjectName ||+ "(No Name)")
                     .join(", ")}
                 </p>
               ) : (

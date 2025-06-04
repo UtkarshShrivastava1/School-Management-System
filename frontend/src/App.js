@@ -1,17 +1,20 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
 } from "react-router-dom";
 // Page imports
 import About from "./pages/About";
 import Signin from "./pages/Signin";
+import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
 import AdminRoutes from "./Routes/Admin/AdminRoutes";
-import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
-import StudentRoutes from "./Routes/Student/StudentRoutes";
 import ParentRoutes from "./Routes/Parent/ParentRoutes";
+import StudentRoutes from "./Routes/Student/StudentRoutes";
+import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
+// import StudentRoutes from "./Routes/Student/StudentRoutes";
+// import ParentRoutes from "./Routes/Parent/ParentRoutes";
 import Navbar from "./components/Navbar";
 import { ToastContainer } from "react-toastify";
 
@@ -158,7 +161,19 @@ const App = () => {
           />
         )}
       </Routes>
-      <ToastContainer />
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+        toastStyle={{ color: "white" }}
+      />
     </Router>
   );
 };
