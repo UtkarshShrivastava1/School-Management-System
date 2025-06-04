@@ -2,18 +2,20 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { body, validationResult } = require("express-validator");
-const bcrypt = require("bcryptjs");
 const path = require("path");
-
-const mongoose = require("mongoose"); // Ensure mongoose is imported
 const fs = require("fs");
 const {
+  createStudent,
   studentLogin,
+  getAllStudents,
+  assignStudentToClass,
+  searchStudents,
   getStudentProfile,
   updateStudentInfo
 } = require("../controllers/studentController");
 const { verifyStudentToken } = require("../middleware/authMiddleware");
-const Student = require("../models/StudentModel"); // Importing student model
+const Student = require("../models/StudentModel");
+const bcrypt = require("bcrypt");
 
 // Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
@@ -27,12 +29,10 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Set up multer for file storage (handling file uploads)
+// Set up multer for file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = "uploads/Student/";
-
-    // Ensure the 'uploads' directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
       console.log(`Created upload directory: ${uploadDir}`);
@@ -49,17 +49,13 @@ const storage = multer.diskStorage({
   },
 });
 
-// Configure multer to handle file type validation
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpg|jpeg|png|gif/; // Allowed file types
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
+    const allowedTypes = /jpg|jpeg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
-    // Only allow images with specific file extensions and MIME types
     if (extname && mimetype) {
       return cb(null, true);
     } else {
@@ -69,14 +65,16 @@ const upload = multer({
 });
 
 // Middleware for handling Multer errors
-router.use((err, req, res, next) => {
+const multerErrorHandler = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ message: err.message });
   } else if (err) {
     return res.status(400).json({ message: err.message });
   }
   next();
-});
+};
+
+router.use(multerErrorHandler);
 
 // Route for student login
 router.post(
@@ -196,8 +194,10 @@ router.put(
   }
 );
 
-//------------------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------
+// Admin routes
+router.post("/", createStudent);
+router.get("/", getAllStudents);
+router.put("/:id/assign-class", assignStudentToClass);
+router.get("/search", searchStudents);
 
-// Export the router
 module.exports = router;

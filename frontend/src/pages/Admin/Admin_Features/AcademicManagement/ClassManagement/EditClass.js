@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { Button } from "react-bootstrap";
+import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
-import { FaArrowLeft } from "react-icons/fa";
 import "react-toastify/dist/ReactToastify.css";
-import { Button } from "react-bootstrap";
 import "./EditClass.css";
 
 const EditClass = () => {
@@ -44,6 +44,7 @@ const EditClass = () => {
   useEffect(() => {
     const fetchClassDetails = async () => {
       try {
+        setLoading(true);
         const res = await axios.get(
           `${API_URL}/api/admin/auth/classes/${classId}`,
           {
@@ -52,27 +53,41 @@ const EditClass = () => {
             },
           }
         );
+
+        if (!res.data || !res.data.class) {
+          throw new Error("Invalid response format");
+        }
+
         const classData = res.data.class;
         const subjectData = res.data.subjects || [];
+        
         setClassName(classData.className);
-        // Map subjects: assume each subject's assignedTeachers is populated (take the first teacher)
+        
+        // Map subjects with their assigned teachers
         const mappedSubjects = subjectData.map((subj) => ({
           subjectName: subj.subjectName,
           subjectCode: subj.subjectCode || "",
-          teacherId:
-            subj.assignedTeachers && subj.assignedTeachers.length > 0
-              ? subj.assignedTeachers[0].teacherID
-              : "",
+          teacherId: subj.assignedTeachers && subj.assignedTeachers.length > 0
+            ? subj.assignedTeachers[0].teacherID
+            : "",
         }));
+        
         setSubjects(mappedSubjects);
         setLoading(false);
       } catch (error) {
-        console.error("Error fetching class details", error);
-        setErrorMessage("Failed to fetch class details.");
+        console.error("Error fetching class details:", error);
+        setErrorMessage(
+          error.response?.data?.message || 
+          error.message || 
+          "Failed to fetch class details. Please try again."
+        );
         setLoading(false);
       }
     };
-    fetchClassDetails();
+
+    if (classId) {
+      fetchClassDetails();
+    }
   }, [API_URL, classId]);
 
   const handleClassNameChange = (e) => setClassName(e.target.value);
@@ -123,7 +138,7 @@ const EditClass = () => {
         teachers: uniqueTeachers,
       };
       await axios.put(
-        `${API_URL}/api/admin/auth/edit-class/${classId}`,
+        `${API_URL}/api/admin/auth/classes/${classId}`,
         payload,
         {
           headers: {

@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from "react";
-import {
-  Form,
-  Button,
-  Row,
-  Col,
-  Image,
-  Table,
-  Spinner,
-  Alert,
-} from "react-bootstrap";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Button,
+  Col,
+  Form,
+  Image,
+  Row,
+  Spinner,
+  Table,
+} from "react-bootstrap";
+import { toast , ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
+
 import { FaArrowLeft } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+
+import "react-toastify/dist/ReactToastify.css";
 import ChangeTeacherPassword from "../../components/Teacher/ChangeTeacherPassword";
 
 const TeacherProfileManage = () => {
@@ -23,9 +26,14 @@ const TeacherProfileManage = () => {
     email: "",
     phone: "",
     designation: "",
-    subjects: "",
     experience: "",
     photo: "",
+    address: "",
+    department: "",
+    highestQualification: "",
+    religion: "",
+    category: "",
+    bloodgroup: ""
   });
   const [teacherData, setTeacherData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +90,7 @@ const TeacherProfileManage = () => {
     };
 
     fetchTeacherData();
-  }, [API_URL]);
+  }, [API_URL, success]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -374,9 +382,42 @@ const TeacherProfileManage = () => {
             <Form.Label>Experience (in years)</Form.Label>
             <Form.Control
               type="number"
+              min="0"
+              step="1"
               placeholder="Enter experience in years"
               name="experience"
               value={formData.experience || ""}
+              onChange={(e) => {
+                // Convert experience to a number immediately on change
+                const numValue = e.target.value === "" ? "" : Number(e.target.value);
+                setFormData((prevData) => ({
+                  ...prevData,
+                  experience: numValue
+                }));
+              }}
+            />
+            <small className="text-muted">Please enter a numeric value for years of experience</small>
+          </Form.Group>
+          
+          <Form.Group controlId="formAddress">
+            <Form.Label>Address</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={2}
+              placeholder="Enter address"
+              name="address"
+              value={formData.address || ""}
+              onChange={handleInputChange}
+            />
+          </Form.Group>
+          
+          <Form.Group controlId="formDepartment">
+            <Form.Label>Department</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter department"
+              name="department"
+              value={formData.department || ""}
               onChange={handleInputChange}
             />
           </Form.Group>

@@ -1,18 +1,12 @@
-import { useNavigate } from "react-router-dom";
-import { Form, Button, Alert, InputGroup } from "react-bootstrap";
-import { Card, Container } from "react-bootstrap";
-import { useState } from "react";
 import axios from "axios";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
-import {
-  FaUserShield,
-  FaChalkboardTeacher,
-  FaUsers,
-  FaUserGraduate,
-} from "react-icons/fa";
-import "./Signin.css";
+import axiosInstance from '../utils/axiosConfig';
+import { useState } from "react";
+import { Alert, Button, Card, Container, Form, InputGroup } from "react-bootstrap";
+import { FaChalkboardTeacher, FaEye, FaEyeSlash, FaUserGraduate, FaUsers, FaUserShield } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "./Signin.css";
 const Signin = ({ setIsLoggedIn, setUserRole }) => {
   const [loggingUser, setLoggingUser] = useState("Admin");
   const [userId, setUserId] = useState("");
@@ -77,10 +71,26 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
       };
 
       const loginEndpoint = roleEndpoints[role];
-      const response = await axios.post(`${API_URL}${loginEndpoint}`, {
+      console.log('Attempting login with:', {
+        url: loginEndpoint,
+        data: { [`${role}ID`]: userId }
+      });
+
+      // First test if server is reachable
+      try {
+        const testResponse = await axiosInstance.get('/api/test');
+        console.log('Server test response:', testResponse.data);
+      } catch (testError) {
+        console.error('Server test failed:', testError);
+        throw new Error('Server is not reachable. Please check if the backend is running.');
+      }
+
+      const response = await axiosInstance.post(loginEndpoint, {
         [`${role}ID`]: userId,
         password,
       });
+
+      console.log('Login response:', response.data);
 
       // Store token and role
       const token = response.data.token;
@@ -95,24 +105,13 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
       // Store user info
       const userInfo = response.data[role] || response.data.data;
       if (userInfo) {
-        // Make sure the ID field is properly stored for each role
         const enhancedUserInfo = {
           ...userInfo,
-          [`${role}ID`]: userId // Ensure the ID is explicitly added
+          [`${role}ID`]: userId
         };
         
         console.log(`Storing ${role} info:`, enhancedUserInfo);
         localStorage.setItem(`${role}Info`, JSON.stringify(enhancedUserInfo));
-        
-        // Verify the data was stored correctly
-        try {
-          const storedData = JSON.parse(localStorage.getItem(`${role}Info`));
-          console.log(`Verified ${role} info in localStorage:`, storedData);
-        } catch (storageError) {
-          console.error("Error verifying localStorage data:", storageError);
-        }
-      } else {
-        console.warn(`No ${role} info received from server to store in localStorage`);
       }
 
       // Update app state
@@ -134,7 +133,7 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
     } catch (err) {
       console.error("Login error:", err);
       setError(
-        err.response?.data?.message || "Login failed. Please try again."
+        err.response?.data?.message || err.message || "Login failed. Please try again."
       );
       toast.error("Failed to Login.", {
         position: "top-center",

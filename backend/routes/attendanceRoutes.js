@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { verifyTeacherToken } = require("../middleware/authMiddleware");
 const attendanceController = require("../controllers/attendanceController");
+const { protect, authorize } = require("../middleware/authMiddleware");
 
 // Get teacher's assigned classes
 router.get("/teacher-classes", verifyTeacherToken, attendanceController.getTeacherClasses);
@@ -23,5 +24,10 @@ router.get("/class/:classId/download-attendance", verifyTeacherToken, attendance
 
 // Download attendance report by date range for a class
 router.get("/class/:classId/download-report", verifyTeacherToken, attendanceController.downloadMonthlyAttendance);
+
+// Basic route for testing
+router.get("/", (req, res) => {
+  res.json({ message: "Attendance routes working" });
+});
 
 module.exports = router; 

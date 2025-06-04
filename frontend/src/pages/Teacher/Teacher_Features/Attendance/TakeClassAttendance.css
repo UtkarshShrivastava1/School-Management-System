@@ -47,6 +47,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  position: relative;
+  padding-bottom: 4rem;
 }
 
 .attendance-form {
@@ -165,7 +167,7 @@
 }
 
 .attendance-table-container {
-  overflow-x: auto;
+  overflow-x: 150px;
   margin-bottom: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -285,6 +287,9 @@
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
 }
 
 .cancel-btn,

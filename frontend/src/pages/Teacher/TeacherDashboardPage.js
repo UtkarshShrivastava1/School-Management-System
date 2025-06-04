@@ -13,6 +13,7 @@ import { Row, Col, Card, Nav } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./TeacherDashboardPage.css";
 import "../../Styles/Dashboard.css";
+
 const dashboardSections = [
   {
     title: "My Profile",
@@ -27,23 +28,18 @@ const dashboardSections = [
   },
   {
     title: "Class & Subjects",
-    description: "View your classes and the subjects you're teaching.",
+    description: "View your assigned classes and manage attendance.",
     cards: [
       {
         icon: <FaChalkboardTeacher size={50} />,
-        title: "My Class",
+        title: "My Classes",
         page: "my-class",
-      },
-      {
-        icon: <FaRegCalendarAlt size={50} />,
-        title: "My Subjects",
-        page: "my-subjects",
       },
     ],
   },
   {
     title: "Class Attendance Management",
-    description: "take attendance of the selected class.",
+    description: "Take attendance of the selected class.",
     cards: [
       {
         icon: <FaClipboardList size={50} />,

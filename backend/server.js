@@ -27,20 +27,15 @@ ensureUploadDirsExist();
 app.use(express.json());
 
 // CORS Configuration
-if (isProduction) {
-  app.use(
-    cors({
-      origin: [process.env.FRONTEND_URL], // Use environment variable
-      credentials: true,
-    })
-  );
-  console.log(
-    `🌍 CORS configured for production: ${process.env.FRONTEND_URL}`.green
-  );
-} else {
-  app.use(cors()); // Allow all origins in development
-  console.log("🌍 CORS configured for local development".yellow);
-}
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Role']
+}));
+
+console.log("🌍 CORS configured for development".yellow);
+
 // Security and performance optimizations
 if (isProduction) {
   app.use(compression()); // Compress response bodies for better performance
@@ -51,6 +46,11 @@ if (isProduction) {
 // Connect to MongoDB
 connectToMongo(mongoURI);
 
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Backend server is running!' });
+});
+
 // Routes
 const adminRoutes = require("./routes/adminRoutes");
 const parentRoutes = require("./routes/parentRoutes");
@@ -58,6 +58,7 @@ const studentRoutes = require("./routes/studentRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const feeRoutes = require("./routes/feeRoutes");
 
 // Mount routes
 app.use("/api/admin/auth", adminRoutes);
@@ -66,6 +67,7 @@ app.use("/api/student/auth", studentRoutes);
 app.use("/api/teacher/auth", teacherRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/fees", feeRoutes);
 
 // Serve static files from the "uploads" directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

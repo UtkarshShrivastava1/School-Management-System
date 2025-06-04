@@ -5,7 +5,7 @@ const Student = require("../models/StudentModel");
 const Parent = require("../models/ParentModel");
 
 // Helper function to verify JWT and role
-const verifyTokenAndRole = async (req, res, next, role) => {
+const verifyTokenAndRole = async (req, res, next, roles) => {
   // Look for token in multiple places
   const authHeader = req.header("Authorization");
   let token;
@@ -17,11 +17,9 @@ const verifyTokenAndRole = async (req, res, next, role) => {
     token = req.cookies.token;
   }
   
-  const headerRole = req.header("X-User-Role");
   console.log("Authorization Header:", authHeader);
   console.log("Token received:", token ? "Token exists" : "No token");
-  console.log("Header Role:", headerRole);
-  console.log("Required Role:", role);
+  console.log("Required Roles:", Array.isArray(roles) ? roles : [roles]);
 
   if (!token) {
     console.error("No token provided. Authorization denied.");
@@ -33,28 +31,29 @@ const verifyTokenAndRole = async (req, res, next, role) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded Token:", decoded);
     
-    // Get user ID and provided role
+    // Get user ID and token role
     const userId = decoded.id;
     const tokenRole = decoded.role;
     
-    // Check if either token role or header role matches required role
-    const roleMatches = tokenRole === role || headerRole === role;
-
-    if (!roleMatches) {
-      console.error(`Role mismatch. Token role: ${tokenRole}, Header role: ${headerRole}, Required role: ${role}`);
+    // Convert single role to array for consistent handling
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+    
+    // Check if token role matches any of the required roles
+    if (!allowedRoles.includes(tokenRole)) {
+      console.error(`Role mismatch. Token role: ${tokenRole}, Required roles: ${allowedRoles.join(', ')}`);
       return res.status(403).json({ message: "Unauthorized role. Please log in with correct credentials." });
     }
 
     // Fetch user based on role with proper error handling
     let loggedInUser;
     try {
-      if (role === "admin") {
+      if (tokenRole === "admin") {
         loggedInUser = await Admin.findById(userId);
-      } else if (role === "teacher") {
+      } else if (tokenRole === "teacher") {
         loggedInUser = await Teacher.findById(userId);
-      } else if (role === "student") {
+      } else if (tokenRole === "student") {
         loggedInUser = await Student.findById(userId);
-      } else if (role === "parent") {
+      } else if (tokenRole === "parent") {
         loggedInUser = await Parent.findById(userId);
         console.log("Parent user fetched:", loggedInUser ? {
           id: loggedInUser._id,
@@ -63,23 +62,23 @@ const verifyTokenAndRole = async (req, res, next, role) => {
         } : "Not found");
       }
     } catch (dbError) {
-      console.error(`Database error finding ${role}:`, dbError);
+      console.error(`Database error finding ${tokenRole}:`, dbError);
       return res.status(500).json({ message: "Error retrieving user data. Please try again." });
     }
 
     if (!loggedInUser) {
-      console.error(`${role} with ID ${userId} not found in database`);
+      console.error(`${tokenRole} with ID ${userId} not found in database`);
       return res.status(404).json({
         message: "User not found. Please log in again.",
       });
     }
 
     // Attach user to request
-    req[role] = loggedInUser;
-    req.user = { id: loggedInUser._id, role: role };
+    req[tokenRole] = loggedInUser;
+    req.user = { id: loggedInUser._id, role: tokenRole };
     
     // Make sure we log the entire req.parent object if we're dealing with a parent
-    if (role === "parent") {
+    if (tokenRole === "parent") {
       console.log("Setting req.parent:", {
         _id: loggedInUser._id,
         parentID: loggedInUser.parentID,
@@ -88,15 +87,16 @@ const verifyTokenAndRole = async (req, res, next, role) => {
       });
     }
     
-    console.log(`${role.charAt(0).toUpperCase() + role.slice(1)} authenticated successfully:`, {
+    console.log(`${tokenRole.charAt(0).toUpperCase() + tokenRole.slice(1)} authenticated successfully:`, {
       id: loggedInUser._id,
-      role: role,
+      role: tokenRole,
       name: loggedInUser.name || loggedInUser.studentName || loggedInUser.parentName || loggedInUser.teacherName
     });
     
     next();
   } catch (error) {
-    handleTokenError(error, res);
+    console.error("Teacher token verification error:", error);
+    res.status(401).json({ message: "Invalid token" });
   }
 };
 
@@ -136,9 +136,96 @@ const verifyParentToken = (req, res, next) => {
   verifyTokenAndRole(req, res, next, "parent");
 };
 
+// New middleware for multiple roles
+const verifyAdminOrTeacherToken = (req, res, next) => {
+  verifyTokenAndRole(req, res, next, ["admin", "teacher"]);
+};
+
+// Protect routes - verify token
+const protect = async (req, res, next) => {
+  try {
+    let token;
+
+    // Check for token in headers
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ message: "Not authorized to access this route" });
+    }
+
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Find user based on role
+      let user;
+      switch (decoded.role) {
+        case "admin":
+          user = await Admin.findById(decoded.id);
+          if (user) req.admin = user;
+          break;
+        case "parent":
+          user = await Parent.findById(decoded.id);
+          if (user) req.parent = user;
+          break;
+        case "student":
+          user = await Student.findById(decoded.id);
+          if (user) req.student = user;
+          break;
+        case "teacher":
+          user = await Teacher.findById(decoded.id);
+          if (user) req.teacher = user;
+          break;
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Add user role to request
+      req.user = {
+        id: user._id,
+        role: decoded.role,
+      };
+
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: "Not authorized to access this route" });
+    }
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Authorize by role
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized to access this route" });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: `User role ${req.user.role} is not authorized to access this route`,
+      });
+    }
+
+    next();
+  };
+};
+
 module.exports = {
+  verifyStudentToken,
   verifyAdminToken,
   verifyTeacherToken,
-  verifyStudentToken,
   verifyParentToken,
+  verifyAdminOrTeacherToken,
+  protect,
+  authorize,
 };

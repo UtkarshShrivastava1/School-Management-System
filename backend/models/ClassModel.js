@@ -14,30 +14,47 @@ const classSchema = new mongoose.Schema(
     },
     section: {
       type: String,
-      required: true
+      required: true,
+      enum: ["A", "B", "C", "D", "E"]
     },
     classId: {
       type: String,
       required: true,
       unique: true,
     },
+    // Fee-related fields
+    baseFee: {
+      type: Number,
+      default: 0
+    },
+    lateFeePerDay: {
+      type: Number,
+      default: 0
+    },
+    feeDueDate: {
+      type: Date,
+      default: null
+    },
+    classStrength: {
+      type: Number,
+      required: true,
+      min: 1
+    },
     subjects: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Subject",
-      },
+        ref: "Subject"
+      }
     ],
-    students: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Student",
-      },
-    ],
+    students: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Student"
+    }],
     teachers: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Teacher",
-      },
+        ref: "Teacher"
+      }
     ],
     attendanceHistory: [
       {
@@ -65,11 +82,21 @@ const classSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-classSchema.virtual("classStrength").get(function () {
-  return this.students.length;
+// Add a pre-save middleware to ensure unique students
+classSchema.pre('save', async function(next) {
+  if (this.isModified('students')) {
+    // Remove any duplicate student IDs
+    this.students = [...new Set(this.students.map(id => id.toString()))];
+  }
+  next();
 });
-// Make className + section unique together
-classSchema.index({ className: 1, section: 1 }, { unique: true });
 
+// Drop any existing indexes
+classSchema.indexes().forEach(index => {
+  classSchema.index(index[0], { unique: false });
+});
+
+// Create the compound unique index
+classSchema.index({ className: 1, section: 1 }, { unique: true });
 
 module.exports = mongoose.model("Class", classSchema);

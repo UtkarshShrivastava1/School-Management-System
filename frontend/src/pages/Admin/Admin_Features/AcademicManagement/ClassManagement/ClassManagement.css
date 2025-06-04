@@ -2,123 +2,277 @@
 
 /* Container & Header */
 .classManagement-container {
-  padding: 20px;
-  background-color: #f9f9f9;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .classManagement-header {
-  margin-bottom: 20px;
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.classManagement-back-button {
-  cursor: pointer;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.search-box {
+  position: relative;
+  min-width: 300px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #95a5a6;
 }
 
 .classManagement-back-icon {
-  color: #007bff;
-  transition: color 0.2s;
+  cursor: pointer;
+  color: #2c3e50;
+  transition: color 0.3s ease;
 }
 
 .classManagement-back-icon:hover {
-  color: #0056b3;
+  color: #3498db;
 }
 
 .classManagement-add-btn {
-  margin-left: auto;
-}
-
-/* Status Messages */
-.classManagement-error-message,
-.classManagement-loading,
-.classManagement-no-classes {
-  text-align: center;
-  margin: 20px 0;
-  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
 }
 
 .classManagement-error-message {
-  color: red;
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
 }
 
-/* Grouping */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+
+.loading-container p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.no-classes-container {
+  text-align: center;
+  padding: 4rem 2rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  color: #64748b;
+}
+
+.no-classes-container h3 {
+  margin: 1rem 0;
+  color: #334155;
+}
+
+.no-classes-container p {
+  margin-bottom: 1.5rem;
+}
+
+.class-groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
 .class-group {
-  margin-bottom: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .class-group-title {
-  margin-bottom: 15px;
-  font-size: 1.25rem;
-  border-bottom: 1px solid #ccc;
-  padding-bottom: 5px;
-  color: #333;
-}
-
-/* Card List Item */
-.class-item {
-  padding: 0;
-  border: none;
-}
-
-/* Card Styles */
-.class-card {
-  transition: transform 0.2s;
-  /* Constrain the height */
-  min-height: 150px;
-  max-height: 250px;
-  overflow: hidden;
+  color: #1e293b;
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
   display: flex;
-  flex-direction: column;
-  justify-content: center; /* centers content vertically if there's extra space */
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.class-card {
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e2e8f0;
 }
 
 .class-card:hover {
-  transform: scale(1.02);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-/* Card Content */
-.card-title {
-  font-size: 1.1rem;
-  font-weight: bold;
-  margin-bottom: 5px;
+.class-header {
+  margin-bottom: 1rem;
 }
 
-.card-subtitle {
-  font-size: 0.9rem;
-  margin-bottom: 5px;
-  color: #120a0a;
-}
-
-.card-text {
-  font-size: 0.85rem;
-  color: #113048;
-}
-
-/* Card Actions */
-.classManagement-card-actions button {
-  font-size: 0.9rem;
-  padding: 5px 10px;
-  margin-right: 5px;
-}
-
-.classManagement-card-actions button:last-child {
-  margin-right: 0;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  .class-card {
-    min-height: 150px;
-    max-height: none;
-  }
-}
-.classManagement-container .class-card .card-title {
+.class-header .card-title {
+  color: #1e293b;
   font-size: 1.2rem;
-  font-weight: 700;
-  color: #094b31;
-  margin-bottom: 0.5rem;
-  text-transform: capitalize;
+  margin-bottom: 0.25rem;
+}
+
+.class-header .card-subtitle {
+  font-size: 0.85rem;
+}
+
+.class-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: #f8fafc;
+  border-radius: 4px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.class-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.class-actions button {
+  flex: 1;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+/* Modal Styles */
+.class-details {
+  padding: 1rem;
+}
+
+.class-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.class-info-header h3 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.details-section {
+  margin-bottom: 2rem;
+}
+
+.details-section h4 {
+  color: #334155;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.teacher-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .classManagement-container {
+    padding: 1rem;
+  }
+
+  .classManagement-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-right {
+    flex-direction: column;
+  }
+
+  .search-box {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .classManagement-add-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .class-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .class-actions {
+    flex-direction: column;
+  }
+
+  .class-actions button {
+    width: 100%;
+  }
 }
