@@ -167,7 +167,7 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
 
       console.log("Sending admin profile update request");
       const response = await axios.put(
-        `${API_URL}/api/admin/auth/adminprofile`,
+        `${API_URL}/api/admin/auth/updateadmininfo`,
         formDataToSubmit,
         {
           headers: {
@@ -439,8 +439,9 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
                   <Form.Control
                     type="date"
                     name="dob"
-                    value={formData.dob || ""}
+                    value={formData.dob ? formData.dob.slice(0, 10) : ""}
                     onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </Form.Group>
               </Col>

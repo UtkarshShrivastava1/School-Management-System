@@ -1,11 +1,10 @@
-import axios from "axios";
-import axiosInstance from '../utils/axiosConfig';
 import { useState } from "react";
 import { Alert, Button, Card, Container, Form, InputGroup } from "react-bootstrap";
 import { FaChalkboardTeacher, FaEye, FaEyeSlash, FaUserGraduate, FaUsers, FaUserShield } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axiosInstance from '../utils/axiosConfig';
 import "./Signin.css";
 const Signin = ({ setIsLoggedIn, setUserRole }) => {
   const [loggingUser, setLoggingUser] = useState("Admin");
