@@ -159,7 +159,16 @@ router.put(
         return res.status(401).json({ message: "Unauthorized - Invalid token" });
       }
 
-      // const teacher = await Teacher.findById(teacherID);
+      // Find teacher by ID from token or by teacherID if provided in the body
+      let teacher;
+      // First try to find by token ID
+      teacher = await Teacher.findById(teacherID);
+      // If not found and teacherID is in request body, try that
+      if (!teacher && req.body.teacherID) {
+        console.log("Teacher not found by token ID, trying body teacherID:", req.body.teacherID);
+        teacher = await Teacher.findOne({ teacherID: req.body.teacherID });
+      }
+
       if (!teacher) {
         return res.status(404).json({ message: "Teacher not found" });
       }
@@ -175,7 +184,6 @@ router.put(
         department,
         address,
         experience,
-        subjects,
       } = req.body;
       
       console.log("Update request received for teacher:", { 
@@ -189,23 +197,6 @@ router.put(
       
       // Handle uploaded photo
       const photo = req.file ? req.file.filename : null; 
-
-      // Find teacher by ID from token or by teacherID if provided in the body
-      let teacher;
-      
-      // First try to find by token ID
-      teacher = await Teacher.findById(teacherID);
-      
-      // If not found and teacherID is in request body, try that
-      if (!teacher && req.body.teacherID) {
-        console.log("Teacher not found by token ID, trying body teacherID:", req.body.teacherID);
-        teacher = await Teacher.findOne({ teacherID: req.body.teacherID });
-      }
-      
-      if (!teacher) {
-        console.error("Teacher not found for ID:", teacherID);
-        return res.status(404).json({ message: "Teacher not found" });
-      }
 
       console.log("Teacher found:", { 
         id: teacher._id, 
@@ -221,7 +212,6 @@ router.put(
       if (department) teacher.department = department;
       if (address) teacher.address = address;
       if (experience !== undefined) teacher.experience = experience;
-      if (subjects) teacher.subjects = subjects;
       if (photo) teacher.photo = photo; // Update photo if provided
 
       // Save the updated teacher document
@@ -237,7 +227,6 @@ router.put(
           department: !!department,
           address: !!address,
           experience: experience !== undefined,
-          subjects: !!subjects,
           photo: !!photo
         }
       });
@@ -249,9 +238,18 @@ router.put(
       });
     } catch (error) {
       console.error("Error updating teacher profile:", error);
+      console.error("Request body:", req.body);
+      if (error.errors) {
+        // Mongoose validation errors
+        Object.keys(error.errors).forEach((key) => {
+          console.error(`Validation error for ${key}:`, error.errors[key].message);
+        });
+      }
       res.status(500).json({ 
         message: "Server error",
-        error: error.message 
+        error: error.message,
+        stack: error.stack,
+        requestBody: req.body
       });
     }
   }

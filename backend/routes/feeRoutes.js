@@ -139,4 +139,16 @@ router.delete('/:id', verifyAdminToken, async (req, res) => {
 // Class fee management routes
 router.post('/class-fee/update', verifyAdminToken, feeController.updateClassFee);
 
+// Enhanced fee management routes
+router.get('/class/:classId/fee-history', verifyAdminToken, feeController.getClassFeeHistory);
+router.post('/generate-monthly-fees', verifyAdminToken, feeController.generateMonthlyFees);
+router.get('/comprehensive-stats', verifyAdminToken, feeController.getComprehensiveFeeStats);
+router.get('/student/:studentId/class/:classId/fee-history', verifyAdminToken, feeController.getStudentFeeHistory);
+
+// Get monthly fee records for a class
+router.get('/class/:classId/records', verifyAdminToken, feeController.getClassMonthlyFeeRecords);
+
+// Get payment history for a class
+router.get('/class/:classId/payment-history', verifyAdminToken, feeController.getClassPaymentHistory);
+
 module.exports = router; 

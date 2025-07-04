@@ -33,7 +33,10 @@ const TeacherProfileManage = () => {
     highestQualification: "",
     religion: "",
     category: "",
-    bloodgroup: ""
+    bloodgroup: "",
+    dob: "",
+    gender: "",
+    salary: ""
   });
   const [teacherData, setTeacherData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +81,15 @@ const TeacherProfileManage = () => {
           subjects: teacherData.subjects || "",
           experience: teacherData.experience || "",
           photo: teacherData.photo || "",
+          address: teacherData.address || "",
+          department: teacherData.department || "",
+          highestQualification: teacherData.highestQualification || "",
+          religion: teacherData.religion || "",
+          category: teacherData.category || "",
+          bloodgroup: teacherData.bloodgroup || "",
+          dob: teacherData.dob ? new Date(teacherData.dob).toISOString().split('T')[0] : "",
+          gender: teacherData.gender || "",
+          salary: teacherData.salary || ""
         });
       } catch (err) {
         const errorMessage = err.response?.data?.message || err.message || "Failed to fetch teacher data";
@@ -136,9 +148,15 @@ const TeacherProfileManage = () => {
       // Add other form fields
       Object.keys(formData).forEach((key) => {
         if (key !== "teacherID" && formData[key] !== null && formData[key] !== undefined) { // Skip teacherID as we've already added it
-          // Convert experience to number before appending
-          if (key === 'experience' && formData[key] !== '') {
+          // Convert experience and salary to number before appending
+          if ((key === 'experience' || key === 'salary') && formData[key] !== '') {
             formDataToSubmit.append(key, Number(formData[key]));
+          } else if (key === 'subjects') {
+            // Only append if it's a non-empty array (assumed to be ObjectIds)
+            if (Array.isArray(formData[key]) && formData[key].length > 0) {
+              formDataToSubmit.append(key, JSON.stringify(formData[key]));
+            }
+            // Otherwise, skip appending 'subjects'
           } else {
             formDataToSubmit.append(key, formData[key]);
           }
@@ -183,6 +201,16 @@ const TeacherProfileManage = () => {
         designation: response.data.teacher.designation || "",
         subjects: response.data.teacher.subjects || "",
         experience: response.data.teacher.experience || "",
+        photo: response.data.teacher.photo || "",
+        address: response.data.teacher.address || "",
+        department: response.data.teacher.department || "",
+        highestQualification: response.data.teacher.highestQualification || "",
+        religion: response.data.teacher.religion || "",
+        category: response.data.teacher.category || "",
+        bloodgroup: response.data.teacher.bloodgroup || "",
+        dob: response.data.teacher.dob ? new Date(response.data.teacher.dob).toISOString().split('T')[0] : "",
+        gender: response.data.teacher.gender || "",
+        salary: response.data.teacher.salary || ""
       });
       
       setSuccess("Profile updated successfully!");
