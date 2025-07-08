@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { toast } from "react-toastify";
+import React, { useEffect, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaSave, FaSpinner, FaUsers } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./TakeClassAttendance.css";
-import { FaCalendarAlt, FaDownload, FaSave, FaSpinner } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_NODE_ENV === "production"
   ? process.env.REACT_APP_PRODUCTION_URL
@@ -23,20 +26,33 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [classLoading, setClassLoading] = useState(true);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   // Fetch teacher's classes
   useEffect(() => {
     const fetchClasses = async () => {
       try {
+        setClassLoading(true);
         const response = await axios.get(`${API_URL}/api/attendance/teacher-classes`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
-        setClasses(response.data.data);
+        const formattedClasses = response.data.data.map(cls => ({
+          ...cls,
+          displayName: `${cls.className} - Section ${cls.section}`,
+          classNameWithSection: `${cls.className} - Section ${cls.section}`
+        }));
+        setClasses(formattedClasses);
       } catch (error) {
         toast.error("Failed to fetch classes");
         console.error("Error fetching classes:", error);
+      } finally {
+        setClassLoading(false);
       }
     };
 
@@ -59,11 +75,10 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
           );
           const studentsData = response.data.data;
           setStudents(studentsData);
-          // Initialize attendance status for all students
           setAttendance(
             studentsData.map((student) => ({
               studentId: student._id,
-              status: "Present", // Default status
+              status: "Present",
             }))
           );
         } catch (error) {
@@ -96,7 +111,6 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
     try {
       setSubmitLoading(true);
 
-      // Log the request data for debugging
       const requestData = {
         attendanceRecords: attendance,
       };
@@ -104,7 +118,6 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
       console.log("Preparing attendance data:", requestData);
       console.log("For class ID:", selectedClass);
 
-      // Ensure every student has a valid record
       const validAttendance = attendance.filter(record => 
         record.studentId && (record.status === "Present" || record.status === "Absent")
       );
@@ -115,15 +128,17 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
         return;
       }
 
-      // Format today's date for consistency
-      const today = new Date().toISOString().split("T")[0];
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      
       let existingAttendance = false;
       let existingAttendanceId = null;
 
-      // Check if attendance already exists for today
       try {
         const checkResponse = await axios.get(
-          `${API_URL}/api/attendance/class/${selectedClass}/attendance-history?date=${today}`,
+          `${API_URL}/api/attendance/class/${selectedClass}/attendance-history?date=${formattedDate}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -131,19 +146,14 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
           }
         );
         
-        // If we have attendance records for today already
         if (checkResponse.data.data && checkResponse.data.data.length > 0) {
           existingAttendance = true;
           existingAttendanceId = checkResponse.data.data[0]._id;
-          
-          const confirmUpdate = window.confirm(
-            "Attendance has already been marked for today. Do you want to update it?"
-          );
-          
-          if (!confirmUpdate) {
-            setSubmitLoading(false);
-            return;
-          }
+          // Show custom modal instead of window.confirm
+          setPendingUpdate({ classId: selectedClass, date: formattedDate, records: validAttendance });
+          setShowUpdateModal(true);
+          setSubmitLoading(false);
+          return;
         }
       } catch (checkError) {
         console.log("Error checking existing attendance:", checkError);
@@ -152,10 +162,9 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
       let response;
 
       if (existingAttendance && existingAttendanceId) {
-        // Update existing attendance record
-        console.log("Updating existing attendance for today");
+        console.log(`Updating existing attendance for ${formattedDate}`);
         response = await axios.put(
-          `${API_URL}/api/attendance/class/${selectedClass}/attendance/${today}`,
+          `${API_URL}/api/attendance/class/${selectedClass}/attendance/${formattedDate}`,
           {
             attendanceRecords: validAttendance,
           },
@@ -166,12 +175,12 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
           }
         );
       } else {
-        // Create new attendance record
-        console.log("Creating new attendance record for today");
+        console.log(`Creating new attendance record for ${formattedDate}`);
         response = await axios.post(
           `${API_URL}/api/attendance/class/${selectedClass}/attendance`,
           {
             attendanceRecords: validAttendance,
+            date: formattedDate,
           },
           {
             headers: {
@@ -191,28 +200,26 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
       
       setShowSuccess(true);
       
-      // Call callback if provided (for parent components)
       if (onAttendanceSaved) {
         onAttendanceSaved();
       }
       
-      // Clear success message after 3 seconds
       setTimeout(() => {
         setShowSuccess(false);
       }, 3000);
       
     } catch (error) {
-      console.error("Error with attendance operation:", error);
+      console.error("Error saving attendance:", error);
       
-      // Provide more specific error messages
       if (error.response) {
-        const errorMsg = error.response.data?.message || `Error ${error.response.status}: ${error.response.statusText}`;
-        toast.error(errorMsg);
-        console.log("Server error details:", error.response.data);
+        const errorMessage = error.response.data?.message || 
+          `Save failed: ${error.response.status} - ${error.response.statusText}`;
+        toast.error(errorMessage);
+        console.log("Error response data:", error.response.data);
       } else if (error.request) {
-        toast.error("No response received from server");
+        toast.error("Save failed: No response received from server");
       } else {
-        toast.error(`Error: ${error.message}`);
+        toast.error(`Save failed: ${error.message}`);
       }
     } finally {
       setSubmitLoading(false);
@@ -233,11 +240,9 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
       setDownloadLoading(true);
       toast.info("Preparing your report...");
 
-      // Format the dates as YYYY-MM-DD to ensure consistent format
       const formattedFromDate = new Date(fromDate).toISOString().split('T')[0];
       const formattedToDate = new Date(toDate).toISOString().split('T')[0];
 
-      // Log the request for debugging
       console.log(`Requesting report: ${API_URL}/api/attendance/class/${selectedClass}/download-report`, {
         fromDate: formattedFromDate, 
         toDate: formattedToDate
@@ -257,7 +262,6 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
         }
       );
       
-      // Check response validity and log for debugging
       console.log("Response received:", response);
       
       if (!response.data || response.data.size === 0) {
@@ -265,7 +269,6 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
         return;
       }
       
-      // Create and trigger the download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -274,7 +277,6 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
       document.body.appendChild(link);
       link.click();
       
-      // Clean up
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(link);
@@ -284,9 +286,7 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
     } catch (error) {
       console.error("Download error details:", error);
       
-      // More detailed error message
       if (error.response) {
-        // If we have a response message from server, show it
         const errorMessage = error.response.data?.message || 
           `Download failed: ${error.response.status} - ${error.response.statusText}`;
         toast.error(errorMessage);
@@ -301,49 +301,170 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
     }
   };
 
-  // Attendance summary
   const totalPresent = attendance.filter(a => a.status === "Present").length;
   const totalAbsent = attendance.filter(a => a.status === "Absent").length;
+  const totalStudents = students.length;
+
+  const markAllPresent = () => {
+    const updatedAttendance = students.map(student => ({
+      studentId: student._id,
+      status: "Present"
+    }));
+    setAttendance(updatedAttendance);
+    toast.info("All students marked as Present");
+  };
+
+  const markAllAbsent = () => {
+    const updatedAttendance = students.map(student => ({
+      studentId: student._id,
+      status: "Absent"
+    }));
+    setAttendance(updatedAttendance);
+    toast.info("All students marked as Absent");
+  };
+
+  const handleBack = () => navigate("/teacher/teacher-dashboard");
 
   return (
     <div className="take-attendance-container">
-      <div className="attendance-header">
-        <h2>Take Class Attendance</h2>
-        <div className="date-display">
-          <FaCalendarAlt className="calendar-icon" />
-          <span>{new Date().toDateString()}</span>
+      <div className="page-header">
+        <div className="back-button">
+          <FaArrowLeft
+            onClick={handleBack}
+            size={24}
+            style={{ cursor: "pointer", color: "#007bff" }}
+          />
+          <span
+            onClick={handleBack}
+            style={{ cursor: "pointer", color: "#007bff", marginLeft: "10px" }}
+          >
+            Back
+          </span>
         </div>
+        <h1>Take Class Attendance</h1>
       </div>
-      
+
       {showSuccess && (
         <div className="success-banner">
+          <FaCheckCircle className="success-icon" />
           <span>✓ Attendance saved successfully!</span>
         </div>
       )}
-      
-      <div className="attendance-card">
-        <div className="attendance-form">
-          <div className="form-group class-selector">
-            <label htmlFor="class">Select Class:</label>
-            <select
-              id="class"
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              disabled={loading || submitLoading}
-            >
-              <option value="">Select a class</option>
-              {classes.map((cls) => (
-                <option key={cls.classId} value={cls.classId}>
-                  {cls.className}
-                </option>
-              ))}
-            </select>
+
+      {showUpdateModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Attendance Already Marked</h3>
+            <p>Attendance has already been marked for {pendingUpdate?.date}. Do you want to update it?</p>
+            <div className="modal-actions">
+              <button
+                className="modal-btn update"
+                onClick={async () => {
+                  setUpdateLoading(true);
+                  try {
+                    await axios.put(
+                      `${API_URL}/api/attendance/class/${pendingUpdate.classId}/attendance/${pendingUpdate.date}`,
+                      { attendanceRecords: pendingUpdate.records },
+                      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                    );
+                    toast.success('Attendance updated successfully');
+                    setShowUpdateModal(false);
+                    setPendingUpdate(null);
+                    if (onAttendanceSaved) onAttendanceSaved();
+                  } catch (error) {
+                    toast.error('Failed to update attendance');
+                  } finally {
+                    setUpdateLoading(false);
+                  }
+                }}
+                disabled={updateLoading}
+              >
+                {updateLoading ? 'Updating...' : 'Update Attendance'}
+              </button>
+              <button className="modal-btn cancel" onClick={() => { setShowUpdateModal(false); setPendingUpdate(null); }} disabled={updateLoading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="main-content">
+        <div className="form-section">
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="class">Select Class:</label>
+              {classLoading ? (
+                <div className="loading-select">
+                  <FaSpinner className="spin" />
+                  <span>Loading classes...</span>
+                </div>
+              ) : (
+                <select
+                  id="class"
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  disabled={loading || submitLoading}
+                >
+                  <option value="">-- Select a class --</option>
+                  {classes.map((cls) => (
+                    <option key={cls.classId} value={cls.classId}>
+                      {cls.displayName || `${cls.className} - Section ${cls.section}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="date">Select Date:</label>
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => setSelectedDate(date)}
+                dateFormat="yyyy-MM-dd"
+                maxDate={new Date()}
+                placeholderText="Select date for attendance"
+                className="date-picker-input"
+                disabled={submitLoading}
+              />
+            </div>
           </div>
         </div>
 
         {selectedClass && (
-          <div className="students-list">
-            <h3>Mark Attendance for Today</h3>
+          <div className="attendance-section">
+            <div className="section-header">
+              <div className="header-info">
+                <h3>Mark Attendance for {selectedDate.toDateString()}</h3>
+                <div className="student-count">
+                  <FaUsers className="count-icon" />
+                  <span>{totalStudents} Students</span>
+                </div>
+              </div>
+              {students.length > 0 && (
+                <div className="quick-actions">
+                  <button
+                    type="button"
+                    onClick={markAllPresent}
+                    className="quick-action-btn present"
+                    disabled={submitLoading}
+                  >
+                    <FaCheckCircle className="action-icon" />
+                    Mark All Present
+                  </button>
+                  <button
+                    type="button"
+                    onClick={markAllAbsent}
+                    className="quick-action-btn absent"
+                    disabled={submitLoading}
+                  >
+                    <FaExclamationTriangle className="action-icon" />
+                    Mark All Absent
+                  </button>
+                </div>
+              )}
+            </div>
+
             {loading ? (
               <div className="loading-container">
                 <FaSpinner className="spin" />
@@ -351,18 +472,19 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
               </div>
             ) : students.length === 0 ? (
               <div className="no-students">
+                <FaUsers className="no-students-icon" />
                 <p>No students found for this class.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
-                <div className="attendance-table-container">
+                <div className="table-container">
                   <table className="attendance-table">
                     <thead>
                       <tr>
-                        <th>Photo</th>
-                        <th>Student ID</th>
-                        <th>Name</th>
-                        <th>Status</th>
+                        <th className="photo-column">Photo</th>
+                        <th className="id-column">Student ID</th>
+                        <th className="name-column">Student Name</th>
+                        <th className="status-column">Attendance Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -370,61 +492,61 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
                         <tr key={student._id}>
                           <td className="student-photo">
                             <img
-                              src={`${API_URL}/uploads/Admin/${student.photo || "default-photo.jpg"}`}
+                              src={`${API_URL}/uploads/Student/${student.photo || "default-photo.jpg"}`}
                               alt={student.studentName}
                               onError={e => {
-                                // Use a data URI instead of an external URL
                                 e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='16' r='8' fill='%23ccc'/%3E%3Cpath d='M4,36 C4,29 11,24 20,24 C29,24 36,29 36,36' fill='%23ccc'/%3E%3Crect width='40' height='40' rx='20' stroke='%23ccc' stroke-width='2' fill='none'/%3E%3C/svg%3E";
                               }}
                             />
                           </td>
-                          <td>{student.studentID}</td>
+                          <td className="student-id">{student.studentID}</td>
                           <td className="student-name">{student.studentName}</td>
                           <td className="status-cell">
-                            <div className="status-wrapper">
-                              <span className={`status-badge ${attendance.find(a => a.studentId === student._id)?.status === "Present" ? "present" : "absent"}`}>
-                                {attendance.find(a => a.studentId === student._id)?.status || "Present"}
-                              </span>
-                              <select
-                                value={
-                                  attendance.find(
-                                    (a) => a.studentId === student._id
-                                  )?.status || "Present"
-                                }
-                                onChange={(e) =>
-                                  handleAttendanceChange(student._id, e.target.value)
-                                }
+                            <div className="attendance-toggle">
+                              <button
+                                type="button"
+                                className={`toggle-btn present ${attendance.find(a => a.studentId === student._id)?.status === "Present" ? "active" : ""}`}
+                                onClick={() => handleAttendanceChange(student._id, "Present")}
                                 disabled={submitLoading}
-                                className="status-select"
                               >
-                                <option value="Present">Present</option>
-                                <option value="Absent">Absent</option>
-                              </select>
+                                <span className="toggle-icon">✓</span>
+                                Present
+                              </button>
+                              <button
+                                type="button"
+                                className={`toggle-btn absent ${attendance.find(a => a.studentId === student._id)?.status === "Absent" ? "active" : ""}`}
+                                onClick={() => handleAttendanceChange(student._id, "Absent")}
+                                disabled={submitLoading}
+                              >
+                                <span className="toggle-icon">✗</span>
+                                Absent
+                              </button>
                             </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan={4} className="attendance-summary">
-                          <div className="summary-container">
-                            <div className="summary-item present">
-                              <strong>Total Present:</strong> {totalPresent}
-                            </div>
-                            <div className="summary-item absent">
-                              <strong>Total Absent:</strong> {totalAbsent}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
+
+                <div className="summary-section">
+                  <div className="summary-container">
+                    <div className="summary-item total">
+                      <strong>Total Students:</strong> {totalStudents}
+                    </div>
+                    <div className="summary-item present">
+                      <strong>Present:</strong> {totalPresent}
+                    </div>
+                    <div className="summary-item absent">
+                      <strong>Absent:</strong> {totalAbsent}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="form-actions">
                   <button
                     type="button"
-                    onClick={() => navigate("/teacher/teacher-dashboard")}
+                    onClick={handleBack}
                     disabled={submitLoading}
                     className="cancel-btn"
                   >
@@ -443,6 +565,8 @@ const TakeClassAttendance = ({ onAttendanceSaved }) => {
           </div>
         )}
       </div>
+
+      <ToastContainer />
     </div>
   );
 };

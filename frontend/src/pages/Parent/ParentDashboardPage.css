@@ -5,9 +5,9 @@
   min-height: 100vh;
   background: linear-gradient(to bottom, #ffe4e1, #faf3f0);
   font-family: "Arial", sans-serif;
-  padding-top: 60px; /* Match navbar height */
+  padding-top: 80px; /* Match navbar height */
   margin: 0; /* Ensure no extra margin */
   position: relative; /* Ensures correct stacking under navbar */
   top: 0; /* Start at the top */
-  padding-top: 60px; /* Adjust based on navbar height */
+  /* padding-top: 60px; Adjust based on navbar height */
 }

@@ -1,7 +1,7 @@
 /* Admin Dashboard */
 .admin-dashboard {
   display: flex;
-  padding-top: 60px;
+  padding-top: 80px;
   min-height: 100vh;
   background: linear-gradient(to bottom, #dfe9f3, #f7f9fc);
 }

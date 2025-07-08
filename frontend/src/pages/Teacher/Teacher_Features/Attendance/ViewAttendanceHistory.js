@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { FaCalendarAlt, FaDownload } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { FaDownload, FaCalendarAlt } from "react-icons/fa";
 import "./ViewAttendanceHistory.css";
 
 const API_URL = process.env.REACT_APP_NODE_ENV === "production"
@@ -32,7 +32,13 @@ const ViewAttendanceHistory = () => {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
-        setClasses(response.data.data);
+        // Format classes to show section information
+        const formattedClasses = response.data.data.map(cls => ({
+          ...cls,
+          displayName: `${cls.className} - Section ${cls.section}`,
+          classNameWithSection: `${cls.className} - Section ${cls.section}`
+        }));
+        setClasses(formattedClasses);
       } catch (error) {
         toast.error("Failed to fetch classes");
         console.error("Error fetching classes:", error);
@@ -247,7 +253,7 @@ const ViewAttendanceHistory = () => {
             <option value="">Select a class</option>
             {classes.map((cls) => (
               <option key={cls.classId} value={cls.classId}>
-                {cls.className}
+                {cls.displayName || `${cls.className} - Section ${cls.section}`}
               </option>
             ))}
           </select>

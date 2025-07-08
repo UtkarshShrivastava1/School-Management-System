@@ -3,5 +3,6 @@
   display: flex;
   padding-top: 60px;
   min-height: 100vh;
+  margin-top: 70px;
   background: linear-gradient(to bottom, #f0f7da, #e3f2c1);
 }

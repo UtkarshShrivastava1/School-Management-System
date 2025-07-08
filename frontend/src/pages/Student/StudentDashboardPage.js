@@ -1,20 +1,20 @@
-import React, { useState } from "react";
-import {
-  FaUserAlt,
-  FaChartLine,
-  FaClipboardList,
-  FaRegBell,
-  FaMoneyBill,
-  FaChalkboardTeacher,
-  FaBook,
-  FaCalendarAlt,
-  FaBars,
-} from "react-icons/fa";
-import { Row, Col, Card, Nav } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./StudentDashboardPage.css";
+import React, { useState } from "react";
+import { Card, Col, Nav, Row } from "react-bootstrap";
+import {
+    FaBars,
+    FaBook,
+    FaCalendarAlt,
+    FaChalkboardTeacher,
+    FaChartLine,
+    FaClipboardList,
+    FaMoneyBill,
+    FaRegBell,
+    FaUserAlt,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import "../../Styles/Dashboard.css";
+import "./StudentDashboardPage.css";
 const dashboardSections = [
   {
     title: "My Profile",

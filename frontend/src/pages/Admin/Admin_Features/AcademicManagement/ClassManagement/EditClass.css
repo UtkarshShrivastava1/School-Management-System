@@ -1,6 +1,7 @@
 .editClass-container {
   max-width: 900px;
   margin: 40px auto;
+  margin-top: 100px; /* Adjusted for navbar overlap */
   padding: 30px;
   background-color: #fff;
   border-radius: 8px;

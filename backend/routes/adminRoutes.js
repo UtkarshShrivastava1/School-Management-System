@@ -35,6 +35,8 @@ const {
   createStudent,
   getAllStudents,
   assignStudentToClass,
+  reassignStudentToClass,
+  removeStudentFromClass,
   searchStudents,
 } = require("../controllers/studentController");
 const {
@@ -50,6 +52,7 @@ const {
   markTeacherAttendance,
   fetchTeacherAttendanceRecords,
 } = require("../controllers/TeacherAttendanceController");
+const attendanceController = require("../controllers/attendanceController");
 const feeController = require("../controllers/feeController");
 const mongoose = require("mongoose"); // At the top if not already imported
 
@@ -646,16 +649,22 @@ router.post("/assign-teacher-to-class", verifyAdminToken, assignTeacherToClass);
 
 // Student Assignment Routes
 router.post("/assign-students-class", verifyAdminToken, assignStudentToClass);
+router.post("/reassign-student-class", verifyAdminToken, reassignStudentToClass);
+router.post("/remove-student-class", verifyAdminToken, removeStudentFromClass);
 
 // Attendance Routes
 router.post("/teacher-attendance-mark", verifyAdminToken, markTeacherAttendance);
 router.get("/teacher-attendance-records", verifyAdminToken, fetchTeacherAttendanceRecords);
+router.get("/student-attendance-records", verifyAdminToken, attendanceController.getStudentAttendanceRecords);
 
 // Search Routes
 router.get("/students/search", verifyAdminToken, searchStudents);
 
 // Get students by class
 router.get("/students/class/:classId", verifyAdminToken, studentController.getStudentsByClass);
+
+// Get all students
+router.get("/students", verifyAdminToken, getAllStudents);
 
 // =================================================================================================
 // =================================================================================================

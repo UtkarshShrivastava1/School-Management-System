@@ -41,9 +41,31 @@ const getAllClasses = async (req, res) => {
   try {
     // Populate teachers (only teacherID and name) for each class
     const classes = await Class.find().populate("teachers", "teacherID name");
+    
+    // Format classes to include section information in display name
+    const formattedClasses = classes.map(cls => ({
+      ...cls.toObject(),
+      displayName: `${cls.className} - Section ${cls.section}`,
+      classNameWithSection: `${cls.className} - Section ${cls.section}`
+    }));
+    
+    // Sort classes by className and then by section
+    const sortedClasses = formattedClasses.sort((a, b) => {
+      // First sort by class name (Class 1, Class 2, etc.)
+      const classA = parseInt(a.className.split(' ')[1]);
+      const classB = parseInt(b.className.split(' ')[1]);
+      
+      if (classA !== classB) {
+        return classA - classB;
+      }
+      
+      // If same class, sort by section (A, B, C, etc.)
+      return a.section.localeCompare(b.section);
+    });
+    
     return res.status(200).json({
       message: "Classes fetched successfully",
-      classes,
+      classes: sortedClasses,
     });
   } catch (error) {
     console.error("Error fetching classes:", error);

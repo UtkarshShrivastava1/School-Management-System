@@ -11,6 +11,7 @@
   flex-direction: column;
   align-items: center;
   padding: 3rem 2rem;
+  margin-top: 100px; /* Adjusted for navbar overlap */
   /* Subtle gradient background for a modern look */
   background: linear-gradient(135deg, #f2f2f2, #ffffff);
   min-height: 100vh;

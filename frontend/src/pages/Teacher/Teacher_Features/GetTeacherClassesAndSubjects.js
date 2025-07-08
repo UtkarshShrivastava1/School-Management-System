@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { Badge, Button, Card, Col, Modal, Row } from "react-bootstrap";
+import { FaArrowLeft, FaBook, FaCalendarAlt, FaChalkboardTeacher, FaUsers } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft, FaChalkboardTeacher, FaBook, FaUsers, FaCalendarAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
-import { Card, Row, Col, Badge, Button, Modal } from "react-bootstrap";
 import "./GetTeacherClassesAndSubjects.css";
 
 const GetTeacherClassesAndSubjects = () => {

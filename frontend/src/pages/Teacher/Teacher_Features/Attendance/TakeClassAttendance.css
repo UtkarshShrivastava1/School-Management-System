@@ -1,156 +1,273 @@
-.take-attendance-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
+/* Take Class Attendance - Consistent Design */
+
+/* General Styling */
+body {
+  font-family: "Arial", sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f6f9;
+  color: #333;
 }
 
-.attendance-header {
+/* Main Container */
+.take-attendance-container {
+  max-width: 1200px;
+  margin: 50px auto;
+  padding: 20px 30px;
+  margin-top: 100px; /* Adjusted for navbar overlap */
+  background-color: #ffffff;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+/* Page Header */
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e9ecef;
 }
 
-.date-display {
+.page-header h1 {
+  font-size: 28px;
+  font-weight: bold;
+  margin: 0;
+  color: #0056b3;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.back-button {
   display: flex;
   align-items: center;
-  background: #f1f5fd;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  color: #3a5ca8;
+  cursor: pointer;
   font-weight: 500;
+  color: #007bff;
+  transition: color 0.3s;
 }
 
-.calendar-icon {
-  margin-right: 0.5rem;
+.back-button:hover {
+  color: #0056b3;
 }
 
+/* Success Banner */
 .success-banner {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 15px 20px;
   border-radius: 8px;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  animation: fadeInOut 3s forwards;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  animation: slideInDown 0.3s ease-out;
 }
 
-@keyframes fadeInOut {
-  0% { opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { opacity: 0; }
+.success-icon {
+  font-size: 1.2rem;
 }
 
-.attendance-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  position: relative;
-  padding-bottom: 4rem;
+@keyframes slideInDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-.attendance-form {
-  padding: 1.5rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+/* Main Content */
+.main-content {
+  background: transparent;
 }
 
-.class-selector {
-  max-width: 300px;
+/* Form Section */
+.form-section {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+  margin-top: 30px;
+  border: 1px solid #e9ecef;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-bottom: 0;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #343a40;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
 }
 
 .form-group select,
 .form-group input {
   width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #ced4da;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
   border-radius: 6px;
-  background: white;
-  font-size: 1rem;
-  color: #495057;
+  font-size: 16px;
+  transition: border-color 0.3s;
+  background-color: #fafafa;
 }
 
 .form-group select:focus,
 .form-group input:focus {
   outline: none;
-  border-color: #3a5ca8;
-  box-shadow: 0 0 0 3px rgba(58, 92, 168, 0.1);
+  border-color: #0056b3;
+  background-color: #ffffff;
 }
 
-.download-section {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed #e9ecef;
-}
-
-.download-section h4 {
-  margin-bottom: 1rem;
-  color: #343a40;
-}
-
-.report-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 1rem;
-}
-
-.date-input {
-  min-width: 150px;
-}
-
-.download-button {
+.loading-select {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #3a5ca8;
-  color: white;
-  border: none;
-  padding: 0.6rem 1rem;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
   border-radius: 6px;
-  cursor: pointer;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Date Picker Styling */
+.date-picker-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+  background-color: #fafafa;
+}
+
+.date-picker-input:focus {
+  outline: none;
+  border-color: #0056b3;
+  background-color: #ffffff;
+}
+
+/* Attendance Section */
+.attendance-section {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 25px;
+  border: 1px solid #e9ecef;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  border-left: 4px solid #0056b3;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-info h3 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.student-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 0.95rem;
   font-weight: 500;
-  transition: background-color 0.2s;
 }
 
-.download-button:hover {
-  background-color: #2d4a89;
+.count-icon {
+  color: #0056b3;
 }
 
-.download-button:disabled {
-  background-color: #b8c1d1;
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.quick-action-btn.present {
+  background: #28a745;
+  color: white;
+}
+
+.quick-action-btn.present:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.quick-action-btn.absent {
+  background: #dc3545;
+  color: white;
+}
+
+.quick-action-btn.absent:hover:not(:disabled) {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.quick-action-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
-.students-list {
-  padding: 1.5rem;
+.action-icon {
+  font-size: 0.9rem;
 }
 
+/* Loading and No Students */
 .loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: #6c757d;
+  padding: 60px 20px;
+  color: #666;
 }
 
 .spin {
   animation: spin 1s linear infinite;
-  margin-bottom: 0.5rem;
+  font-size: 2rem;
+  color: #0056b3;
+  margin-bottom: 15px;
 }
 
 @keyframes spin {
@@ -159,198 +276,484 @@
 }
 
 .no-students {
-  text-align: center;
-  padding: 2rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  color: #6c757d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #666;
 }
 
-.attendance-table-container {
-  overflow-x: 150px;
-  margin-bottom: 1.5rem;
+.no-students-icon {
+  font-size: 3rem;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+
+.no-students p {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* Table Container */
+.table-container {
+  background: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 25px;
+  border: 1px solid #e9ecef;
 }
 
 .attendance-table {
   width: 100%;
   border-collapse: collapse;
+  background: white;
+  min-width: 600px;
 }
 
 .attendance-table th,
 .attendance-table td {
-  padding: 0.75rem 1rem;
+  padding: 15px 12px;
   text-align: left;
   border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
 }
 
 .attendance-table th {
-  background-color: #f1f5fd;
-  color: #343a40;
+  background: #0056b3;
+  color: white;
   font-weight: 600;
+  font-size: 0.95rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.attendance-table tr:hover {
+  background-color: #f8f9fa;
 }
 
 .attendance-table tr:last-child td {
   border-bottom: none;
 }
 
-.attendance-table tr:hover td {
-  background-color: #f8f9fa;
+/* Table Column Widths */
+.photo-column {
+  width: 80px;
+  text-align: center;
+}
+
+.id-column {
+  width: 120px;
+}
+
+.name-column {
+  min-width: 200px;
+}
+
+.status-column {
+  width: 200px;
+  text-align: center;
+}
+
+/* Student Photo */
+.student-photo {
+  text-align: center;
 }
 
 .student-photo img {
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #e9ecef;
+  transition: border-color 0.3s ease;
+}
+
+.student-photo img:hover {
+  border-color: #0056b3;
+}
+
+/* Student Info */
+.student-id {
+  font-weight: 600;
+  color: #333;
+  font-family: 'Courier New', monospace;
 }
 
 .student-name {
   font-weight: 500;
+  color: #333;
 }
 
+/* Status Cell */
 .status-cell {
-  width: 200px;
+  text-align: center;
 }
 
-.status-wrapper {
+.attendance-toggle {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.toggle-btn {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
   font-weight: 500;
   min-width: 80px;
+  justify-content: center;
 }
 
-.status-badge.present {
-  background-color: #d1e7dd;
-  color: #0f5132;
+.toggle-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.status-badge.absent {
-  background-color: #f8d7da;
-  color: #842029;
+.toggle-btn.present {
+  border-color: #28a745;
+  color: #28a745;
 }
 
-.status-select {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  background-color: white;
-  color: #495057;
+.toggle-btn.present:hover:not(:disabled) {
+  background: #28a745;
+  color: white;
 }
 
-.status-select:focus {
-  outline: none;
-  border-color: #3a5ca8;
+.toggle-btn.present.active {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
 }
 
-.attendance-summary {
-  padding: 1rem !important;
-  background-color: #f8f9fa !important;
+.toggle-btn.absent {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.toggle-btn.absent:hover:not(:disabled) {
+  background: #dc3545;
+  color: white;
+}
+
+.toggle-btn.absent.active {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.toggle-icon {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+/* Summary Section */
+.summary-section {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 25px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .summary-container {
   display: flex;
-  justify-content: flex-end;
-  gap: 1.5rem;
+  justify-content: space-around;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
 .summary-item {
-  padding: 0.5rem 1rem;
+  text-align: center;
+  padding: 15px;
+  background: #f8f9fa;
   border-radius: 6px;
+  border: 1px solid #e9ecef;
+  min-width: 120px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summary-item strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #333;
   font-size: 0.9rem;
 }
 
+.summary-item.total {
+  border-left: 4px solid #0056b3;
+}
+
 .summary-item.present {
-  background-color: #d1e7dd;
-  color: #0f5132;
+  border-left: 4px solid #28a745;
 }
 
 .summary-item.absent {
-  background-color: #f8d7da;
-  color: #842029;
+  border-left: 4px solid #dc3545;
 }
 
+/* Form Actions */
 .form-actions {
   display: flex;
+  gap: 15px;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  position: absolute;
-  right: 1.5rem;
-  bottom: 1.5rem;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
 }
 
 .cancel-btn,
 .save-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.5rem;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 8px;
+  padding: 12px 24px;
   border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  min-width: 120px;
+  justify-content: center;
 }
 
 .cancel-btn {
-  background-color: #e9ecef;
-  color: #495057;
-}
-
-.cancel-btn:hover {
-  background-color: #dee2e6;
-}
-
-.save-btn {
-  background-color: #3a5ca8;
+  background: #6c757d;
   color: white;
 }
 
-.save-btn:hover {
-  background-color: #2d4a89;
+.cancel-btn:hover:not(:disabled) {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.save-btn {
+  background: #0056b3;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #004094;
+  transform: translateY(-1px);
 }
 
 .cancel-btn:disabled,
 .save-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
-  .attendance-header {
+  .take-attendance-container {
+    margin: 20px auto;
+    padding: 15px;
+    margin-top: 80px;
+  }
+
+  .page-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 15px;
   }
-  
-  .date-display {
-    margin-top: 0.5rem;
+
+  .page-header h1 {
+    font-size: 1.8rem;
   }
-  
-  .report-controls {
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .section-header {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+    gap: 15px;
   }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .cancel-btn, 
-  .save-btn {
+
+  .quick-actions {
     width: 100%;
+    justify-content: space-between;
+  }
+
+  .quick-action-btn {
+    flex: 1;
     justify-content: center;
   }
+
+  .table-container {
+    margin: 0 -15px 25px -15px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .attendance-table {
+    min-width: 500px;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 12px 8px;
+    font-size: 0.9rem;
+  }
+
+  .photo-column {
+    width: 60px;
+  }
+
+  .id-column {
+    width: 100px;
+  }
+
+  .status-column {
+    width: 150px;
+  }
+
+  .student-photo img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .attendance-toggle {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .toggle-btn {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    min-width: 70px;
+  }
+
+  .summary-container {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .summary-item {
+    min-width: auto;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cancel-btn,
+  .save-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .attendance-table {
+    min-width: 400px;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 8px 6px;
+    font-size: 0.8rem;
+  }
+
+  .student-photo img {
+    width: 35px;
+    height: 35px;
+  }
+
+  .toggle-btn {
+    padding: 5px 6px;
+    font-size: 0.75rem;
+    min-width: 60px;
+  }
+} 
+
+/* Improved Modal styles for update attendance */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal-content {
+  background: #fff;
+  padding: 1.5rem 1.2rem 1.2rem 1.2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  min-width: 220px;
+  max-width: 350px;
+  text-align: center;
+  border: 1px solid #e9ecef;
+  font-family: inherit;
+}
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #0056b3;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.modal-content p {
+  color: #333;
+  font-size: 1.05rem;
+  margin-bottom: 2rem;
+}
+.modal-content .modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+.modal-content .modal-btn {
+  padding: 11px 28px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.modal-content .modal-btn.update {
+  background: #0056b3;
+  color: #fff;
+}
+.modal-content .modal-btn.update:hover:not(:disabled) {
+  background: #004094;
+}
+.modal-content .modal-btn.cancel {
+  background: #f4f6f9;
+  color: #333;
+  border: 1px solid #e9ecef;
+}
+.modal-content .modal-btn.cancel:hover:not(:disabled) {
+  background: #e9ecef;
+}
+.modal-content .modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 } 

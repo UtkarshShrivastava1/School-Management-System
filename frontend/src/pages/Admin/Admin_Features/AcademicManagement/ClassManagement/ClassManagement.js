@@ -145,6 +145,14 @@ const ClassManagement = () => {
     return acc;
   }, {});
 
+  // Sort classes within each group by section
+  Object.keys(groupedClasses).forEach(groupKey => {
+    groupedClasses[groupKey].sort((a, b) => {
+      // Sort by section (A, B, C, etc.)
+      return a.section.localeCompare(b.section);
+    });
+  });
+
   // Function to handle modal close
   const handleCloseModal = () => {
     setShowDetailsModal(false);

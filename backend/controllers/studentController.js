@@ -418,7 +418,7 @@ exports.assignStudentToClass = async (req, res) => {
 
     try {
       // Find the student by studentID
-      const student = await Student.findOne({ studentID }).session(session);
+      const student = await Student.findOne({ studentID }).populate('enrolledClasses', 'className section classId').session(session);
       if (!student) {
         await session.abortTransaction();
         session.endSession();
@@ -428,7 +428,7 @@ exports.assignStudentToClass = async (req, res) => {
       }
 
       // Find the class by classId
-      const classDoc = await Class.findById(classId).session(session);
+      const classDoc = await Class.findOne({ classId }).session(session);
       if (!classDoc) {
         await session.abortTransaction();
         session.endSession();
@@ -437,7 +437,52 @@ exports.assignStudentToClass = async (req, res) => {
         });
       }
 
-      // Remove student from all other classes
+      // Check if student is already enrolled in this class
+      const isAlreadyEnrolled = student.enrolledClasses.some(enrolledClass => 
+        enrolledClass._id.toString() === classDoc._id.toString()
+      );
+
+      if (isAlreadyEnrolled) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: `Student ${student.studentName} (${student.studentID}) is already enrolled in ${classDoc.className} - Section ${classDoc.section}.`,
+          alreadyEnrolled: true,
+          currentClass: {
+            classId: classDoc.classId,
+            className: classDoc.className,
+            section: classDoc.section
+          }
+        });
+      }
+
+      // Check if student is enrolled in any other class
+      if (student.enrolledClasses && student.enrolledClasses.length > 0) {
+        const currentClass = student.enrolledClasses[0];
+        console.log(`Student is currently enrolled in: ${currentClass.className} - Section ${currentClass.section}`);
+        
+        // Return information about current enrollment
+        return res.status(409).json({
+          message: `Student ${student.studentName} (${student.studentID}) is already enrolled in ${currentClass.className} - Section ${currentClass.section}.`,
+          conflict: true,
+          currentClass: {
+            classId: currentClass.classId,
+            className: currentClass.className,
+            section: currentClass.section
+          },
+          targetClass: {
+            classId: classDoc.classId,
+            className: classDoc.className,
+            section: classDoc.section
+          },
+          student: {
+            studentID: student.studentID,
+            studentName: student.studentName
+          }
+        });
+      }
+
+      // Remove student from all other classes (safety check)
       await Class.updateMany(
         { students: student._id },
         { $pull: { students: student._id } },
@@ -452,8 +497,12 @@ exports.assignStudentToClass = async (req, res) => {
       );
 
       // Update student's enrolledClasses to only contain the new class
-      student.enrolledClasses = [classDoc._id];
-      await student.save({ session });
+      // Use $set to ensure atomic update and avoid duplicate key errors
+      await Student.findByIdAndUpdate(
+        student._id,
+        { $set: { enrolledClasses: [classDoc._id] } },
+        { session }
+      );
 
       // Commit the transaction
       await session.commitTransaction();
@@ -468,6 +517,7 @@ exports.assignStudentToClass = async (req, res) => {
           studentName: student.studentName,
           classId: classDoc.classId,
           className: classDoc.className,
+          section: classDoc.section
         }
       });
     } catch (error) {
@@ -478,6 +528,208 @@ exports.assignStudentToClass = async (req, res) => {
     }
   } catch (error) {
     console.error("Error assigning student to class:", error);
+    
+    // Handle specific MongoDB duplicate key error
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Student is already enrolled in a class. Please check current enrollment.",
+        error: "Duplicate enrollment detected"
+      });
+    }
+    
+    res.status(500).json({
+      message: "Server error. Please try again later.",
+      error: error.message
+    });
+  }
+};
+
+// Reassign student to a different class
+exports.reassignStudentToClass = async (req, res) => {
+  const { studentID, newClassId } = req.body;
+
+  // Validate input
+  if (!studentID || !newClassId) {
+    return res.status(400).json({
+      message: "Both studentID and newClassId are required.",
+    });
+  }
+
+  try {
+    console.log(`Reassigning student ${studentID} to class ${newClassId}...`);
+
+    // Start a session for transaction
+    const session = await Student.startSession();
+    session.startTransaction();
+
+    try {
+      // Find the student by studentID
+      const student = await Student.findOne({ studentID }).populate('enrolledClasses', 'className section classId').session(session);
+      if (!student) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: "Student not found.",
+        });
+      }
+
+      // Find the new class by classId
+      const newClassDoc = await Class.findOne({ classId: newClassId }).session(session);
+      if (!newClassDoc) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: "Target class not found.",
+        });
+      }
+
+      // Get current class information
+      const currentClass = student.enrolledClasses && student.enrolledClasses.length > 0 ? student.enrolledClasses[0] : null;
+
+      // Remove student from current class
+      if (currentClass) {
+        await Class.findByIdAndUpdate(
+          currentClass._id,
+          { $pull: { students: student._id } },
+          { session }
+        );
+        console.log(`Removed student from current class: ${currentClass.className} - Section ${currentClass.section}`);
+      }
+
+      // Add student to the new class
+      await Class.findByIdAndUpdate(
+        newClassDoc._id,
+        { $addToSet: { students: student._id } },
+        { session }
+      );
+
+      // Update student's enrolledClasses to only contain the new class
+      // Use $set to ensure atomic update and avoid duplicate key errors
+      await Student.findByIdAndUpdate(
+        student._id,
+        { $set: { enrolledClasses: [newClassDoc._id] } },
+        { session }
+      );
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      console.log(`Successfully reassigned student ${studentID} from ${currentClass ? `${currentClass.className} - Section ${currentClass.section}` : 'no class'} to ${newClassDoc.className} - Section ${newClassDoc.section}`);
+
+      res.status(200).json({
+        message: "Student reassigned to class successfully.",
+        data: {
+          studentID: student.studentID,
+          studentName: student.studentName,
+          previousClass: currentClass ? {
+            classId: currentClass.classId,
+            className: currentClass.className,
+            section: currentClass.section
+          } : null,
+          newClass: {
+            classId: newClassDoc.classId,
+            className: newClassDoc.className,
+            section: newClassDoc.section
+          }
+        }
+      });
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error reassigning student to class:", error);
+    res.status(500).json({
+      message: "Server error. Please try again later.",
+      error: error.message
+    });
+  }
+};
+
+// Remove student from current class
+exports.removeStudentFromClass = async (req, res) => {
+  const { studentID } = req.body;
+
+  // Validate input
+  if (!studentID) {
+    return res.status(400).json({
+      message: "StudentID is required.",
+    });
+  }
+
+  try {
+    console.log(`Removing student ${studentID} from current class...`);
+
+    // Start a session for transaction
+    const session = await Student.startSession();
+    session.startTransaction();
+
+    try {
+      // Find the student by studentID
+      const student = await Student.findOne({ studentID }).populate('enrolledClasses', 'className section classId').session(session);
+      if (!student) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: "Student not found.",
+        });
+      }
+
+      // Check if student is enrolled in any class
+      if (!student.enrolledClasses || student.enrolledClasses.length === 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: "Student is not enrolled in any class.",
+        });
+      }
+
+      const currentClass = student.enrolledClasses[0];
+
+      // Remove student from current class
+      await Class.findByIdAndUpdate(
+        currentClass._id,
+        { $pull: { students: student._id } },
+        { session }
+      );
+
+      // Clear student's enrolledClasses
+      // Use $set to ensure atomic update and avoid duplicate key errors
+      await Student.findByIdAndUpdate(
+        student._id,
+        { $set: { enrolledClasses: [] } },
+        { session }
+      );
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      console.log(`Successfully removed student ${studentID} from ${currentClass.className} - Section ${currentClass.section}`);
+
+      res.status(200).json({
+        message: "Student removed from class successfully.",
+        data: {
+          studentID: student.studentID,
+          studentName: student.studentName,
+          removedFromClass: {
+            classId: currentClass.classId,
+            className: currentClass.className,
+            section: currentClass.section
+          }
+        }
+      });
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error removing student from class:", error);
     res.status(500).json({
       message: "Server error. Please try again later.",
       error: error.message

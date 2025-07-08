@@ -460,9 +460,26 @@ exports.getAssignedClasses = async (req, res) => {
       };
     });
 
+    // Sort classes by className and then by section
+    const sortedAssignedClasses = assignedClasses.sort((a, b) => {
+      // First sort by class name (Class 1, Class 2, etc.)
+      const classA = parseInt(a.className.split(' ')[1]);
+      const classB = parseInt(b.className.split(' ')[1]);
+      
+      if (classA !== classB) {
+        return classA - classB;
+      }
+      
+      // If same class, sort by section (A, B, C, etc.)
+      // Extract section from classID if available
+      const sectionA = a.classID.split('-')[1] || '';
+      const sectionB = b.classID.split('-')[1] || '';
+      return sectionA.localeCompare(sectionB);
+    });
+
     res.status(200).json({
       message: "Assigned classes and subjects fetched successfully.",
-      assignedClasses,
+      assignedClasses: sortedAssignedClasses,
     });
   } catch (error) {
     console.error("Error fetching assigned classes and subjects:", error);

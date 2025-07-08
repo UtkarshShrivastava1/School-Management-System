@@ -75,7 +75,7 @@ const ChildProfile = () => {
 
   return (
     <div className="container mt-5">
-      <h2 className="text-center mb-4">Child Profile</h2>
+      <h2 className="text-center mb-4 mt-100px">Child Profile</h2>
       <ToastContainer />
       
       {/* Back button with icon */}

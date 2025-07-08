@@ -1,18 +1,17 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  FaUserAlt,
-  FaChalkboardTeacher,
-  FaRegCalendarAlt,
-  FaBell,
-  FaDollarSign,
-  FaClipboardList,
-  FaBars,
-} from "react-icons/fa";
-import { Row, Col, Card, Nav } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./TeacherDashboardPage.css";
+import React, { useState } from "react";
+import { Card, Col, Nav, Row } from "react-bootstrap";
+import {
+    FaBars,
+    FaBell,
+    FaChalkboardTeacher,
+    FaClipboardList,
+    FaDollarSign,
+    FaUserAlt
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import "../../Styles/Dashboard.css";
+import "./TeacherDashboardPage.css";
 
 const dashboardSections = [
   {

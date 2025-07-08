@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { FaArrowLeft } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./AssignStudentToClass.css";
-import { FaArrowLeft } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
 
 const AssignStudentToClass = () => {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
+  const [conflictData, setConflictData] = useState(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const API_URL =
@@ -89,6 +92,7 @@ const AssignStudentToClass = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const response = await axios.post(
         `${API_URL}/api/admin/auth/assign-students-class`,
@@ -107,10 +111,89 @@ const AssignStudentToClass = () => {
       // Reset selections
       setSelectedStudent("");
       setSelectedClass("");
+      setConflictData(null);
+      setShowConflictModal(false);
+    } catch (error) {
+      console.error("Assignment error:", error.response?.data);
+      
+      // Handle conflict - student already enrolled in another class
+      if (error.response?.status === 409 && error.response?.data?.conflict) {
+        setConflictData(error.response.data);
+        setShowConflictModal(true);
+      } else {
+        toast.error(
+          error.response?.data?.message || "Failed to assign student to class."
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle reassigning student to a different class
+  const handleReassignStudent = async () => {
+    if (!conflictData) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/admin/auth/reassign-student-class`,
+        {
+          studentID: conflictData.student.studentID,
+          newClassId: selectedClass,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast.success(response.data.message || "Student reassigned successfully.");
+      // Reset selections
+      setSelectedStudent("");
+      setSelectedClass("");
+      setConflictData(null);
+      setShowConflictModal(false);
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to assign student to class."
+        error.response?.data?.message || "Failed to reassign student to class."
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle removing student from current class
+  const handleRemoveStudent = async () => {
+    if (!conflictData) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/admin/auth/remove-student-class`,
+        {
+          studentID: conflictData.student.studentID,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast.success(response.data.message || "Student removed from class successfully.");
+      // Reset selections
+      setSelectedStudent("");
+      setSelectedClass("");
+      setConflictData(null);
+      setShowConflictModal(false);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to remove student from class."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -170,16 +253,63 @@ const AssignStudentToClass = () => {
           <option value="">-- Select Class --</option>
           {classes.map((classItem) => (
             <option key={classItem.classId} value={classItem.classId}>
-              {classItem.className} ({classItem.classId})
+              {classItem.displayName || `${classItem.className} - Section ${classItem.section}`} ({classItem.classId})
             </option>
           ))}
         </select>
       </div>
 
       {/* Assign Button */}
-      <button className="assign-btn" onClick={handleAssignStudent}>
-        Assign Student to Class
+      <button 
+        className="assign-btn" 
+        onClick={handleAssignStudent}
+        disabled={loading}
+      >
+        {loading ? "Processing..." : "Assign Student to Class"}
       </button>
+
+      {/* Conflict Modal */}
+      {showConflictModal && conflictData && (
+        <div className="conflict-modal-overlay">
+          <div className="conflict-modal">
+            <h3>Student Already Enrolled</h3>
+            <p>
+              <strong>{conflictData.student.studentName}</strong> ({conflictData.student.studentID}) 
+              is already enrolled in <strong>{conflictData.currentClass.className} - Section {conflictData.currentClass.section}</strong>.
+            </p>
+            <p>What would you like to do?</p>
+            
+            <div className="conflict-actions">
+              <button 
+                className="reassign-btn"
+                onClick={handleReassignStudent}
+                disabled={loading}
+              >
+                {loading ? "Processing..." : `Reassign to ${conflictData.targetClass.className} - Section ${conflictData.targetClass.section}`}
+              </button>
+              
+              <button 
+                className="remove-btn"
+                onClick={handleRemoveStudent}
+                disabled={loading}
+              >
+                {loading ? "Processing..." : "Remove from Current Class"}
+              </button>
+              
+              <button 
+                className="cancel-btn"
+                onClick={() => {
+                  setShowConflictModal(false);
+                  setConflictData(null);
+                }}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer />
     </div>

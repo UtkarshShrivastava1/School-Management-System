@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FaArrowLeft } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./TrackStudentAttendance.css";
 
 const TrackStudentAttendance = () => {
@@ -27,17 +27,25 @@ const TrackStudentAttendance = () => {
     try {
       const queryParams = [];
 
-      if (studentID) queryParams.push(`studentID=${studentID}`);
-      if (studentName) queryParams.push(`studentName=${studentName}`);
+      if (studentID.trim()) queryParams.push(`studentID=${encodeURIComponent(studentID.trim())}`);
+      if (studentName.trim()) queryParams.push(`studentName=${encodeURIComponent(studentName.trim())}`);
       if (month) queryParams.push(`month=${month}`);
       if (year) queryParams.push(`year=${year}`);
       if (selectedDate) {
-        const formattedDate = selectedDate.toISOString().split("T")[0];
+        // Format date in local timezone to avoid UTC conversion issues
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
         queryParams.push(`date=${formattedDate}`);
       }
 
       const queryString =
         queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
+
+      console.log("Selected date:", selectedDate);
+      console.log("Formatted date:", selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : 'None');
+      console.log("Fetching attendance with query:", queryString);
 
       const response = await axios.get(
         `${API_URL}/api/admin/auth/student-attendance-records${queryString}`,
@@ -48,9 +56,16 @@ const TrackStudentAttendance = () => {
         }
       );
 
+      console.log("Attendance response:", response.data);
       setAttendance(response.data.data || []);
-      toast.success("Attendance records fetched successfully!");
+      
+      if (response.data.data && response.data.data.length > 0) {
+        toast.success(`Found ${response.data.data.length} attendance records!`);
+      } else {
+        toast.info("No attendance records found for the selected filters.");
+      }
     } catch (error) {
+      console.error("Error fetching attendance:", error);
       setAttendance([]);
       toast.error(
         error.response?.data?.message || "Failed to fetch attendance records."
@@ -59,8 +74,9 @@ const TrackStudentAttendance = () => {
   }, [API_URL, studentID, studentName, month, year, selectedDate]);
 
   useEffect(() => {
+    // Only fetch on component mount
     fetchStudentsAttendanceRecord();
-  }, [fetchStudentsAttendanceRecord]);
+  }, []); // Empty dependency array
 
   const handleBack = () => navigate("/admin/student-attendance");
 
@@ -130,6 +146,26 @@ const TrackStudentAttendance = () => {
             dateFormat="yyyy-MM-dd"
           />
         </div>
+        <div className="filter-actions">
+          <button 
+            onClick={fetchStudentsAttendanceRecord}
+            className="search-btn"
+          >
+            Search
+          </button>
+          <button 
+            onClick={() => {
+              setStudentID("");
+              setStudentName("");
+              setMonth("");
+              setYear("");
+              setSelectedDate(new Date());
+            }}
+            className="clear-btn"
+          >
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       {/* Display Attendance Records */}
@@ -141,6 +177,7 @@ const TrackStudentAttendance = () => {
               <tr>
                 <th>Student ID</th>
                 <th>Name</th>
+                <th>Class</th>
                 <th>Status</th>
                 <th>Remarks</th>
                 <th>Date</th>
@@ -151,6 +188,7 @@ const TrackStudentAttendance = () => {
                 <tr key={index}>
                   <td>{record.student?.studentID || "N/A"}</td>
                   <td>{record.student?.name || "N/A"}</td>
+                  <td>{record.className && record.section ? `${record.className} - Section ${record.section}` : "N/A"}</td>
                   <td>{record.status}</td>
                   <td>{record.remarks || "N/A"}</td>
                   <td>{new Date(record.date).toLocaleDateString()}</td>
