@@ -14,11 +14,17 @@ import {
   FaExclamationTriangle,
   FaClock,
   FaRupeeSign,
-  FaSearch
+  FaSearch,
+  FaHistory
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { Row, Col, Card, Spinner, ProgressBar, Form } from "react-bootstrap";
 import "./ManageClassFees.css";
+import { parseDate, formatDate, isAfter, isBefore, isSameDay } from '../../../../../utils/dateUtils';
+import StudentPaymentHistory from '../../../../../components/Admin/StudentPaymentHistory';
+
+// feeDetails is a plain JS object: { [classId]: { ...fee info } }
+// Always access as student.feeDetails[classId]
 
 const ManageClassFees = () => {
   const [classes, setClasses] = useState([]);
@@ -36,11 +42,31 @@ const ManageClassFees = () => {
     lateFeePerDay: "",
     feeDueDate: ""
   });
+  
+  // Payment history modal state
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  const [classFeeRecords, setClassFeeRecords] = useState([]);
+  
   const navigate = useNavigate();
 
   const API_URL = process.env.REACT_APP_NODE_ENV === "production"
     ? process.env.REACT_APP_PRODUCTION_URL
     : process.env.REACT_APP_DEVELOPMENT_URL || "http://localhost:5000";
+
+  // Helper function to safely access fee details from Map structure
+  const getFeeDetails = (student, classId) => {
+    if (!student.feeDetails) return null;
+    
+    // Handle both Map and plain object structures
+    if (student.feeDetails instanceof Map) {
+      return student.feeDetails.get(classId) || null;
+    } else if (typeof student.feeDetails === 'object') {
+      return student.feeDetails[classId] || null;
+    }
+    return null;
+  };
 
   useEffect(() => {
     fetchClasses();
@@ -49,6 +75,7 @@ const ManageClassFees = () => {
   const fetchClasses = async () => {
     try {
       setLoading(true);
+      setError("");
       console.log('Fetching classes from:', `${API_URL}/api/admin/auth/classes`);
       
       const response = await axios.get(
@@ -157,92 +184,6 @@ const ManageClassFees = () => {
     };
   };
 
-  const calculateFeeDetails = (student, classData) => {
-    if (!classData) return null;
-
-    const baseFee = Number(classData.baseFee) || 0;
-    const monthlyFee = calculateMonthlyFee(baseFee);
-    const lateFeePerDay = Number(classData.lateFeePerDay) || 0;
-    const dueDate = classData.feeDueDate ? new Date(classData.feeDueDate) : null;
-    const today = new Date();
-    const currentMonth = getCurrentMonth();
-    
-    // Get fee details for this class
-    const classId = classData._id.toString();
-    const feeDetails = student.feeDetails?.get?.(classId) || {};
-    
-    // If fee is already paid or under process, return those details
-    if (feeDetails.status === 'paid' || feeDetails.status === 'under_process') {
-      return {
-        ...feeDetails,
-        classFee: baseFee,
-        monthlyFee: monthlyFee,
-        totalAmount: feeDetails.totalAmount || monthlyFee,
-        lateFeeAmount: feeDetails.lateFeeAmount || 0,
-        status: feeDetails.status,
-        dueDate: feeDetails.dueDate || (dueDate ? dueDate.toISOString() : null),
-        lastUpdated: feeDetails.lastUpdated || new Date().toISOString(),
-        paymentDate: feeDetails.paymentDate,
-        paymentMethod: feeDetails.paymentMethod,
-        transactionId: feeDetails.transactionId,
-        paidMonth: feeDetails.paidMonth || currentMonth.month,
-        paidYear: feeDetails.paidYear || currentMonth.year,
-        paymentApproval: feeDetails.paymentApproval
-      };
-    }
-    
-    // If fee is cancelled, return cancelled status
-    if (feeDetails.status === 'cancelled') {
-      return {
-        ...feeDetails,
-        classFee: baseFee,
-        monthlyFee: monthlyFee,
-        totalAmount: monthlyFee,
-        lateFeeAmount: 0,
-        status: 'cancelled',
-        dueDate: feeDetails.dueDate || (dueDate ? dueDate.toISOString() : null),
-        lastUpdated: feeDetails.lastUpdated || new Date().toISOString(),
-        rejectionReason: feeDetails.rejectionReason,
-        paymentApproval: feeDetails.paymentApproval
-      };
-    }
-    
-    // Calculate late fee and status for pending fees
-    let lateFeeAmount = 0;
-    let status = 'pending';
-    
-    if (dueDate) {
-      const diffDays = Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24));
-      if (diffDays > 0) {
-        lateFeeAmount = diffDays * lateFeePerDay;
-        status = 'overdue';
-      }
-    }
-    
-    return {
-      ...feeDetails,
-      classFee: baseFee,
-      monthlyFee: monthlyFee,
-      totalAmount: monthlyFee + lateFeeAmount,
-      lateFeeAmount: lateFeeAmount,
-      status: status,
-      dueDate: dueDate ? dueDate.toISOString() : null,
-      lastUpdated: new Date().toISOString(),
-      currentMonth: currentMonth.month,
-      currentYear: currentMonth.year
-    };
-  };
-
-  const updateFeeStatus = (students, classData) => {
-    return students.map(student => {
-      const feeDetails = calculateFeeDetails(student, classData);
-      return {
-        ...student,
-        feeDetails
-      };
-    });
-  };
-
   const handleClassSelect = async (classData) => {
     try {
       setSelectedClass(classData);
@@ -273,48 +214,59 @@ const ManageClassFees = () => {
       );
       
       console.log('Students API Response:', response.data);
+      console.log('Response data structure:', {
+        hasData: !!response.data,
+        hasDataArray: !!response.data.data,
+        dataLength: response.data.data?.length,
+        firstStudent: response.data.data?.[0]
+      });
       
-      const currentClass = classes.find(c => c._id === classId || c.classId === classId);
+      const currentClass = classes.find(c => c._id === classId);
       
       if (!currentClass) {
         throw new Error("Class data not found");
       }
 
-      if (!response.data || !Array.isArray(response.data.data)) {
-        throw new Error("Invalid API response format");
+      if (!response.data) {
+        toast.error('No data received from server.');
+        setStudents([]);
+        return;
+      }
+
+      if (!Array.isArray(response.data.data)) {
+        console.error('Invalid response format:', response.data);
+        toast.error('Invalid API response format. Please try refreshing.');
+        setStudents([]);
+        return;
+      }
+
+      if (response.data.data.length === 0) {
+        console.log('No students found for class:', classId);
+        toast.info(`No students found in ${currentClass.className}. Please add students to this class first.`);
+        setStudents([]);
+        return;
       }
 
       const updatedStudents = response.data.data.map(student => {
-        const existingFeeDetails = student.feeDetails || {};
-        const calculatedFeeDetails = calculateFeeDetails(student, currentClass);
+        // The backend now returns feeDetails directly, not wrapped in an object
+        const feeDetails = student.feeDetails || {
+          status: 'pending',
+          lastUpdated: new Date().toISOString(),
+          monthlyFee: currentClass.baseFee ? currentClass.baseFee / 12 : 0,
+          totalAmount: currentClass.baseFee || 0,
+          dueDate: currentClass.feeDueDate,
+          lateFeePerDay: currentClass.lateFeePerDay || 0
+        };
         
-        if (!calculatedFeeDetails) return student;
-
-        // Preserve the original status if it's paid, under_process, or cancelled
-        let status = calculatedFeeDetails.status;
-        if (existingFeeDetails.status === 'paid' || 
-            existingFeeDetails.status === 'under_process' || 
-            existingFeeDetails.status === 'cancelled') {
-          status = existingFeeDetails.status;
-        }
-
         return {
           ...student,
           classId: currentClass.classId,
-          feeDetails: {
-            ...calculatedFeeDetails,
-            status,
-            lastUpdated: new Date().toISOString(),
-            paymentDate: existingFeeDetails.paymentDate,
-            paymentMethod: existingFeeDetails.paymentMethod,
-            transactionId: existingFeeDetails.transactionId,
-            rejectionReason: existingFeeDetails.rejectionReason,
-            paymentApproval: existingFeeDetails.paymentApproval
-          }
+          feeDetails: feeDetails
         };
       });
       
       console.log('Updated Students with Fee Details:', updatedStudents);
+      console.log('Sample student fee details:', updatedStudents[0]?.feeDetails);
       setStudents(updatedStudents);
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -325,9 +277,79 @@ const ManageClassFees = () => {
     }
   };
 
+  // Helper to update all current month Fee records for the class
+  const updateCurrentMonthFeesForClass = async () => {
+    if (!selectedClass) return;
+    try {
+      setUpdating(true);
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      // Fetch all current month fee records for the class
+      const feeRes = await axios.get(
+        `${API_URL}/api/fees/class/${selectedClass._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const feeRecords = feeRes.data || [];
+      // For each fee record for the current month/year, PATCH it
+      await Promise.all(feeRecords.map(async (fee) => {
+        const feeDate = new Date(fee.dueDate);
+        if (
+          feeDate.getMonth() + 1 === currentMonth &&
+          feeDate.getFullYear() === currentYear
+        ) {
+          await axios.patch(
+            `${API_URL}/api/fees/${fee._id}`,
+            {
+              amount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
+              totalAmount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
+              dueDate: feeSettings.feeDueDate,
+              // Optionally update lateFeePerDay if stored in Fee model
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+        }
+      }));
+      toast.success("All current month fee records updated to match new settings");
+      await fetchClassFeeRecords(selectedClass._id);
+      await fetchStudents(selectedClass._id);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update current month fee records");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleFeeUpdate = async (e) => {
     e.preventDefault();
-    if (!selectedClass) return;
+    if (!selectedClass) {
+      toast.error("Please select a class first");
+      return;
+    }
+
+    // Validate required fields
+    if (!feeSettings.baseFee || feeSettings.baseFee <= 0) {
+      toast.error("Base fee must be greater than 0");
+      return;
+    }
+
+    if (!feeSettings.lateFeePerDay || feeSettings.lateFeePerDay < 0) {
+      toast.error("Late fee per day cannot be negative");
+      return;
+    }
+
+    if (!feeSettings.feeDueDate) {
+      toast.error("Fee due date is required");
+      return;
+    }
 
     try {
       setUpdating(true);
@@ -354,43 +376,26 @@ const ManageClassFees = () => {
           lateFeePerDay: Number(feeSettings.lateFeePerDay),
           feeDueDate: feeSettings.feeDueDate
         };
-        
-        // Update the class in the classes list
         setClasses(classes.map(c => 
           c._id === selectedClass._id ? updatedClass : c
         ));
-        
         // Update student fee details locally
         const updatedStudents = students.map(student => {
           const existingFeeDetails = student.feeDetails || {};
-          const calculatedFeeDetails = calculateFeeDetails(student, updatedClass);
-          
-          if (!calculatedFeeDetails) return student;
-
-          let status = 'pending';
-          if (existingFeeDetails.status === 'paid') {
-            status = 'paid';
-          } else if (calculatedFeeDetails.status === 'overdue') {
-            status = 'overdue';
-          } else {
-            status = 'pending';
-          }
-
           return {
             ...student,
             feeDetails: {
-              ...calculatedFeeDetails,
-              status,
+              ...existingFeeDetails,
+              status: existingFeeDetails.status || 'pending',
               lastUpdated: new Date().toISOString()
             }
           };
         });
-        
-        // Update the students state
         setStudents(updatedStudents);
         setSelectedClass(updatedClass);
-        
-        toast.success("Fee settings updated successfully");
+        toast.success(`Fee settings updated successfully for ${selectedClass.className}. ${students.length} students affected.`);
+        // Automatically update all current month Fee records for the class
+        await updateCurrentMonthFeesForClass();
       } else {
         throw new Error("Invalid response from server");
       }
@@ -458,45 +463,23 @@ const ManageClassFees = () => {
 
     const currentMonth = getCurrentMonth();
     const total = students.length;
-    const paid = students.filter(s => 
-      s.feeDetails?.status === "paid" && 
-      s.feeDetails?.paidMonth === currentMonth.month &&
-      s.feeDetails?.paidYear === currentMonth.year
-    ).length;
-    const pending = students.filter(s => 
-      s.feeDetails?.status === "pending" && 
-      s.feeDetails?.currentMonth === currentMonth.month &&
-      s.feeDetails?.currentYear === currentMonth.year
-    ).length;
-    const overdue = students.filter(s => 
-      s.feeDetails?.status === "overdue" && 
-      s.feeDetails?.currentMonth === currentMonth.month &&
-      s.feeDetails?.currentYear === currentMonth.year
-    ).length;
+    
+    // Count students by status (simplified logic)
+    const paid = students.filter(s => s.feeDetails?.status === "paid").length;
+    const pending = students.filter(s => s.feeDetails?.status === "pending").length;
+    const overdue = students.filter(s => s.feeDetails?.status === "overdue").length;
 
     const monthlyTotal = students.reduce((sum, student) => 
       sum + (student.feeDetails?.monthlyFee || 0), 0
     );
     const paidAmount = students
-      .filter(s => 
-        s.feeDetails?.status === "paid" && 
-        s.feeDetails?.paidMonth === currentMonth.month &&
-        s.feeDetails?.paidYear === currentMonth.year
-      )
+      .filter(s => s.feeDetails?.status === "paid")
       .reduce((sum, student) => sum + (student.feeDetails?.totalAmount || 0), 0);
     const pendingAmount = students
-      .filter(s => 
-        s.feeDetails?.status === "pending" && 
-        s.feeDetails?.currentMonth === currentMonth.month &&
-        s.feeDetails?.currentYear === currentMonth.year
-      )
+      .filter(s => s.feeDetails?.status === "pending")
       .reduce((sum, student) => sum + (student.feeDetails?.totalAmount || 0), 0);
     const overdueAmount = students
-      .filter(s => 
-        s.feeDetails?.status === "overdue" && 
-        s.feeDetails?.currentMonth === currentMonth.month &&
-        s.feeDetails?.currentYear === currentMonth.year
-      )
+      .filter(s => s.feeDetails?.status === "overdue")
       .reduce((sum, student) => sum + (student.feeDetails?.totalAmount || 0), 0);
 
     console.log('Monthly Fee Statistics:', {
@@ -630,11 +613,54 @@ const ManageClassFees = () => {
     );
   };
 
+  // Fetch fee records for the selected class
+  const fetchClassFeeRecords = async (classId) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/fees/class/${classId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      if (Array.isArray(response.data)) {
+        setClassFeeRecords(response.data);
+      } else if (Array.isArray(response.data.data)) {
+        setClassFeeRecords(response.data.data);
+      } else {
+        setClassFeeRecords([]);
+      }
+    } catch (error) {
+      setClassFeeRecords([]);
+    }
+  };
+
+  // Fetch students and fee records when class changes
+  useEffect(() => {
+    if (selectedClass) {
+      fetchStudents(selectedClass._id);
+      fetchClassFeeRecords(selectedClass._id);
+    }
+    // eslint-disable-next-line
+  }, [selectedClass]);
+
+  // Helper to get latest fee status for a student from classFeeRecords
+  const getLatestFeeStatus = (studentId) => {
+    // Find the most recent fee record for this student in this class
+    const records = classFeeRecords.filter(fee => fee.student?._id === studentId);
+    if (records.length === 0) return null;
+    // Sort by dueDate descending
+    records.sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
+    return records[0];
+  };
+
   // Add refresh interval for fee status updates
   useEffect(() => {
     const refreshInterval = setInterval(() => {
       if (selectedClass) {
         fetchStudents(selectedClass._id);
+        fetchClassFeeRecords(selectedClass._id);
       }
     }, 30000); // Refresh every 30 seconds
 
@@ -645,20 +671,86 @@ const ManageClassFees = () => {
   const refreshStudentData = async () => {
     if (selectedClass) {
       await fetchStudents(selectedClass._id);
+      await fetchClassFeeRecords(selectedClass._id);
     }
+  };
+
+  const handleViewPaymentHistory = (student) => {
+    setSelectedStudent(student);
+    setShowPaymentHistory(true);
+  };
+
+  const handleClosePaymentHistory = () => {
+    setShowPaymentHistory(false);
+    setSelectedStudent(null);
   };
 
   // Add event listener for fee status updates
   useEffect(() => {
-    const handleFeeUpdate = () => {
-      refreshStudentData();
+    const handleFeeStatusUpdated = () => {
+      if (selectedClass) {
+        fetchStudents(selectedClass._id);
+        fetchClassFeeRecords(selectedClass._id);
+      }
     };
-
-    window.addEventListener('feeStatusUpdated', handleFeeUpdate);
+    window.addEventListener('feeStatusUpdated', handleFeeStatusUpdated);
     return () => {
-      window.removeEventListener('feeStatusUpdated', handleFeeUpdate);
+      window.removeEventListener('feeStatusUpdated', handleFeeStatusUpdated);
     };
   }, [selectedClass]);
+
+  // Helper to get the fee record for the current month/year for a student
+  const getCurrentMonthFee = (studentId) => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    // Find a fee record for this student in this class for the current month/year
+    return classFeeRecords.find(fee => {
+      const feeDate = new Date(fee.dueDate);
+      return (
+        fee.student?._id === studentId &&
+        feeDate.getMonth() + 1 === currentMonth &&
+        feeDate.getFullYear() === currentYear
+      );
+    });
+  };
+
+  // Helper to generate a missing fee record for a student
+  const generateFeeForStudent = async (studentId) => {
+    if (!selectedClass) return;
+    try {
+      setLoading(true);
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      const dueDate = new Date(currentYear, now.getMonth(), selectedClass.feeDueDate ? new Date(selectedClass.feeDueDate).getDate() : 15);
+      await axios.post(
+        `${API_URL}/api/fees/`,
+        {
+          student: studentId,
+          class: selectedClass._id,
+          academicYear: currentYear.toString(),
+          feeType: "monthly",
+          amount: selectedClass.baseFee ? selectedClass.baseFee / 12 : 0,
+          dueDate,
+          status: "pending",
+          totalAmount: selectedClass.baseFee ? selectedClass.baseFee / 12 : 0,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      toast.success("Fee record generated for student");
+      await fetchClassFeeRecords(selectedClass._id);
+      await fetchStudents(selectedClass._id);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to generate fee record");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading && !selectedClass) {
     return (
@@ -680,7 +772,6 @@ const ManageClassFees = () => {
       </div>
 
       <ToastContainer position="top-right" autoClose={3000} />
-      
       <Row className="mt-4">
         <Col md={4}>
           <Card className="class-selection-card">
@@ -925,8 +1016,8 @@ const ManageClassFees = () => {
                 <h2>
                   <FaUsers /> Student Fee Details for {selectedClass.className}
                 </h2>
-                <div className="mb-3">
-                  <div className="input-group">
+                <div className="mb-3 d-flex justify-content-between align-items-center">
+                  <div className="input-group" style={{ maxWidth: '400px' }}>
                     <span className="input-group-text">
                       <FaSearch />
                     </span>
@@ -938,13 +1029,37 @@ const ManageClassFees = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
+                  <button 
+                    className="btn btn-outline-primary"
+                    onClick={refreshStudentData}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Refreshing...
+                      </>
+                    ) : (
+                      <>
+                        <FaCog /> Refresh Data
+                      </>
+                    )}
+                  </button>
                 </div>
+                
+                {loading ? (
+                  <div className="text-center py-4">
+                    <Spinner animation="border" variant="primary" />
+                    <p className="mt-2">Loading student data...</p>
+                  </div>
+                ) : (
                 <div className="table-responsive">
                   <table className="fee-table">
                     <thead>
                       <tr>
                         <th>Student ID</th>
                         <th>Name</th>
+                        <th>Month/Year</th>
                         <th>Monthly Fee</th>
                         <th>Total Amount</th>
                         <th>Due Date</th>
@@ -953,44 +1068,104 @@ const ManageClassFees = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStudents.map((student) => (
-                        <tr key={student._id}>
-                          <td>{student.studentID}</td>
-                          <td>{student.studentName}</td>
-                          <td>₹{student.feeDetails?.monthlyFee?.toFixed(2) || "0.00"}</td>
-                          <td>₹{student.feeDetails?.totalAmount?.toFixed(2) || "0.00"}</td>
-                          <td>
-                            <span className={`due-date ${getDueDateClass(student.feeDetails?.dueDate)}`}>
-                              {student.feeDetails?.dueDate 
-                                ? new Date(student.feeDetails.dueDate).toLocaleDateString() 
-                                : "Not set"}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`status-badge ${getStatusBadgeClass(student.feeDetails?.status)}`}>
-                              {student.feeDetails?.status || "pending"}
-                            </span>
-                          </td>
-                          <td>
-                            <button 
-                              className="action-button view" 
-                              onClick={() => navigate(`/admin/student/${student._id}`)}
-                            >
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredStudents.map((student) => {
+                        // Find all fee records for this student in this class
+                        const studentFees = classFeeRecords.filter(fee => fee.student?._id === student._id);
+                        // Prefer fee with due date matching the class's current feeDueDate
+                        let currentFee = null;
+                        if (selectedClass && selectedClass.feeDueDate) {
+                          const classDueDate = new Date(selectedClass.feeDueDate);
+                          currentFee = studentFees.find(fee => {
+                            const feeDue = new Date(fee.dueDate);
+                            return feeDue.getFullYear() === classDueDate.getFullYear() && feeDue.getMonth() === classDueDate.getMonth();
+                          });
+                        }
+                        // If not found, use the fee with the latest due date
+                        if (!currentFee && studentFees.length > 0) {
+                          currentFee = studentFees.reduce((latest, fee) => {
+                            return (!latest || new Date(fee.dueDate) > new Date(latest.dueDate)) ? fee : latest;
+                          }, null);
+                        }
+                        const now = new Date();
+                        let status, monthlyFee, totalAmount, dueDate, monthYear;
+                        if (currentFee) {
+                          status = currentFee.status || "pending";
+                          monthlyFee = currentFee.amount || 0;
+                          totalAmount = currentFee.totalAmount || 0;
+                          dueDate = currentFee.dueDate;
+                          const feeDate = new Date(currentFee.dueDate);
+                          monthYear = `${feeDate.toLocaleString('default', { month: 'short' })} ${feeDate.getFullYear()}`;
+                        } else {
+                          status = "No record";
+                          monthlyFee = "N/A";
+                          totalAmount = "N/A";
+                          dueDate = null;
+                          monthYear = selectedClass && selectedClass.feeDueDate ? `${new Date(selectedClass.feeDueDate).toLocaleString('default', { month: 'short' })} ${new Date(selectedClass.feeDueDate).getFullYear()}` : `${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()}`;
+                        }
+                        return (
+                          <tr key={student._id} className={!currentFee ? "missing-fee-record" : ""}>
+                            <td>{student.studentID}</td>
+                            <td>{student.studentName}</td>
+                            <td>{monthYear}</td>
+                            <td>{monthlyFee !== "N/A" ? ` ₹${Number(monthlyFee).toFixed(2)}` : <span className="text-danger">N/A</span>}</td>
+                            <td>{totalAmount !== "N/A" ? ` ₹${Number(totalAmount).toFixed(2)}` : <span className="text-danger">N/A</span>}</td>
+                            <td>
+                              <span className={`due-date ${getDueDateClass(dueDate)}`}>{dueDate ? new Date(dueDate).toLocaleDateString() : <span className="text-danger">N/A</span>}</span>
+                            </td>
+                            <td>
+                              <span className={`status-badge ${getStatusBadgeClass(status)}`}>{status}</span>
+                              {!currentFee && (
+                                <span className="text-danger ms-2">Missing</span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                <button 
+                                  className="action-button view" 
+                                  onClick={() => navigate(`/admin/student/${student._id}`)}
+                                >
+                                  View Details
+                                </button>
+                                <button 
+                                  className="action-button history" 
+                                  onClick={() => handleViewPaymentHistory(student)}
+                                  title="View Payment History"
+                                >
+                                  <FaHistory /> History
+                                </button>
+                                {!currentFee && (
+                                  <button
+                                    className="action-button generate"
+                                    onClick={() => generateFeeForStudent(student._id)}
+                                    title="Generate Fee Record"
+                                  >
+                                    Generate Fee
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </>
-          )}
-        </Col>
+              )}
+            </div>
+          </>
+        )}
+      </Col>
       </Row>
+      {/* Payment History Modal */}
+      <StudentPaymentHistory
+        show={showPaymentHistory}
+        onHide={handleClosePaymentHistory}
+        student={selectedStudent}
+        classData={selectedClass}
+        onRefresh={refreshStudentData}
+      />
     </div>
   );
 };
 
-export default ManageClassFees; 
+export default ManageClassFees;

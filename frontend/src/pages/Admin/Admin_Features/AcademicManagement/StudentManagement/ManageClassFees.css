@@ -445,6 +445,12 @@
   color: #e74c3c;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .action-button {
   padding: 8px 16px;
   border-radius: 8px;
@@ -453,12 +459,21 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  min-width: fit-content;
 }
 
 .action-button.view {
   background: #e3f2fd;
   color: #3498db;
+}
+
+.action-button.history {
+  background: #f3e5f5;
+  color: #9b59b6;
 }
 
 .action-button.edit {
@@ -469,6 +484,21 @@
 .action-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.action-button.view:hover {
+  background: #bbdefb;
+  color: #1976d2;
+}
+
+.action-button.history:hover {
+  background: #e1bee7;
+  color: #7b1fa2;
+}
+
+.action-button.edit:hover {
+  background: #ffe0b2;
+  color: #e65100;
 }
 
 /* Loading States */

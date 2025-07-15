@@ -1,0 +1,235 @@
+.payment-history-modal .modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.payment-history-modal .modal-header .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.payment-history-modal .modal-body {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.info-card {
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.info-card .card-body {
+  padding: 20px;
+}
+
+.info-card h6 {
+  color: #495057;
+  font-weight: 600;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 8px;
+}
+
+.current-fee-card {
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.current-fee-card .card-header {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  padding: 15px 20px;
+}
+
+.current-fee-card .card-header h6 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.fee-stat {
+  text-align: center;
+  padding: 10px;
+}
+
+.fee-stat label {
+  display: block;
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: 500;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fee-stat .amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #28a745;
+  display: block;
+}
+
+.fee-stat span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  display: block;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge svg {
+  font-size: 10px;
+}
+
+.payment-method {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.transaction-id {
+  background: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
+.amount-cell {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  background: #f8f9fa;
+  border-color: #dee2e6;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #495057;
+  padding: 12px 8px;
+}
+
+.table td {
+  padding: 12px 8px;
+  vertical-align: middle;
+  font-size: 13px;
+}
+
+.table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-outline-secondary {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: white;
+}
+
+.btn-outline-primary {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.btn-outline-primary:hover {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .payment-history-modal .modal-dialog {
+    margin: 10px;
+  }
+  
+  .payment-history-modal .modal-body {
+    padding: 15px;
+  }
+  
+  .fee-stat {
+    margin-bottom: 15px;
+  }
+  
+  .table-responsive {
+    font-size: 12px;
+  }
+  
+  .table th,
+  .table td {
+    padding: 8px 4px;
+  }
+}
+
+/* Loading and error states */
+.text-center.py-5 {
+  color: #6c757d;
+}
+
+.text-center.py-5 svg {
+  margin-bottom: 10px;
+}
+
+/* Animation for refresh button */
+.btn-outline-primary:disabled svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Custom scrollbar for modal body */
+.payment-history-modal .modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.payment-history-modal .modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.payment-history-modal .modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.payment-history-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+} 

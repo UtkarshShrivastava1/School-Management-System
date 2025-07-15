@@ -28,15 +28,11 @@ exports.createFee = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    // Validate class - try both by ID and classId
+    // Validate class - use only _id
     let classDoc = await Class.findById(classId);
     if (!classDoc) {
-      classDoc = await Class.findOne({ classId: classId });
-    }
-    if (!classDoc) {
       return res.status(404).json({ 
-        message: "Class not found",
-        details: "Please provide a valid class ID or class identifier"
+        message: "Class not found. Please provide a valid MongoDB _id as classId."
       });
     }
 
@@ -48,6 +44,25 @@ exports.createFee = async (req, res) => {
         studentId: student.studentID,
         className: classDoc.className
       });
+    }
+
+    // Validation for negative fee amounts and invalid dates
+    if (amount < 0) {
+      return res.status(400).json({ message: 'Fee amount cannot be negative.' });
+    }
+    if (dueDate && isNaN(Date.parse(dueDate))) {
+      return res.status(400).json({ message: 'Invalid due date.' });
+    }
+    // Check for duplicate fee record
+    const duplicateFee = await Fee.findOne({
+      student: studentId,
+      class: classDoc._id,
+      academicYear,
+      feeType,
+      dueDate
+    });
+    if (duplicateFee) {
+      return res.status(400).json({ message: 'Duplicate fee record for this student, class, and period.' });
     }
 
     // Create new fee record
@@ -145,8 +160,12 @@ exports.processPayment = async (req, res) => {
       return res.status(404).json({ message: "Fee record not found" });
     }
 
-    if (fee.status === "paid") {
-      return res.status(400).json({ message: "Fee already paid" });
+    // Prevent duplicate payments and accidental double submissions
+    if (fee.status === 'paid' || fee.status === 'under_process') {
+      return res.status(400).json({
+        success: false,
+        message: 'This fee has already been paid or is under process.'
+      });
     }
 
     // Here you would integrate with a payment gateway
@@ -175,13 +194,8 @@ exports.getFeeStatistics = async (req, res) => {
 
     const query = {};
     if (classId) {
-      // Try both by ID and classId
-      const classDoc = await Class.findOne({ 
-        $or: [
-          { _id: classId },
-          { classId: classId }
-        ]
-      });
+      // Use only _id for lookup
+      const classDoc = await Class.findById(classId);
       if (classDoc) {
         query.class = classDoc._id;
       }
@@ -239,6 +253,14 @@ exports.updateClassFee = async (req, res) => {
       });
     }
 
+    // Validation for negative fee amounts and invalid dates
+    if (baseFee < 0 || lateFeePerDay < 0) {
+      return res.status(400).json({ message: 'Base fee and late fee per day cannot be negative.' });
+    }
+    if (feeDueDate && isNaN(Date.parse(feeDueDate))) {
+      return res.status(400).json({ message: 'Invalid fee due date.' });
+    }
+
     // Find the class
     console.log("Finding class with ID:", classId);
     const classDoc = await Class.findById(classId);
@@ -250,6 +272,11 @@ exports.updateClassFee = async (req, res) => {
     }
 
     console.log("Found class:", classDoc.className);
+
+    // Optimistic concurrency control: require version match if provided
+    if (req.body.version !== undefined && req.body.version !== classDoc.version) {
+      return res.status(409).json({ message: 'Class was updated by another process. Please reload and try again.' });
+    }
 
     // Update class fee settings
     const oldBaseFee = classDoc.baseFee;
@@ -285,6 +312,20 @@ exports.updateClassFee = async (req, res) => {
     const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
     const currentYear = currentDate.getFullYear();
 
+    // Update all Fee records for this class and academic year
+    await Fee.updateMany(
+      { class: classId, academicYear: currentYear.toString() },
+      {
+        $set: {
+          amount: monthlyFee,
+          totalAmount: monthlyFee, // late fees for past due handled per record
+          lateFeeAmount: 0, // recalculate if needed
+          status: 'pending', // recalculate if needed
+          dueDate: classDoc.feeDueDate,
+        }
+      }
+    );
+
     // Update fee details for all students in this class
     console.log("Finding students for class:", classId);
     const students = await Student.find({ enrolledClasses: classId });
@@ -292,7 +333,7 @@ exports.updateClassFee = async (req, res) => {
 
     const updatePromises = students.map(async (student) => {
       try {
-        const dueDate = feeDueDate ? new Date(feeDueDate) : null;
+        const dueDate = feeDueDate ? new Date(feeDueDate) : classDoc.feeDueDate || null;
         
         let status = 'pending';
         let lateFeeAmount = 0;
@@ -303,13 +344,18 @@ exports.updateClassFee = async (req, res) => {
           status = 'overdue';
         }
 
-        // Check for existing fee record for this month
+        // Check for existing fee record for this month (by dueDate month/year)
         const existingFee = await Fee.findOne({
           student: student._id,
           class: classId,
           feeType: 'monthly',
           academicYear: currentYear.toString(),
-          dueDate: dueDate || new Date()
+          $expr: {
+            $and: [
+              { $eq: [{ $month: "$dueDate" }, dueDate.getMonth() + 1] },
+              { $eq: [{ $year: "$dueDate" }, dueDate.getFullYear()] }
+            ]
+          }
         });
 
         if (existingFee) {
@@ -317,7 +363,10 @@ exports.updateClassFee = async (req, res) => {
           existingFee.amount = monthlyFee;
           existingFee.totalAmount = monthlyFee + lateFeeAmount;
           existingFee.lateFeeAmount = lateFeeAmount;
-          existingFee.status = status;
+          // Only update status if not already paid, under_process, or cancelled
+          if (existingFee.status === 'pending' || existingFee.status === 'overdue') {
+            existingFee.status = status;
+          }
           await existingFee.save();
           console.log("Updated existing fee record for student:", student.studentID);
         } else {
@@ -328,7 +377,7 @@ exports.updateClassFee = async (req, res) => {
             academicYear: currentYear.toString(),
             feeType: "monthly",
             amount: monthlyFee,
-            dueDate: dueDate || new Date(),
+            dueDate: dueDate,
             status: status,
             totalAmount: monthlyFee + lateFeeAmount,
             lateFeeAmount: lateFeeAmount,
@@ -340,7 +389,13 @@ exports.updateClassFee = async (req, res) => {
         }
 
         // Get existing fee details for the class
-        const existingFeeDetails = student.feeDetails?.get?.(classId) || {};
+        let existingFeeDetails = {};
+        
+        if (student.feeDetails && student.feeDetails instanceof Map) {
+          existingFeeDetails = student.feeDetails.get(classId) || {};
+        } else if (student.feeDetails && typeof student.feeDetails === 'object') {
+          existingFeeDetails = student.feeDetails[classId] || {};
+        }
         
         // Update the student's fee details with enhanced information
         const updatedFeeDetails = {
@@ -371,6 +426,9 @@ exports.updateClassFee = async (req, res) => {
         // Add to fee history if there's a change
         if (existingFeeDetails.classFee !== Number(baseFee) || 
             existingFeeDetails.lateFeePerDay !== Number(lateFeePerDay)) {
+          if (!updatedFeeDetails.feeHistory) {
+            updatedFeeDetails.feeHistory = [];
+          }
           updatedFeeDetails.feeHistory.push({
             month: currentMonth,
             year: currentYear,
@@ -439,12 +497,11 @@ exports.handleFeeApproval = async (req, res) => {
       });
     }
 
-    // Allow both 'under_process' and 'pending' statuses
-    if (fee.status !== 'under_process' && fee.status !== 'pending') {
-      console.log('Invalid fee status:', fee.status);
-      return res.status(400).json({ 
+    // Only allow approval/rejection for 'under_process' or 'pending' statuses
+    if (!['under_process', 'pending'].includes(fee.status)) {
+      return res.status(400).json({
         success: false,
-        message: 'Fee is not pending approval' 
+        message: 'Only fees with status under_process or pending can be approved or rejected.'
       });
     }
 
@@ -477,9 +534,16 @@ exports.handleFeeApproval = async (req, res) => {
           const student = fee.student;
           const classId = fee.class._id.toString();
 
-          // Get existing fee details for the class
-          const existingFeeDetails = student.feeDetails?.get?.(classId) || {};
-          
+          // Robustly get existing fee details for the class
+          let existingFeeDetails = {};
+          if (student.feeDetails) {
+            if (typeof student.feeDetails.get === 'function') {
+              existingFeeDetails = student.feeDetails.get(classId) || {};
+            } else if (typeof student.feeDetails === 'object') {
+              existingFeeDetails = student.feeDetails[classId] || {};
+            }
+          }
+
           // Update the student's fee details
           const updatedFeeDetails = {
             ...existingFeeDetails,
@@ -499,18 +563,16 @@ exports.handleFeeApproval = async (req, res) => {
               approvedByRole: approverRole,
               approvedAt: new Date()
             }
+            // paymentHistory is intentionally not updated here
           };
 
-          // Update the student document using $set with the Map structure
-          const updatedStudent = await Student.findByIdAndUpdate(
-            student._id,
-            { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
-            { new: true }
-          );
-
-          if (!updatedStudent) {
-            throw new Error('Failed to update student fee details');
+          // Save feeDetails for both Map and plain object
+          if (typeof student.feeDetails.get === 'function') {
+            student.feeDetails.set(classId, updatedFeeDetails);
+          } else if (typeof student.feeDetails === 'object') {
+            student.feeDetails[classId] = updatedFeeDetails;
           }
+          await student.save();
 
           // Update all fee records for this student and class to reflect the paid status
           await Fee.updateMany(
@@ -983,24 +1045,27 @@ exports.getStudentFeeHistory = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    const feeDetails = student.feeDetails?.get?.(classId);
-    if (!feeDetails) {
-      return res.status(404).json({ message: "Fee details not found for this class" });
-    }
-
     // Get fee records from Fee collection
     const feeRecords = await Fee.find({
       student: studentId,
       class: classId
     }).sort({ dueDate: -1 });
 
+    // The most recent fee record is the current fee
+    const currentFee = feeRecords[0] || null;
+
+    // Payment history: all paid or under_process records
+    const paymentHistory = feeRecords.filter(fee => fee.status === 'paid' || fee.status === 'under_process');
+
+    // Fee history: all records (or you can customize as needed)
+    const feeHistory = feeRecords;
+
     res.status(200).json({
       message: "Student fee history retrieved successfully",
       data: {
-        currentFee: feeDetails,
-        feeHistory: feeDetails.feeHistory || [],
-        paymentHistory: feeDetails.paymentHistory || [],
-        feeRecords
+        currentFee,
+        feeHistory,
+        paymentHistory
       }
     });
   } catch (error) {
@@ -1064,4 +1129,17 @@ exports.getClassPaymentHistory = async (req, res) => {
     console.error('Error fetching class payment history:', error);
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+// Utility: Mark all future fees as cancelled if student leaves class mid-year
+exports.cancelFutureFeesForStudent = async (studentId, classId, fromDate) => {
+  await Fee.updateMany(
+    {
+      student: studentId,
+      class: classId,
+      dueDate: { $gt: fromDate },
+      status: { $in: ['pending', 'overdue'] }
+    },
+    { $set: { status: 'cancelled' } }
+  );
 }; 

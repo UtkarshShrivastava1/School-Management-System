@@ -22,20 +22,32 @@ router.get('/pending-approvals', verifyAdminOrTeacherToken, feeController.getPen
 router.post('/:feeId/approve', verifyAdminOrTeacherToken, feeController.handleFeeApproval);
 
 // Get fees by class
-router.get('/class/:classId', [verifyAdminToken, verifyTeacherToken], async (req, res) => {
+router.get('/class/:classId', verifyAdminOrTeacherToken, async (req, res) => {
     try {
-        const fees = await Fee.find({ class: req.params.classId })
-            .populate('student', 'name rollNumber')
-            .populate('class', 'name')
+        // Get all fee records for the class
+        const allFees = await Fee.find({ class: req.params.classId })
+            .populate('student', 'studentName studentID')
+            .populate('class', 'className classId')
             .populate('createdBy', 'name');
-        res.json(fees);
+
+        // Group by student and pick the latest by dueDate
+        const latestFeesMap = new Map();
+        allFees.forEach(fee => {
+            const studentId = fee.student._id.toString();
+            if (!latestFeesMap.has(studentId) || new Date(fee.dueDate) > new Date(latestFeesMap.get(studentId).dueDate)) {
+                latestFeesMap.set(studentId, fee);
+            }
+        });
+
+        const latestFees = Array.from(latestFeesMap.values());
+        res.json(latestFees);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
 // Get fees by student
-router.get('/student/:studentId', [verifyAdminToken, verifyTeacherToken], async (req, res) => {
+router.get('/student/:studentId', verifyAdminOrTeacherToken, async (req, res) => {
     try {
         const fees = await Fee.find({ student: req.params.studentId })
             .populate('student', 'name rollNumber')
@@ -48,7 +60,7 @@ router.get('/student/:studentId', [verifyAdminToken, verifyTeacherToken], async 
 });
 
 // Get fee by ID
-router.get('/:id', [verifyAdminToken, verifyTeacherToken], async (req, res) => {
+router.get('/:id', verifyAdminOrTeacherToken, async (req, res) => {
     try {
         const fee = await Fee.findById(req.params.id)
             .populate('student', 'name rollNumber')

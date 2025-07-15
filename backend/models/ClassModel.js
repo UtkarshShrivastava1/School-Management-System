@@ -138,7 +138,7 @@ const classSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: 'version' }
 );
 
 // Add a pre-save middleware to ensure unique students

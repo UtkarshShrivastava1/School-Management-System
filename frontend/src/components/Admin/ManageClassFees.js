@@ -65,7 +65,10 @@ import {
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import { format, isAfter, differenceInDays, addMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { parseDate, formatDate, isAfter, isBefore, isSameDay } from '../../utils/dateUtils';
+
+// feeDetails is a plain JS object: { [classId]: { ...fee info } }
+// Always access as student.feeDetails[classId]
 
 const ManageClassFees = () => {
   const theme = useTheme();
@@ -217,9 +220,14 @@ const ManageClassFees = () => {
         `http://localhost:5000/api/fees/class/${classId}/payment-history?month=${month}&year=${year}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      // Debug: Log the API response
+      console.log('Payment history API response:', response.data);
       setPaymentHistory(response.data.data || []);
     } catch (err) {
       setPaymentHistory([]);
+      // Debug: Log the error
+      console.error('Error fetching payment history:', err);
+      setError('Failed to fetch payment history. Please check your network or try again.');
     } finally {
       setPaymentLoading(false);
     }
@@ -231,7 +239,7 @@ const ManageClassFees = () => {
       ...classData,
       baseFee: classData.baseFee || 0,
       lateFeePerDay: classData.lateFeePerDay || 0,
-      feeDueDate: classData.feeDueDate ? format(new Date(classData.feeDueDate), 'yyyy-MM-dd') : ''
+      feeDueDate: classData.feeDueDate ? formatDate(classData.feeDueDate) : ''
     });
     
     // Set enhanced fee settings
@@ -256,7 +264,7 @@ const ManageClassFees = () => {
       ...selectedClass,
       baseFee: selectedClass.baseFee || 0,
       lateFeePerDay: selectedClass.lateFeePerDay || 0,
-      feeDueDate: selectedClass.feeDueDate ? format(new Date(selectedClass.feeDueDate), 'yyyy-MM-dd') : ''
+      feeDueDate: selectedClass.feeDueDate ? formatDate(selectedClass.feeDueDate) : ''
     });
   };
 
@@ -275,38 +283,17 @@ const ManageClassFees = () => {
     }));
   };
 
-  const calculateOverdueFees = (baseFee, lateFeePerDay, dueDate) => {
-    if (!dueDate) return baseFee;
-    
-    const currentDate = new Date();
-    const dueDateObj = new Date(dueDate);
-    
-    if (isAfter(currentDate, dueDateObj)) {
-      const daysLate = differenceInDays(currentDate, dueDateObj);
-      return baseFee + (daysLate * lateFeePerDay);
-    }
-    
-    return baseFee;
-  };
-
   const handleUpdateClassFee = async () => {
     try {
       setLoading(true);
       setUpdateProgress(0);
       
-      // Calculate total amount with overdue fees
-      const totalAmount = calculateOverdueFees(
-        Number(editedClass.baseFee),
-        Number(editedClass.lateFeePerDay),
-        editedClass.feeDueDate
-      );
-
       const response = await axios.post('http://localhost:5000/api/admin/auth/class-fee/update', {
         classId: selectedClass._id,
         baseFee: Number(editedClass.baseFee),
         lateFeePerDay: Number(editedClass.lateFeePerDay),
         feeDueDate: editedClass.feeDueDate,
-        totalAmount: totalAmount,
+        totalAmount: 0,
         reason: 'Fee settings updated by admin',
         feeSettings: enhancedFeeSettings
       });
@@ -622,7 +609,7 @@ const ManageClassFees = () => {
                               Due Date
                             </Typography>
                             <Typography variant="h6">
-                              {selectedClass.feeDueDate ? format(new Date(selectedClass.feeDueDate), 'MMM dd, yyyy') : 'Not set'}
+                              {selectedClass.feeDueDate ? formatDate(selectedClass.feeDueDate) : 'Not set'}
                             </Typography>
                           </Grid>
                           <Grid item xs={12}>
@@ -706,11 +693,6 @@ const ManageClassFees = () => {
                           <TableBody>
                             {filteredStudents.map((student) => {
                               const feeDetails = student.feeDetails?.[selectedClass._id];
-                              const totalAmount = calculateOverdueFees(
-                                selectedClass.baseFee,
-                                selectedClass.lateFeePerDay,
-                                feeDetails?.dueDate || selectedClass.feeDueDate
-                              );
                               
                               return (
                                 <TableRow 
@@ -737,7 +719,7 @@ const ManageClassFees = () => {
                                         fontWeight: 'bold'
                                       }}
                                     >
-                                      ${totalAmount}
+                                      ${feeDetails?.totalAmount || 0}
                                     </Typography>
                                   </TableCell>
                                   <TableCell>
@@ -745,14 +727,14 @@ const ManageClassFees = () => {
                                   </TableCell>
                                   <TableCell>
                                     {feeDetails?.dueDate
-                                      ? format(new Date(feeDetails.dueDate), 'MMM dd, yyyy')
+                                      ? formatDate(feeDetails.dueDate)
                                       : selectedClass.feeDueDate
-                                      ? format(new Date(selectedClass.feeDueDate), 'MMM dd, yyyy')
+                                      ? formatDate(selectedClass.feeDueDate)
                                       : 'Not set'}
                                   </TableCell>
                                   <TableCell>
                                     {feeDetails?.lastUpdated
-                                      ? format(new Date(feeDetails.lastUpdated), 'MMM dd, yyyy')
+                                      ? formatDate(feeDetails.lastUpdated)
                                       : 'Never'}
                                   </TableCell>
                                 </TableRow>
@@ -824,7 +806,7 @@ const ManageClassFees = () => {
                               </ListItemIcon>
                               <ListItemText
                                 primary={`Base Fee: $${history.baseFee} | Late Fee: $${history.lateFeePerDay}/day`}
-                                secondary={`Updated on ${format(new Date(history.updatedAt), 'MMM dd, yyyy HH:mm')} by ${history.updatedBy?.adminName || 'Admin'}${history.reason ? ` - ${history.reason}` : ''}`}
+                                secondary={`Updated on ${formatDate(history.updatedAt)} by ${history.updatedBy?.adminName || 'Admin'}${history.reason ? ` - ${history.reason}` : ''}`}
                               />
                             </ListItem>
                           ))}
@@ -1058,8 +1040,8 @@ const ManageClassFees = () => {
                                 <TableCell>{rec.student?.studentName}</TableCell>
                                 <TableCell>${rec.totalAmount}</TableCell>
                                 <TableCell>{rec.status}</TableCell>
-                                <TableCell>{rec.dueDate ? format(new Date(rec.dueDate), 'MMM dd, yyyy') : ''}</TableCell>
-                                <TableCell>{rec.paymentDate ? format(new Date(rec.paymentDate), 'MMM dd, yyyy') : '-'}</TableCell>
+                                <TableCell>{rec.dueDate ? formatDate(rec.dueDate) : ''}</TableCell>
+                                <TableCell>{rec.paymentDate ? formatDate(rec.paymentDate) : '-'}</TableCell>
                                 <TableCell>${rec.lateFeeAmount || 0}</TableCell>
                                 <TableCell>{rec.receiptNumber || rec.transactionId || '-'}</TableCell>
                               </TableRow>
@@ -1104,6 +1086,11 @@ const ManageClassFees = () => {
                         </Select>
                       </FormControl>
                     </Box>
+                    {error && (
+                      <Paper sx={{ p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
+                        {error}
+                      </Paper>
+                    )}
                     {(!paymentMonth || !paymentYear) ? (
                       <Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
                         Please select a month and year to view payment history.
@@ -1133,11 +1120,11 @@ const ManageClassFees = () => {
                           <TableBody>
                             {paymentHistory.map((rec, idx) => (
                               <TableRow key={rec._id || idx}>
-                                <TableCell>{rec.student?.studentID}</TableCell>
-                                <TableCell>{rec.student?.studentName}</TableCell>
-                                <TableCell>${rec.totalAmount}</TableCell>
-                                <TableCell>{rec.status}</TableCell>
-                                <TableCell>{rec.paymentDate ? format(new Date(rec.paymentDate), 'MMM dd, yyyy') : '-'}</TableCell>
+                                <TableCell>{rec.student?.studentID || '-'}</TableCell>
+                                <TableCell>{rec.student?.studentName || '-'}</TableCell>
+                                <TableCell>{rec.totalAmount !== undefined ? `$${rec.totalAmount}` : '-'}</TableCell>
+                                <TableCell>{rec.status || '-'}</TableCell>
+                                <TableCell>{rec.paymentDate ? formatDate(rec.paymentDate) : '-'}</TableCell>
                                 <TableCell>{rec.paymentMethod || '-'}</TableCell>
                                 <TableCell>{rec.receiptNumber || rec.transactionId || '-'}</TableCell>
                               </TableRow>

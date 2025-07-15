@@ -709,30 +709,38 @@ exports.getStudentsByClass = async (req, res) => {
     const students = await Student.find({
       enrolledClasses: classId
     })
-    .select("studentName studentID feeDetails")
-    .lean();
+    .select("studentName studentID feeDetails");
       
-    // Format the response to include all fee details
+        // Format the response to include all fee details
     const formattedStudents = students.map(student => {
-      // Get fee details for this specific class
-      const classFeeDetails = student.feeDetails && student.feeDetails[classId] 
-        ? student.feeDetails[classId] 
-        : {
-            classFee: classDoc.baseFee || 0,
-            totalAmount: classDoc.baseFee || 0,
-            status: 'pending',
-            lastUpdated: new Date(),
-            dueDate: classDoc.feeDueDate || null,
-            lateFeePerDay: classDoc.lateFeePerDay || 0
-          };
+      // Get fee details for this specific class from Map structure
+      let classFeeDetails = null;
+      
+      if (student.feeDetails && student.feeDetails instanceof Map) {
+        classFeeDetails = student.feeDetails.get(classId);
+      } else if (student.feeDetails && typeof student.feeDetails === 'object') {
+        // Handle both Map-like objects and plain objects
+        classFeeDetails = student.feeDetails[classId] || student.feeDetails.get?.(classId);
+      }
+      
+      // If no fee details found, create default ones
+      if (!classFeeDetails) {
+        classFeeDetails = {
+          classFee: classDoc.baseFee || 0,
+          monthlyFee: classDoc.baseFee ? classDoc.baseFee / 12 : 0,
+          totalAmount: classDoc.baseFee || 0,
+          status: 'pending',
+          lastUpdated: new Date(),
+          dueDate: classDoc.feeDueDate || null,
+          lateFeePerDay: classDoc.lateFeePerDay || 0
+        };
+      }
 
       return {
         _id: student._id,
         studentName: student.studentName,
         studentID: student.studentID,
-        feeDetails: {
-          [classId]: classFeeDetails
-        }
+        feeDetails: classFeeDetails // Return the fee details directly, not wrapped in an object
       };
     });
 
