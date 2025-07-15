@@ -5,12 +5,12 @@
 //On successful submission, the user is redirected to the manage classes page
 //Error and success messages are displayed using toast notifications
 
-import React, { useState, useEffect } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft } from "react-icons/fa";
 import "./CreateClass.css";
 
 const CreateClass = () => {
@@ -95,10 +95,12 @@ const CreateClass = () => {
     }
     try {
       const payload = {
-        standardName: `Class ${standardName.trim()}`,
+        className: `Class ${standardName.trim()}`,
+        classId: `CLASS_CLASS_${standardName.trim()}_${section.trim()}`,
         section: section.trim(),
         classStrength: parseInt(classStrength, 10),
         subjects,
+        teachers: subjects.map(subj => subj.teacherId), // Collect all teacherIds from subjects
       };
 
       const response = await axios.post(

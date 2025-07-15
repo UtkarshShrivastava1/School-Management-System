@@ -483,8 +483,9 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
                   <Form.Control
                     type="date"
                     name="dob"
-                    value={formData.dob ? formatDateToInput(formData.dob) : ''}
+                    value={formData.dob ? formData.dob.slice(0, 10) : ""}
                     onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </Form.Group>
               </Col>

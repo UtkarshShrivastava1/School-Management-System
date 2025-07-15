@@ -51,6 +51,8 @@ const {
   fetchTeacherAttendanceRecords,
 } = require("../controllers/TeacherAttendanceController");
 const feeController = require("../controllers/feeController");
+const mongoose = require("mongoose"); // At the top if not already imported
+
 // Set up multer for file storage (handling file uploads)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -565,7 +567,70 @@ router.post(
 
 //================================================================================================
 //================================================================================================
-router.post("/createclass", verifyAdminToken, createClass);
+router.post("/createclass", verifyAdminToken, async (req, res) => {
+  try {
+    const { className, classId, section, classStrength } = req.body;
+    let { subjects, teachers } = req.body;
+
+    // Check for duplicate class (compound unique: className + section)
+    const existingClass = await Class.findOne({ className, section });
+    if (existingClass) {
+      return res.status(400).json({ message: "A class with this name and section already exists." });
+    }
+
+    // Defensive: If frontend sends a single object instead of array
+    subjects = Array.isArray(subjects) ? subjects : [];
+    teachers = Array.isArray(teachers) ? teachers : [];
+    if (subjects && !Array.isArray(subjects)) subjects = [subjects];
+    if (teachers && !Array.isArray(teachers)) teachers = [teachers];
+
+    // For each subject, find or create the Subject document, then collect its _id
+    const subjectIds = [];
+    for (const subj of subjects) {
+      // Find the teacher ObjectId for this subject
+      let teacherObj = null;
+      if (subj.teacherId) {
+        teacherObj = await Teacher.findOne({ teacherID: subj.teacherId });
+      }
+      let subjectDoc = await Subject.findOne({ subjectCode: subj.subjectCode });
+      if (!subjectDoc) {
+        subjectDoc = new Subject({
+          subjectName: subj.subjectName,
+          subjectCode: subj.subjectCode,
+          subjectId: subj.subjectCode || subj.subjectName, // fallback if no code
+          assignedTeachers: teacherObj ? [teacherObj._id] : [],
+        });
+        await subjectDoc.save();
+      } else if (teacherObj && !subjectDoc.assignedTeachers.includes(teacherObj._id)) {
+        subjectDoc.assignedTeachers.push(teacherObj._id);
+        await subjectDoc.save();
+      }
+      subjectIds.push(subjectDoc._id);
+    }
+
+    // Map teacherIDs to ObjectIds
+    const teacherIDs = subjects.map(subj => subj.teacherId);
+    const teacherDocs = await Teacher.find({ teacherID: { $in: teacherIDs } });
+    const teacherIds = teacherDocs.map(t => t._id);
+
+    // Create the new class with all required fields
+    const newClass = new Class({
+      className,
+      classId,
+      section,
+      classStrength,
+      subjects: subjectIds,
+      teachers: teacherIds,
+    });
+
+    await newClass.save();
+
+    return res.status(201).json({ message: "Class created successfully", class: newClass });
+  } catch (error) {
+    console.error("Error creating class:", error);
+    return res.status(500).json({ message: "Error creating class", error: error.message });
+  }
+});
 //===============================================================================================
 //================================================================================================
 
@@ -604,32 +669,17 @@ router.get("/teachers", verifyAdminToken, getAllTeachers);
 router.get("/classes/:classId", verifyAdminToken, async (req, res) => {
   try {
     const { classId } = req.params;
-    
-    if (!classId) {
-      return res.status(400).json({ message: "Class ID is required" });
-    }
-
-    // First try to find by classId
     let classDoc = await Class.findOne({ classId })
       .populate("teachers", "teacherID name")
       .populate("subjects", "subjectName subjectCode subjectId");
-    
-    // If not found by classId, try to find by MongoDB _id
     if (!classDoc) {
-      try {
-        classDoc = await Class.findById(classId)
-          .populate("teachers", "teacherID name")
-          .populate("subjects", "subjectName subjectCode subjectId");
-      } catch (err) {
-        // If the classId is not a valid ObjectId, just continue with null classDoc
-        console.log("Invalid ObjectId format, continuing with classId search");
-      }
+      classDoc = await Class.findById(classId)
+        .populate("teachers", "teacherID name")
+        .populate("subjects", "subjectName subjectCode subjectId");
     }
-    
     if (!classDoc) {
       return res.status(404).json({ message: "Class not found" });
     }
-
     // Get subjects with their assigned teachers
     const subjects = await Subject.find({
       _id: { $in: classDoc.subjects }
@@ -646,6 +696,83 @@ router.get("/classes/:classId", verifyAdminToken, async (req, res) => {
       message: "Error fetching class details",
       error: error.message 
     });
+  }
+});
+
+// Update class by classId
+router.put("/classes/:classId", verifyAdminToken, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { className, subjects, teachers } = req.body;
+
+    // Find the class by classId or _id
+    let classDoc = await Class.findOne({ classId });
+    if (!classDoc) {
+      classDoc = await Class.findById(classId);
+    }
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    // Update fields
+    if (className) classDoc.className = className;
+
+    // Convert teacher IDs to ObjectIds
+    if (teachers && teachers.length > 0) {
+      const teacherDocs = await Teacher.find({ teacherID: { $in: teachers } });
+      classDoc.teachers = teacherDocs.map(t => t._id);
+    }
+
+    // For each subject, find or create the Subject document, then collect its _id
+    const subjectIds = [];
+    for (const subj of subjects) {
+      // Find the teacher ObjectId for this subject
+      let teacherObj = null;
+      if (subj.teacherId) {
+        teacherObj = await Teacher.findOne({ teacherID: subj.teacherId });
+      }
+      let subjectDoc = await Subject.findOne({ subjectCode: subj.subjectCode });
+      if (!subjectDoc) {
+        subjectDoc = new Subject({
+          subjectName: subj.subjectName,
+          subjectCode: subj.subjectCode,
+          subjectId: subj.subjectCode || subj.subjectName, // fallback if no code
+          assignedTeachers: teacherObj ? [teacherObj._id] : [],
+        });
+        await subjectDoc.save();
+      } else {
+        // Always replace assignedTeachers with the new teacher
+        subjectDoc.assignedTeachers = teacherObj ? [teacherObj._id] : [];
+        await subjectDoc.save();
+      }
+      subjectIds.push(subjectDoc._id);
+    }
+    classDoc.subjects = subjectIds;
+
+    await classDoc.save();
+
+    return res.status(200).json({ message: "Class updated successfully", class: classDoc });
+  } catch (error) {
+    console.error("Error updating class:", error);
+    return res.status(500).json({ message: "Error updating class", error: error.message });
+  }
+});
+
+// Delete class by classId
+router.delete("/classes/:classId", verifyAdminToken, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    let classDoc = await Class.findOneAndDelete({ classId });
+    if (!classDoc) {
+      classDoc = await Class.findByIdAndDelete(classId);
+    }
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+    return res.status(200).json({ message: "Class deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting class:", error);
+    return res.status(500).json({ message: "Error deleting class", error: error.message });
   }
 });
 

@@ -161,15 +161,18 @@ router.put(
 
       // Find teacher by ID from token or by teacherID if provided in the body
       let teacher;
+      
       // First try to find by token ID
       teacher = await Teacher.findById(teacherID);
+      
       // If not found and teacherID is in request body, try that
       if (!teacher && req.body.teacherID) {
         console.log("Teacher not found by token ID, trying body teacherID:", req.body.teacherID);
         teacher = await Teacher.findOne({ teacherID: req.body.teacherID });
       }
-
+      
       if (!teacher) {
+        console.error("Teacher not found for ID:", teacherID);
         return res.status(404).json({ message: "Teacher not found" });
       }
 
