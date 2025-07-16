@@ -54,21 +54,69 @@ const ManageStudentFees = () => {
     }
 
     try {
-      const response = await axios.post(
-        `${API_URL}/api/admin/auth/update-fee-status`,
-        {
-          studentId,
-          feeAmount,
-          dueDate,
-          status: feeStatus,
-          paymentDate: feeStatus === "paid" ? paymentDate : null,
-        },
+      // TODO: Get the correct classId for the selected student
+      // For now, try to get it from the student object (if available)
+      const studentObj = students.find(s => s._id === studentId);
+      const classId = studentObj?.enrolledClasses?.[0] || studentObj?.class?._id;
+      if (!classId) {
+        toast.error("Class ID not found for selected student");
+        return;
+      }
+
+      // 1. Try to find an existing Fee record for this student, class, and dueDate
+      const feeRes = await axios.get(
+        `${API_URL}/api/fees/class/${classId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
+      const feeRecords = feeRes.data || [];
+      const existingFee = feeRecords.find(
+        fee =>
+          fee.student._id === studentId &&
+          new Date(fee.dueDate).toDateString() === new Date(dueDate).toDateString()
+      );
+
+      if (existingFee) {
+        // 2. PATCH the existing Fee record
+        await axios.patch(
+          `${API_URL}/api/fees/${existingFee._id}`,
+          {
+            status: feeStatus,
+            amount: feeAmount,
+            dueDate,
+            paymentDate: feeStatus === "paid" ? paymentDate : null,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+      } else {
+        // 3. POST a new Fee record
+        await axios.post(
+          `${API_URL}/api/fees/`,
+          {
+            student: studentId,
+            class: classId,
+            academicYear: new Date().getFullYear().toString(),
+            feeType: "monthly",
+            amount: feeAmount,
+            dueDate,
+            status: feeStatus,
+            paymentDate: feeStatus === "paid" ? paymentDate : null,
+            totalAmount: feeAmount,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+      }
 
       toast.success("Fee status updated successfully");
       fetchStudents(); // Refresh the student list

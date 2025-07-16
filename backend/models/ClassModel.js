@@ -22,18 +22,77 @@ const classSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // Fee-related fields
+    // Enhanced Fee-related fields
     baseFee: {
       type: Number,
-      default: 0
+      default: 0,
+      min: 0
     },
     lateFeePerDay: {
       type: Number,
-      default: 0
+      default: 0,
+      min: 0
     },
     feeDueDate: {
       type: Date,
       default: null
+    },
+    // New fields for enhanced fee management
+    feeHistory: [{
+      academicYear: {
+        type: String,
+        required: true
+      },
+      baseFee: {
+        type: Number,
+        required: true
+      },
+      lateFeePerDay: {
+        type: Number,
+        required: true
+      },
+      updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Admin",
+        required: true
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now
+      },
+      reason: {
+        type: String,
+        trim: true
+      }
+    }],
+    currentAcademicYear: {
+      type: String,
+      default: () => new Date().getFullYear().toString()
+    },
+    feeSettings: {
+      monthlyFeeCalculation: {
+        type: String,
+        enum: ["baseFee", "custom"],
+        default: "baseFee"
+      },
+      customMonthlyFee: {
+        type: Number,
+        default: 0
+      },
+      feeFrequency: {
+        type: String,
+        enum: ["monthly", "quarterly", "annually"],
+        default: "monthly"
+      },
+      gracePeriod: {
+        type: Number,
+        default: 5, // days
+        min: 0
+      },
+      autoGenerateFees: {
+        type: Boolean,
+        default: true
+      }
     },
     classStrength: {
       type: Number,
@@ -79,7 +138,7 @@ const classSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: 'version' }
 );
 
 // Add a pre-save middleware to ensure unique students
@@ -90,6 +149,25 @@ classSchema.pre('save', async function(next) {
   }
   next();
 });
+
+// Add method to calculate monthly fee
+classSchema.methods.calculateMonthlyFee = function() {
+  if (this.feeSettings.monthlyFeeCalculation === 'custom') {
+    return this.feeSettings.customMonthlyFee;
+  }
+  return this.baseFee / 12;
+};
+
+// Add method to update fee history
+classSchema.methods.updateFeeHistory = function(adminId, reason = '') {
+  this.feeHistory.push({
+    academicYear: this.currentAcademicYear,
+    baseFee: this.baseFee,
+    lateFeePerDay: this.lateFeePerDay,
+    updatedBy: adminId,
+    reason: reason
+  });
+};
 
 // Drop any existing indexes
 classSchema.indexes().forEach(index => {

@@ -15,7 +15,11 @@ import {
   FaBook,
   FaClock,
   FaExclamationTriangle,
-  FaCheckCircle
+  FaCheckCircle,
+  FaHistory,
+  FaChartLine,
+  FaReceipt,
+  FaCreditCard
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import './PayFee.css';
@@ -30,6 +34,11 @@ const PayFee = () => {
   const [transactionId, setTransactionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showFeeHistory, setShowFeeHistory] = useState(false);
+  const [feeHistory, setFeeHistory] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
+  const [historyMonth, setHistoryMonth] = useState('');
+  const [historyYear, setHistoryYear] = useState('');
   const navigate = useNavigate();
 
   const API_URL = process.env.REACT_APP_NODE_ENV === 'production'
@@ -86,6 +95,23 @@ const PayFee = () => {
     }
   };
 
+  const fetchFeeHistory = async (studentId, classId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${API_URL}/api/fees/student/${studentId}/class/${classId}/fee-history`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setFeeHistory(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching fee history:', error);
+    }
+  };
+
   const handleBack = () => {
     navigate('/parent/dashboard');
   };
@@ -93,6 +119,12 @@ const PayFee = () => {
   const handlePaymentClick = (fee) => {
     setSelectedFee(fee);
     setShowPaymentDialog(true);
+  };
+
+  const handleViewHistory = async (fee) => {
+    setSelectedChild(fee.childName);
+    await fetchFeeHistory(fee.student, fee.class._id);
+    setShowFeeHistory(true);
   };
 
   const handlePaymentSubmit = async (e) => {
@@ -141,50 +173,30 @@ const PayFee = () => {
         throw new Error(response.data.message || 'Failed to process payment');
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
-      
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        const errorMessage = error.response.data?.message || error.response.data?.error || 'Failed to process payment';
-        
-        if (error.response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          navigate('/login');
-        } else if (error.response.status === 403) {
-          toast.error('You are not authorized to make this payment. Please contact support.');
-        } else if (error.response.status === 404) {
-          toast.error('Fee record not found. Please try again or contact support.');
-        } else if (error.response.status === 400) {
-          toast.error(errorMessage);
-        } else {
-          toast.error(`Error: ${errorMessage}`);
-        }
-      } else if (error.request) {
-        // The request was made but no response was received
-        toast.error('No response from server. Please check your internet connection and try again.');
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        toast.error('An unexpected error occurred. Please try again later.');
-      }
+      console.error('Error submitting payment:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit payment. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'paid':
-        return <span className="badge badge-success"><FaCheckCircle /> Paid</span>;
-      case 'under_process':
-        return <span className="badge badge-warning"><FaClock /> Under Process</span>;
-      case 'cancelled':
-        return <span className="badge badge-danger"><FaTimes /> Cancelled</span>;
-      case 'overdue':
-        return <span className="badge badge-danger"><FaExclamationTriangle /> Overdue</span>;
-      default:
-        return <span className="badge badge-secondary"><FaClock /> Pending</span>;
-    }
+    const statusConfig = {
+      paid: { label: 'PAID', className: 'status-paid', icon: <FaCheck /> },
+      pending: { label: 'PENDING', className: 'status-pending', icon: <FaClock /> },
+      overdue: { label: 'OVERDUE', className: 'status-overdue', icon: <FaExclamationTriangle /> },
+      under_process: { label: 'UNDER PROCESS', className: 'status-under-process', icon: <FaSpinner /> },
+      cancelled: { label: 'CANCELLED', className: 'status-cancelled', icon: <FaTimes /> }
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+
+    return (
+      <span className={`status-badge ${config.className}`}>
+        {config.icon} {config.label}
+      </span>
+    );
   };
 
   const formatDate = (dateString) => {
@@ -206,13 +218,18 @@ const PayFee = () => {
     return fee.status === filterStatus;
   });
 
+  const calculateMonthlyFee = (totalAmount) => {
+    // Assuming monthly fee is total amount divided by 12
+    return totalAmount / 12;
+  };
+
   return (
     <div className="pay-fee-container">
       <div className="header">
         <button className="back-button" onClick={handleBack}>
           <FaArrowLeft /> Back to Dashboard
         </button>
-        <h1>Pay Fees</h1>
+        <h1>Enhanced Fee Management</h1>
       </div>
 
       {loading ? (
@@ -254,11 +271,17 @@ const PayFee = () => {
             >
               Under Process
             </button>
+            <button 
+              className={`filter-btn ${filterStatus === 'overdue' ? 'active' : ''}`}
+              onClick={() => setFilterStatus('overdue')}
+            >
+              Overdue
+            </button>
           </div>
 
           <div className="fees-list">
             {filteredFees.map((fee) => (
-              <div key={fee._id} className="fee-card">
+              <div key={fee._id} className="fee-card enhanced">
                 <div className="fee-header">
                   <h3>Fee Payment</h3>
                   {getStatusBadge(fee.status)}
@@ -274,7 +297,8 @@ const PayFee = () => {
 
                   <div className="fee-info-section">
                     <h4><FaMoneyBillWave /> Payment Details</h4>
-                    <p><strong>Amount:</strong> {formatCurrency(fee.totalAmount)}</p>
+                    <p><strong>Monthly Fee:</strong> {formatCurrency(calculateMonthlyFee(fee.totalAmount))}</p>
+                    <p><strong>Total Amount:</strong> {formatCurrency(fee.totalAmount)}</p>
                     <p><strong>Due Date:</strong> {formatDate(fee.dueDate)}</p>
                     {fee.lateFeeAmount > 0 && (
                       <p className="late-fee"><strong>Late Fee:</strong> {formatCurrency(fee.lateFeeAmount)}</p>
@@ -306,56 +330,164 @@ const PayFee = () => {
                   )}
                 </div>
 
-                {(fee.status === 'pending' || fee.status === 'overdue' || fee.status === 'cancelled') && (
+                <div className="fee-actions">
+                  {(fee.status === 'pending' || fee.status === 'overdue' || fee.status === 'cancelled') && (
+                    <button
+                      className="pay-button"
+                      onClick={() => handlePaymentClick(fee)}
+                      disabled={submitting}
+                    >
+                      {submitting ? <FaSpinner className="spinner" /> : 'Pay Now'}
+                    </button>
+                  )}
                   <button
-                    className="pay-button"
-                    onClick={() => handlePaymentClick(fee)}
-                    disabled={submitting}
+                    className="history-button"
+                    onClick={() => handleViewHistory(fee)}
                   >
-                    {submitting ? <FaSpinner className="spinner" /> : 'Pay Now'}
+                    <FaHistory /> View History
                   </button>
-                )}
+                </div>
               </div>
             ))}
           </div>
         </>
       )}
 
-      {showPaymentDialog && (
-        <div className="payment-dialog">
-          <div className="payment-dialog-content">
-            <h2>Submit Payment</h2>
-            <form onSubmit={handlePaymentSubmit}>
-              <div className="form-group">
-                <label>Transaction ID:</label>
-                <input
-                  type="text"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  placeholder="Enter your transaction ID"
-                  required
-                  disabled={submitting}
-                />
-                <small className="help-text">
-                  <FaInfoCircle /> Please enter the transaction ID from your payment gateway
-                </small>
+      {/* Payment Dialog */}
+      {showPaymentDialog && selectedFee && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Make Payment</h3>
+              <button 
+                className="close-button"
+                onClick={() => setShowPaymentDialog(false)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="payment-summary">
+                <h4>Payment Summary</h4>
+                <p><strong>Student:</strong> {selectedFee.childName}</p>
+                <p><strong>Class:</strong> {selectedFee.class?.className}</p>
+                <p><strong>Amount:</strong> {formatCurrency(selectedFee.totalAmount)}</p>
+                <p><strong>Due Date:</strong> {formatDate(selectedFee.dueDate)}</p>
               </div>
-              <div className="dialog-buttons">
-                <button 
-                  type="button" 
-                  onClick={() => setShowPaymentDialog(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={submitting}
-                >
-                  {submitting ? <FaSpinner className="spinner" /> : 'Submit'}
-                </button>
+              
+              <form onSubmit={handlePaymentSubmit}>
+                <div className="form-group">
+                  <label>Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    required
+                  >
+                    <option value="">Select Payment Method</option>
+                    <option value="online">Online Payment</option>
+                    <option value="card">Credit/Debit Card</option>
+                    <option value="upi">UPI</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Transaction ID</label>
+                  <input
+                    type="text"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    placeholder="Enter transaction ID"
+                    required
+                  />
+                </div>
+                
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="cancel-button"
+                    onClick={() => setShowPaymentDialog(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="submit-button"
+                    disabled={submitting}
+                  >
+                    {submitting ? <FaSpinner className="spinner" /> : 'Submit Payment'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fee History Dialog */}
+      {showFeeHistory && (
+        <div className="modal-overlay">
+          <div className="modal-content large">
+            <div className="modal-header">
+              <h3>Fee History - {selectedChild}</h3>
+              <button 
+                className="close-button"
+                onClick={() => setShowFeeHistory(false)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="fee-history">
+                <h4><FaHistory /> Payment History</h4>
+                <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+                  <select value={historyMonth} onChange={e => setHistoryMonth(e.target.value)}>
+                    <option value="">All Months</option>
+                    {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
+                      <option key={m} value={idx+1}>{m}</option>
+                    ))}
+                  </select>
+                  <select value={historyYear} onChange={e => setHistoryYear(e.target.value)}>
+                    <option value="">All Years</option>
+                    {Array.from(new Set((feeHistory.paymentHistory||[]).map(p=>p.year))).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                {feeHistory.paymentHistory && feeHistory.paymentHistory.length > 0 ? (
+                  <div className="history-list">
+                    {feeHistory.paymentHistory.filter(payment => {
+                      const matchMonth = historyMonth ? String(payment.month) === String(historyMonth) : true;
+                      const matchYear = historyYear ? String(payment.year) === String(historyYear) : true;
+                      return matchMonth && matchYear;
+                    }).map((payment, index) => (
+                      <div key={index} className="history-item">
+                        <div className="history-date">
+                          <FaCalendarAlt />
+                          {formatDate(payment.paymentDate)}
+                        </div>
+                        <div className="history-details">
+                          <p><strong>Month:</strong> {payment.month} {payment.year}</p>
+                          <p><strong>Amount:</strong> {formatCurrency(payment.amount)}</p>
+                          <p><strong>Status:</strong> {payment.status}</p>
+                          {payment.transactionId && (
+                            <p><strong>Transaction ID:</strong> {payment.transactionId}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {feeHistory.paymentHistory.filter(payment => {
+                      const matchMonth = historyMonth ? String(payment.month) === String(historyMonth) : true;
+                      const matchYear = historyYear ? String(payment.year) === String(historyYear) : true;
+                      return matchMonth && matchYear;
+                    }).length === 0 && (
+                      <p>No payment history for selected month/year</p>
+                    )}
+                  </div>
+                ) : (
+                  <p>No payment history available</p>
+                )}
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

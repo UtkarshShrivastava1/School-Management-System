@@ -28,15 +28,11 @@ exports.createFee = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    // Validate class - try both by ID and classId
+    // Validate class - use only _id
     let classDoc = await Class.findById(classId);
     if (!classDoc) {
-      classDoc = await Class.findOne({ classId: classId });
-    }
-    if (!classDoc) {
       return res.status(404).json({ 
-        message: "Class not found",
-        details: "Please provide a valid class ID or class identifier"
+        message: "Class not found. Please provide a valid MongoDB _id as classId."
       });
     }
 
@@ -48,6 +44,25 @@ exports.createFee = async (req, res) => {
         studentId: student.studentID,
         className: classDoc.className
       });
+    }
+
+    // Validation for negative fee amounts and invalid dates
+    if (amount < 0) {
+      return res.status(400).json({ message: 'Fee amount cannot be negative.' });
+    }
+    if (dueDate && isNaN(Date.parse(dueDate))) {
+      return res.status(400).json({ message: 'Invalid due date.' });
+    }
+    // Check for duplicate fee record
+    const duplicateFee = await Fee.findOne({
+      student: studentId,
+      class: classDoc._id,
+      academicYear,
+      feeType,
+      dueDate
+    });
+    if (duplicateFee) {
+      return res.status(400).json({ message: 'Duplicate fee record for this student, class, and period.' });
     }
 
     // Create new fee record
@@ -145,8 +160,12 @@ exports.processPayment = async (req, res) => {
       return res.status(404).json({ message: "Fee record not found" });
     }
 
-    if (fee.status === "paid") {
-      return res.status(400).json({ message: "Fee already paid" });
+    // Prevent duplicate payments and accidental double submissions
+    if (fee.status === 'paid' || fee.status === 'under_process') {
+      return res.status(400).json({
+        success: false,
+        message: 'This fee has already been paid or is under process.'
+      });
     }
 
     // Here you would integrate with a payment gateway
@@ -175,13 +194,8 @@ exports.getFeeStatistics = async (req, res) => {
 
     const query = {};
     if (classId) {
-      // Try both by ID and classId
-      const classDoc = await Class.findOne({ 
-        $or: [
-          { _id: classId },
-          { classId: classId }
-        ]
-      });
+      // Use only _id for lookup
+      const classDoc = await Class.findById(classId);
       if (classDoc) {
         query.class = classDoc._id;
       }
@@ -224,12 +238,27 @@ exports.getFeeStatistics = async (req, res) => {
 exports.updateClassFee = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
-    const { classId, baseFee, lateFeePerDay, feeDueDate } = req.body;
+    const { 
+      classId, 
+      baseFee, 
+      lateFeePerDay, 
+      feeDueDate, 
+      reason = '',
+      feeSettings = {}
+    } = req.body;
 
     if (!classId || !baseFee || !lateFeePerDay) {
       return res.status(400).json({
         message: "Class ID, base fee, and late fee per day are required"
       });
+    }
+
+    // Validation for negative fee amounts and invalid dates
+    if (baseFee < 0 || lateFeePerDay < 0) {
+      return res.status(400).json({ message: 'Base fee and late fee per day cannot be negative.' });
+    }
+    if (feeDueDate && isNaN(Date.parse(feeDueDate))) {
+      return res.status(400).json({ message: 'Invalid fee due date.' });
     }
 
     // Find the class
@@ -244,17 +273,58 @@ exports.updateClassFee = async (req, res) => {
 
     console.log("Found class:", classDoc.className);
 
+    // Optimistic concurrency control: require version match if provided
+    if (req.body.version !== undefined && req.body.version !== classDoc.version) {
+      return res.status(409).json({ message: 'Class was updated by another process. Please reload and try again.' });
+    }
+
     // Update class fee settings
+    const oldBaseFee = classDoc.baseFee;
+    const oldLateFeePerDay = classDoc.lateFeePerDay;
+    
     classDoc.baseFee = Number(baseFee);
     classDoc.lateFeePerDay = Number(lateFeePerDay);
     if (feeDueDate) {
       console.log("Setting fee due date:", feeDueDate);
       classDoc.feeDueDate = new Date(feeDueDate);
     }
+
+    // Update fee settings if provided
+    if (feeSettings) {
+      classDoc.feeSettings = {
+        ...classDoc.feeSettings,
+        ...feeSettings
+      };
+    }
+
+    // Add to fee history if there's a change
+    if (oldBaseFee !== Number(baseFee) || oldLateFeePerDay !== Number(lateFeePerDay)) {
+      classDoc.updateFeeHistory(req.admin._id, reason);
+    }
     
     console.log("Saving class document...");
     await classDoc.save();
     console.log("Class document saved successfully");
+
+    // Calculate new monthly fee
+    const monthlyFee = classDoc.calculateMonthlyFee();
+    const currentDate = new Date();
+    const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+    const currentYear = currentDate.getFullYear();
+
+    // Update all Fee records for this class and academic year
+    await Fee.updateMany(
+      { class: classId, academicYear: currentYear.toString() },
+      {
+        $set: {
+          amount: monthlyFee,
+          totalAmount: monthlyFee, // late fees for past due handled per record
+          lateFeeAmount: 0, // recalculate if needed
+          status: 'pending', // recalculate if needed
+          dueDate: classDoc.feeDueDate,
+        }
+      }
+    );
 
     // Update fee details for all students in this class
     console.log("Finding students for class:", classId);
@@ -263,10 +333,7 @@ exports.updateClassFee = async (req, res) => {
 
     const updatePromises = students.map(async (student) => {
       try {
-        // Calculate monthly fee amount
-        const monthlyFee = Number(baseFee) / 12;
-        const currentDate = new Date();
-        const dueDate = feeDueDate ? new Date(feeDueDate) : null;
+        const dueDate = feeDueDate ? new Date(feeDueDate) : classDoc.feeDueDate || null;
         
         let status = 'pending';
         let lateFeeAmount = 0;
@@ -277,13 +344,18 @@ exports.updateClassFee = async (req, res) => {
           status = 'overdue';
         }
 
-        // Check for existing fee record for this month
+        // Check for existing fee record for this month (by dueDate month/year)
         const existingFee = await Fee.findOne({
           student: student._id,
           class: classId,
           feeType: 'monthly',
-          academicYear: new Date().getFullYear().toString(),
-          dueDate: dueDate || new Date()
+          academicYear: currentYear.toString(),
+          $expr: {
+            $and: [
+              { $eq: [{ $month: "$dueDate" }, dueDate.getMonth() + 1] },
+              { $eq: [{ $year: "$dueDate" }, dueDate.getFullYear()] }
+            ]
+          }
         });
 
         if (existingFee) {
@@ -291,7 +363,10 @@ exports.updateClassFee = async (req, res) => {
           existingFee.amount = monthlyFee;
           existingFee.totalAmount = monthlyFee + lateFeeAmount;
           existingFee.lateFeeAmount = lateFeeAmount;
-          existingFee.status = status;
+          // Only update status if not already paid, under_process, or cancelled
+          if (existingFee.status === 'pending' || existingFee.status === 'overdue') {
+            existingFee.status = status;
+          }
           await existingFee.save();
           console.log("Updated existing fee record for student:", student.studentID);
         } else {
@@ -299,10 +374,10 @@ exports.updateClassFee = async (req, res) => {
           const feeRecord = new Fee({
             student: student._id,
             class: classId,
-            academicYear: new Date().getFullYear().toString(),
+            academicYear: currentYear.toString(),
             feeType: "monthly",
             amount: monthlyFee,
-            dueDate: dueDate || new Date(),
+            dueDate: dueDate,
             status: status,
             totalAmount: monthlyFee + lateFeeAmount,
             lateFeeAmount: lateFeeAmount,
@@ -313,24 +388,64 @@ exports.updateClassFee = async (req, res) => {
           console.log("Created new fee record for student:", student.studentID);
         }
 
-        // Update the student's fee details
-        const feeDetailsUpdate = {
-          [`feeDetails.${classId}`]: {
-            classFee: Number(baseFee),
-            monthlyFee: monthlyFee,
-            totalAmount: monthlyFee + lateFeeAmount,
-            status: status,
-            lastUpdated: currentDate,
-            dueDate: dueDate,
-            lateFeePerDay: Number(lateFeePerDay),
-            lateFeeAmount: lateFeeAmount
-          }
+        // Get existing fee details for the class
+        let existingFeeDetails = {};
+        
+        if (student.feeDetails && student.feeDetails instanceof Map) {
+          existingFeeDetails = student.feeDetails.get(classId) || {};
+        } else if (student.feeDetails && typeof student.feeDetails === 'object') {
+          existingFeeDetails = student.feeDetails[classId] || {};
+        }
+        
+        // Update the student's fee details with enhanced information
+        const updatedFeeDetails = {
+          ...existingFeeDetails,
+          classFee: Number(baseFee),
+          monthlyFee: monthlyFee,
+          totalAmount: monthlyFee + lateFeeAmount,
+          status: status,
+          lastUpdated: currentDate,
+          dueDate: dueDate,
+          lateFeePerDay: Number(lateFeePerDay),
+          lateFeeAmount: lateFeeAmount,
+          academicYear: currentYear.toString(),
+          currentMonth: currentMonth,
+          currentYear: currentYear,
+          // Preserve existing payment information
+          paymentDate: existingFeeDetails.paymentDate,
+          paymentMethod: existingFeeDetails.paymentMethod,
+          receiptNumber: existingFeeDetails.receiptNumber,
+          paidMonth: existingFeeDetails.paidMonth,
+          paidYear: existingFeeDetails.paidYear,
+          paymentHistory: existingFeeDetails.paymentHistory || [],
+          feeHistory: existingFeeDetails.feeHistory || [],
+          gracePeriodUsed: existingFeeDetails.gracePeriodUsed || false,
+          remindersSent: existingFeeDetails.remindersSent || 0
         };
 
-        // Update the student document
+        // Add to fee history if there's a change
+        if (existingFeeDetails.classFee !== Number(baseFee) || 
+            existingFeeDetails.lateFeePerDay !== Number(lateFeePerDay)) {
+          if (!updatedFeeDetails.feeHistory) {
+            updatedFeeDetails.feeHistory = [];
+          }
+          updatedFeeDetails.feeHistory.push({
+            month: currentMonth,
+            year: currentYear,
+            baseFee: Number(baseFee),
+            monthlyFee: monthlyFee,
+            lateFeeAmount: lateFeeAmount,
+            totalAmount: monthlyFee + lateFeeAmount,
+            status: status,
+            dueDate: dueDate,
+            paymentDate: null
+          });
+        }
+
+        // Update the student document using $set with the Map structure
         const updatedStudent = await Student.findOneAndUpdate(
           { _id: student._id },
-          { $set: feeDetailsUpdate },
+          { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
           { new: true }
         );
 
@@ -345,7 +460,9 @@ exports.updateClassFee = async (req, res) => {
 
     res.status(200).json({
       message: "Class fee settings updated successfully",
-      class: classDoc
+      updatedClass: classDoc,
+      monthlyFee: monthlyFee,
+      studentsUpdated: students.length
     });
   } catch (error) {
     console.error("Error updating class fee:", error);
@@ -380,12 +497,11 @@ exports.handleFeeApproval = async (req, res) => {
       });
     }
 
-    // Allow both 'under_process' and 'pending' statuses
-    if (fee.status !== 'under_process' && fee.status !== 'pending') {
-      console.log('Invalid fee status:', fee.status);
-      return res.status(400).json({ 
+    // Only allow approval/rejection for 'under_process' or 'pending' statuses
+    if (!['under_process', 'pending'].includes(fee.status)) {
+      return res.status(400).json({
         success: false,
-        message: 'Fee is not pending approval' 
+        message: 'Only fees with status under_process or pending can be approved or rejected.'
       });
     }
 
@@ -418,9 +534,16 @@ exports.handleFeeApproval = async (req, res) => {
           const student = fee.student;
           const classId = fee.class._id.toString();
 
-          // Get existing fee details for the class
-          const existingFeeDetails = student.feeDetails?.get?.(classId) || {};
-          
+          // Robustly get existing fee details for the class
+          let existingFeeDetails = {};
+          if (student.feeDetails) {
+            if (typeof student.feeDetails.get === 'function') {
+              existingFeeDetails = student.feeDetails.get(classId) || {};
+            } else if (typeof student.feeDetails === 'object') {
+              existingFeeDetails = student.feeDetails[classId] || {};
+            }
+          }
+
           // Update the student's fee details
           const updatedFeeDetails = {
             ...existingFeeDetails,
@@ -440,18 +563,16 @@ exports.handleFeeApproval = async (req, res) => {
               approvedByRole: approverRole,
               approvedAt: new Date()
             }
+            // paymentHistory is intentionally not updated here
           };
 
-          // Update the student document using $set with the Map structure
-          const updatedStudent = await Student.findByIdAndUpdate(
-            student._id,
-            { $set: { [`feeDetails.${classId}`]: updatedFeeDetails } },
-            { new: true }
-          );
-
-          if (!updatedStudent) {
-            throw new Error('Failed to update student fee details');
+          // Save feeDetails for both Map and plain object
+          if (typeof student.feeDetails.get === 'function') {
+            student.feeDetails.set(classId, updatedFeeDetails);
+          } else if (typeof student.feeDetails === 'object') {
+            student.feeDetails[classId] = updatedFeeDetails;
           }
+          await student.save();
 
           // Update all fee records for this student and class to reflect the paid status
           await Fee.updateMany(
@@ -686,4 +807,339 @@ exports.approveFeePayment = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// Get fee history for a class
+exports.getClassFeeHistory = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    const classDoc = await Class.findById(classId)
+      .populate('feeHistory.updatedBy', 'adminName adminEmail');
+    
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    res.status(200).json({
+      message: "Fee history retrieved successfully",
+      feeHistory: classDoc.feeHistory,
+      currentSettings: {
+        baseFee: classDoc.baseFee,
+        lateFeePerDay: classDoc.lateFeePerDay,
+        feeDueDate: classDoc.feeDueDate,
+        feeSettings: classDoc.feeSettings
+      }
+    });
+  } catch (error) {
+    console.error("Error retrieving fee history:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Generate monthly fees for all students in a class
+exports.generateMonthlyFees = async (req, res) => {
+  try {
+    const { classId, month, year } = req.body;
+    
+    if (!classId || !month || !year) {
+      return res.status(400).json({
+        message: "Class ID, month, and year are required"
+      });
+    }
+
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    const students = await Student.find({ enrolledClasses: classId });
+    const monthlyFee = classDoc.calculateMonthlyFee();
+    const dueDate = new Date(year, new Date(Date.parse(month + " 1, 2012")).getMonth(), 15); // 15th of each month
+    
+    const generatedFees = [];
+    
+    for (const student of students) {
+      // Check if fee already exists for this month
+      const existingFee = await Fee.findOne({
+        student: student._id,
+        class: classId,
+        feeType: 'monthly',
+        academicYear: year.toString(),
+        dueDate: {
+          $gte: new Date(year, new Date(Date.parse(month + " 1, 2012")).getMonth(), 1),
+          $lt: new Date(year, new Date(Date.parse(month + " 1, 2012")).getMonth() + 1, 1)
+        }
+      });
+
+      if (!existingFee) {
+        const feeRecord = new Fee({
+          student: student._id,
+          class: classId,
+          academicYear: year.toString(),
+          feeType: "monthly",
+          amount: monthlyFee,
+          dueDate: dueDate,
+          status: 'pending',
+          totalAmount: monthlyFee,
+          lateFeeAmount: 0,
+          createdBy: req.admin._id
+        });
+
+        await feeRecord.save();
+        generatedFees.push(feeRecord);
+      }
+    }
+
+    res.status(200).json({
+      message: "Monthly fees generated successfully",
+      generatedCount: generatedFees.length,
+      monthlyFee: monthlyFee
+    });
+  } catch (error) {
+    console.error("Error generating monthly fees:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get comprehensive fee statistics
+exports.getComprehensiveFeeStats = async (req, res) => {
+  try {
+    const { classId, academicYear, month } = req.query;
+    
+    const query = {};
+    if (classId) {
+      const classDoc = await Class.findOne({ 
+        $or: [
+          { _id: classId },
+          { classId: classId }
+        ]
+      });
+      if (classDoc) {
+        query.class = classDoc._id;
+      }
+    }
+    if (academicYear) query.academicYear = academicYear;
+
+    // Get basic statistics
+    const totalFees = await Fee.countDocuments(query);
+    const paidFees = await Fee.countDocuments({ ...query, status: "paid" });
+    const pendingFees = await Fee.countDocuments({ ...query, status: "pending" });
+    const overdueFees = await Fee.countDocuments({ ...query, status: "overdue" });
+    const underProcessFees = await Fee.countDocuments({ ...query, status: "under_process" });
+
+    // Get amount statistics
+    const amountStats = await Fee.aggregate([
+      { $match: query },
+      { 
+        $group: { 
+          _id: null, 
+          totalAmount: { $sum: "$totalAmount" },
+          paidAmount: { 
+            $sum: { 
+              $cond: [{ $eq: ["$status", "paid"] }, "$totalAmount", 0] 
+            } 
+          },
+          pendingAmount: { 
+            $sum: { 
+              $cond: [{ $eq: ["$status", "pending"] }, "$totalAmount", 0] 
+            } 
+          },
+          overdueAmount: { 
+            $sum: { 
+              $cond: [{ $eq: ["$status", "overdue"] }, "$totalAmount", 0] 
+            } 
+          }
+        } 
+      }
+    ]);
+
+    // Get monthly trends
+    const monthlyTrends = await Fee.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$dueDate" },
+            month: { $month: "$dueDate" }
+          },
+          count: { $sum: 1 },
+          totalAmount: { $sum: "$totalAmount" },
+          paidAmount: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "paid"] }, "$totalAmount", 0]
+            }
+          }
+        }
+      },
+      { $sort: { "_id.year": -1, "_id.month": -1 } },
+      { $limit: 12 }
+    ]);
+
+    // Get class-wise statistics if no specific class
+    let classWiseStats = [];
+    if (!classId) {
+      classWiseStats = await Fee.aggregate([
+        { $match: query },
+        {
+          $lookup: {
+            from: "classes",
+            localField: "class",
+            foreignField: "_id",
+            as: "classInfo"
+          }
+        },
+        {
+          $group: {
+            _id: "$class",
+            className: { $first: "$classInfo.className" },
+            totalFees: { $sum: 1 },
+            paidFees: {
+              $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] }
+            },
+            totalAmount: { $sum: "$totalAmount" },
+            paidAmount: {
+              $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$totalAmount", 0] }
+            }
+          }
+        }
+      ]);
+    }
+
+    const stats = {
+      overview: {
+        totalFees,
+        paidFees,
+        pendingFees,
+        overdueFees,
+        underProcessFees,
+        collectionRate: totalFees > 0 ? (paidFees / totalFees) * 100 : 0
+      },
+      amounts: amountStats[0] || {
+        totalAmount: 0,
+        paidAmount: 0,
+        pendingAmount: 0,
+        overdueAmount: 0
+      },
+      monthlyTrends,
+      classWiseStats
+    };
+
+    res.status(200).json({
+      message: "Fee statistics retrieved successfully",
+      data: stats
+    });
+  } catch (error) {
+    console.error("Error retrieving fee statistics:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get student fee history
+exports.getStudentFeeHistory = async (req, res) => {
+  try {
+    const { studentId, classId } = req.params;
+    
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // Get fee records from Fee collection
+    const feeRecords = await Fee.find({
+      student: studentId,
+      class: classId
+    }).sort({ dueDate: -1 });
+
+    // The most recent fee record is the current fee
+    const currentFee = feeRecords[0] || null;
+
+    // Payment history: all paid or under_process records
+    const paymentHistory = feeRecords.filter(fee => fee.status === 'paid' || fee.status === 'under_process');
+
+    // Fee history: all records (or you can customize as needed)
+    const feeHistory = feeRecords;
+
+    res.status(200).json({
+      message: "Student fee history retrieved successfully",
+      data: {
+        currentFee,
+        feeHistory,
+        paymentHistory
+      }
+    });
+  } catch (error) {
+    console.error("Error retrieving student fee history:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get all fee records for a class for a specific month/year
+exports.getClassMonthlyFeeRecords = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { month, year } = req.query;
+    if (!month || !year) {
+      return res.status(400).json({ message: 'Month and year are required' });
+    }
+    // Calculate date range for the month
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+    const fees = await Fee.find({
+      class: classId,
+      dueDate: { $gte: startDate, $lt: endDate }
+    })
+      .populate('student', 'studentName studentID')
+      .populate('class', 'className')
+      .sort({ dueDate: 1 });
+    res.status(200).json({
+      message: 'Monthly fee records fetched',
+      data: fees
+    });
+  } catch (error) {
+    console.error('Error fetching class monthly fee records:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get payment history for a class for a specific month/year (only paid/under_process)
+exports.getClassPaymentHistory = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { month, year } = req.query;
+    if (!month || !year) {
+      return res.status(400).json({ message: 'Month and year are required' });
+    }
+    // Calculate date range for the month
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+    const fees = await Fee.find({
+      class: classId,
+      dueDate: { $gte: startDate, $lt: endDate },
+      status: { $in: ['paid', 'under_process'] }
+    })
+      .populate('student', 'studentName studentID')
+      .populate('class', 'className')
+      .sort({ paymentDate: 1 });
+    res.status(200).json({
+      message: 'Payment history fetched',
+      data: fees
+    });
+  } catch (error) {
+    console.error('Error fetching class payment history:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Utility: Mark all future fees as cancelled if student leaves class mid-year
+exports.cancelFutureFeesForStudent = async (studentId, classId, fromDate) => {
+  await Fee.updateMany(
+    {
+      student: studentId,
+      class: classId,
+      dueDate: { $gt: fromDate },
+      status: { $in: ['pending', 'overdue'] }
+    },
+    { $set: { status: 'cancelled' } }
+  );
 }; 

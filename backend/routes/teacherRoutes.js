@@ -187,7 +187,6 @@ router.put(
         department,
         address,
         experience,
-        subjects,
       } = req.body;
       
       console.log("Update request received for teacher:", { 
@@ -216,7 +215,6 @@ router.put(
       if (department) teacher.department = department;
       if (address) teacher.address = address;
       if (experience !== undefined) teacher.experience = experience;
-      if (subjects) teacher.subjects = subjects;
       if (photo) teacher.photo = photo; // Update photo if provided
 
       // Save the updated teacher document
@@ -232,7 +230,6 @@ router.put(
           department: !!department,
           address: !!address,
           experience: experience !== undefined,
-          subjects: !!subjects,
           photo: !!photo
         }
       });
@@ -244,9 +241,18 @@ router.put(
       });
     } catch (error) {
       console.error("Error updating teacher profile:", error);
+      console.error("Request body:", req.body);
+      if (error.errors) {
+        // Mongoose validation errors
+        Object.keys(error.errors).forEach((key) => {
+          console.error(`Validation error for ${key}:`, error.errors[key].message);
+        });
+      }
       res.status(500).json({ 
         message: "Server error",
-        error: error.message 
+        error: error.message,
+        stack: error.stack,
+        requestBody: req.body
       });
     }
   }

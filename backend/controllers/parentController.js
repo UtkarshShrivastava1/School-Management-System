@@ -409,7 +409,7 @@ const payFee = async (req, res) => {
     });
 
     // Find the fee record
-    const fee = await Fee.findById(feeId)
+    let fee = await Fee.findById(feeId)
       .populate('student')
       .populate('class');
       
@@ -418,11 +418,49 @@ const payFee = async (req, res) => {
       return res.status(404).json({ message: 'Fee record not found' });
     }
 
+    // If student is not populated, try to populate it manually
+    if (!fee.student || !fee.student._id) {
+      console.log('Student not populated, trying to populate manually');
+      fee = await Fee.findById(feeId)
+        .populate('student')
+        .populate('class');
+      
+      if (!fee.student || !fee.student._id) {
+        console.log('Still cannot populate student, fee may have invalid student reference');
+        return res.status(400).json({ message: 'Fee record has invalid student reference' });
+      }
+    }
+
     console.log('Found fee:', {
       id: fee._id,
       student: fee.student,
       status: fee.status
     });
+
+    // Check if fee has valid student and class data
+    if (!fee.student || !fee.student._id) {
+      console.log('Fee has invalid student data:', fee.student);
+      return res.status(400).json({ message: 'Fee record has invalid student data' });
+    }
+
+    if (!fee.class || !fee.class._id) {
+      console.log('Fee has invalid class data:', fee.class);
+      return res.status(400).json({ message: 'Fee record has invalid class data' });
+    }
+
+    // Verify that the student actually exists in the database
+    const studentExists = await Student.findById(fee.student._id);
+    if (!studentExists) {
+      console.log('Student referenced in fee does not exist:', fee.student._id);
+      return res.status(400).json({ message: 'Student referenced in fee does not exist' });
+    }
+
+    // Verify that the class actually exists in the database
+    const classExists = await Class.findById(fee.class._id);
+    if (!classExists) {
+      console.log('Class referenced in fee does not exist:', fee.class._id);
+      return res.status(400).json({ message: 'Class referenced in fee does not exist' });
+    }
 
     // Verify that the fee belongs to one of the parent's children
     const parent = await Parent.findById(parentId).populate('children.student');
@@ -433,18 +471,19 @@ const payFee = async (req, res) => {
 
     console.log('Found parent:', {
       id: parent._id,
-      childrenCount: parent.children.length
+      childrenCount: parent.children.length,
+      children: parent.children.map(c => c.student?._id?.toString())
     });
 
     // Check if the fee's student ID matches any of the parent's children
     const isAuthorized = parent.children.some(
-      child => child.student._id.toString() === fee.student._id.toString()
+      child => child.student && child.student._id && child.student._id.toString() === fee.student._id.toString()
     );
 
     if (!isAuthorized) {
       console.log('Unauthorized payment attempt:', {
         feeStudentId: fee.student._id.toString(),
-        parentChildrenIds: parent.children.map(c => c.student._id.toString())
+        parentChildrenIds: parent.children.map(c => c.student?._id?.toString())
       });
       return res.status(403).json({ message: 'Unauthorized to pay this fee' });
     }
@@ -479,7 +518,12 @@ const payFee = async (req, res) => {
 
     try {
       // Get existing fee details for the class
-      const existingFeeDetails = student.feeDetails?.get?.(classId) || {};
+      let existingFeeDetails = {};
+      if (student.feeDetails && student.feeDetails instanceof Map) {
+        existingFeeDetails = student.feeDetails.get(classId) || {};
+      } else if (student.feeDetails && typeof student.feeDetails === 'object') {
+        existingFeeDetails = student.feeDetails[classId] || {};
+      }
       
       // Update the student's fee details
       const updatedFeeDetails = {
@@ -530,7 +574,8 @@ const payFee = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error processing payment',
-      error: error.message 
+      error: error.message,
+      stack: error.stack
     });
   }
 };

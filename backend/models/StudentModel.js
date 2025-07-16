@@ -70,10 +70,11 @@ const studentSchema = new mongoose.Schema(
       type: Map,
       of: {
         classFee: Number,
+        monthlyFee: Number,
         totalAmount: Number,
         status: {
           type: String,
-          enum: ['pending', 'paid', 'overdue'],
+          enum: ['pending', 'paid', 'overdue', 'under_process', 'cancelled'],
           default: 'pending'
         },
         lastUpdated: Date,
@@ -82,7 +83,42 @@ const studentSchema = new mongoose.Schema(
         lateFeeAmount: Number,
         paymentDate: Date,
         paymentMethod: String,
-        receiptNumber: String
+        receiptNumber: String,
+        // Enhanced fields
+        academicYear: String,
+        month: String,
+        year: Number,
+        paidMonth: String,
+        paidYear: Number,
+        currentMonth: String,
+        currentYear: Number,
+        paymentHistory: [{
+          month: String,
+          year: Number,
+          amount: Number,
+          status: String,
+          paymentDate: Date,
+          transactionId: String
+        }],
+        feeHistory: [{
+          month: String,
+          year: Number,
+          baseFee: Number,
+          monthlyFee: Number,
+          lateFeeAmount: Number,
+          totalAmount: Number,
+          status: String,
+          dueDate: Date,
+          paymentDate: Date
+        }],
+        gracePeriodUsed: {
+          type: Boolean,
+          default: false
+        },
+        remindersSent: {
+          type: Number,
+          default: 0
+        }
       },
       default: new Map()
     },

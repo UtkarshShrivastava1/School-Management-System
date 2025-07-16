@@ -32,7 +32,19 @@ import {
   Fade,
   Zoom,
   useTheme,
-  alpha
+  alpha,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Badge,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -42,10 +54,21 @@ import {
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
   Search as SearchIcon,
-  FilterList as FilterListIcon
+  FilterList as FilterListIcon,
+  History as HistoryIcon,
+  TrendingUp as TrendingUpIcon,
+  Generate as GenerateIcon,
+  ExpandMore as ExpandMoreIcon,
+  CalendarToday as CalendarIcon,
+  MonetizationOn as MoneyIcon,
+  Settings as SettingsIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import { format, isAfter, differenceInDays } from 'date-fns';
+import { parseDate, formatDate, isAfter, isBefore, isSameDay } from '../../utils/dateUtils';
+
+// feeDetails is a plain JS object: { [classId]: { ...fee info } }
+// Always access as student.feeDetails[classId]
 
 const ManageClassFees = () => {
   const theme = useTheme();
@@ -61,6 +84,39 @@ const ManageClassFees = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [updateProgress, setUpdateProgress] = useState(0);
+  
+  // New state for enhanced features
+  const [activeTab, setActiveTab] = useState(0);
+  const [feeHistory, setFeeHistory] = useState([]);
+  const [feeStats, setFeeStats] = useState(null);
+  const [showFeeHistory, setShowFeeHistory] = useState(false);
+  const [showFeeStats, setShowFeeStats] = useState(false);
+  const [generateFeeDialog, setGenerateFeeDialog] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [enhancedFeeSettings, setEnhancedFeeSettings] = useState({
+    monthlyFeeCalculation: 'baseFee',
+    customMonthlyFee: 0,
+    feeFrequency: 'monthly',
+    gracePeriod: 5,
+    autoGenerateFees: true
+  });
+  
+  // Add state for month/year filter in fee history
+  const [historyMonth, setHistoryMonth] = useState('');
+  const [historyYear, setHistoryYear] = useState('');
+
+  // Add state for monthly fee records
+  const [recordsMonth, setRecordsMonth] = useState('');
+  const [recordsYear, setRecordsYear] = useState(new Date().getFullYear());
+  const [monthlyFeeRecords, setMonthlyFeeRecords] = useState([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+
+  // Add state for payment history
+  const [paymentMonth, setPaymentMonth] = useState('');
+  const [paymentYear, setPaymentYear] = useState(new Date().getFullYear());
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Fetch classes on component mount
   useEffect(() => {
@@ -71,8 +127,28 @@ const ManageClassFees = () => {
   useEffect(() => {
     if (selectedClass) {
       fetchStudents(selectedClass._id);
+      fetchFeeHistory(selectedClass._id);
+      fetchFeeStats(selectedClass._id);
     }
   }, [selectedClass]);
+
+  // Fetch monthly fee records when class/month/year changes
+  useEffect(() => {
+    if (selectedClass && recordsMonth && recordsYear) {
+      fetchMonthlyFeeRecords(selectedClass._id, recordsMonth, recordsYear);
+    } else {
+      setMonthlyFeeRecords([]);
+    }
+  }, [selectedClass, recordsMonth, recordsYear]);
+
+  // Fetch payment history when class/month/year changes
+  useEffect(() => {
+    if (selectedClass && paymentMonth && paymentYear) {
+      fetchPaymentHistory(selectedClass._id, paymentMonth, paymentYear);
+    } else {
+      setPaymentHistory([]);
+    }
+  }, [selectedClass, paymentMonth, paymentYear]);
 
   const fetchClasses = async () => {
     try {
@@ -102,15 +178,80 @@ const ManageClassFees = () => {
     }
   };
 
+  const fetchFeeHistory = async (classId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/fees/class/${classId}/fee-history`);
+      setFeeHistory(response.data.feeHistory || []);
+    } catch (err) {
+      console.error('Error fetching fee history:', err);
+    }
+  };
+
+  const fetchFeeStats = async (classId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/fees/comprehensive-stats?classId=${classId}`);
+      setFeeStats(response.data.data);
+    } catch (err) {
+      console.error('Error fetching fee stats:', err);
+    }
+  };
+
+  const fetchMonthlyFeeRecords = async (classId, month, year) => {
+    try {
+      setRecordsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/fees/class/${classId}/records?month=${month}&year=${year}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMonthlyFeeRecords(response.data.data || []);
+    } catch (err) {
+      setMonthlyFeeRecords([]);
+    } finally {
+      setRecordsLoading(false);
+    }
+  };
+
+  const fetchPaymentHistory = async (classId, month, year) => {
+    try {
+      setPaymentLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/fees/class/${classId}/payment-history?month=${month}&year=${year}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Debug: Log the API response
+      console.log('Payment history API response:', response.data);
+      setPaymentHistory(response.data.data || []);
+    } catch (err) {
+      setPaymentHistory([]);
+      // Debug: Log the error
+      console.error('Error fetching payment history:', err);
+      setError('Failed to fetch payment history. Please check your network or try again.');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const handleClassSelect = (classData) => {
     setSelectedClass(classData);
     setEditedClass({
       ...classData,
       baseFee: classData.baseFee || 0,
       lateFeePerDay: classData.lateFeePerDay || 0,
-      feeDueDate: classData.feeDueDate ? format(new Date(classData.feeDueDate), 'yyyy-MM-dd') : ''
+      feeDueDate: classData.feeDueDate ? formatDate(classData.feeDueDate) : ''
     });
+    
+    // Set enhanced fee settings
+    if (classData.feeSettings) {
+      setEnhancedFeeSettings({
+        ...enhancedFeeSettings,
+        ...classData.feeSettings
+      });
+    }
+    
     setEditMode(false);
+    setActiveTab(0);
   };
 
   const handleEditClick = () => {
@@ -123,7 +264,7 @@ const ManageClassFees = () => {
       ...selectedClass,
       baseFee: selectedClass.baseFee || 0,
       lateFeePerDay: selectedClass.lateFeePerDay || 0,
-      feeDueDate: selectedClass.feeDueDate ? format(new Date(selectedClass.feeDueDate), 'yyyy-MM-dd') : ''
+      feeDueDate: selectedClass.feeDueDate ? formatDate(selectedClass.feeDueDate) : ''
     });
   };
 
@@ -135,18 +276,11 @@ const ManageClassFees = () => {
     }));
   };
 
-  const calculateOverdueFees = (baseFee, lateFeePerDay, dueDate) => {
-    if (!dueDate) return baseFee;
-    
-    const currentDate = new Date();
-    const dueDateObj = new Date(dueDate);
-    
-    if (isAfter(currentDate, dueDateObj)) {
-      const daysLate = differenceInDays(currentDate, dueDateObj);
-      return baseFee + (daysLate * lateFeePerDay);
-    }
-    
-    return baseFee;
+  const handleEnhancedSettingChange = (setting, value) => {
+    setEnhancedFeeSettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
   };
 
   const handleUpdateClassFee = async () => {
@@ -154,19 +288,14 @@ const ManageClassFees = () => {
       setLoading(true);
       setUpdateProgress(0);
       
-      // Calculate total amount with overdue fees
-      const totalAmount = calculateOverdueFees(
-        Number(editedClass.baseFee),
-        Number(editedClass.lateFeePerDay),
-        editedClass.feeDueDate
-      );
-
       const response = await axios.post('http://localhost:5000/api/admin/auth/class-fee/update', {
         classId: selectedClass._id,
         baseFee: Number(editedClass.baseFee),
         lateFeePerDay: Number(editedClass.lateFeePerDay),
         feeDueDate: editedClass.feeDueDate,
-        totalAmount: totalAmount
+        totalAmount: 0,
+        reason: 'Fee settings updated by admin',
+        feeSettings: enhancedFeeSettings
       });
 
       // Update local state with the response data
@@ -176,6 +305,10 @@ const ManageClassFees = () => {
       setSuccess('Class fee settings updated successfully');
       setError(null);
       setUpdateProgress(100);
+      
+      // Refresh fee history and stats
+      fetchFeeHistory(selectedClass._id);
+      fetchFeeStats(selectedClass._id);
     } catch (err) {
       console.error('Error updating class fee:', err);
       console.error('Error response:', err.response?.data);
@@ -184,6 +317,32 @@ const ManageClassFees = () => {
       setLoading(false);
     }
   };
+
+  const handleGenerateMonthlyFees = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post('http://localhost:5000/api/fees/generate-monthly-fees', {
+        classId: selectedClass._id,
+        month: selectedMonth,
+        year: selectedYear
+      });
+
+      setSuccess(`Generated ${response.data.generatedCount} monthly fees successfully`);
+      setGenerateFeeDialog(false);
+      fetchStudents(selectedClass._id);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to generate monthly fees');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   const handleConfirmUpdate = () => {
     setConfirmDialog(true);
@@ -206,94 +365,68 @@ const ManageClassFees = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'paid':
-        return theme.palette.success.main;
-      case 'overdue':
-        return theme.palette.error.main;
-      case 'pending':
-        return theme.palette.warning.main;
-      default:
-        return theme.palette.text.secondary;
-    }
-  };
+  const StatusChip = ({ status }) => {
+    const getStatusColor = () => {
+      switch (status) {
+        case 'paid':
+          return 'success';
+        case 'pending':
+          return 'warning';
+        case 'overdue':
+          return 'error';
+        case 'under_process':
+          return 'info';
+        case 'cancelled':
+          return 'default';
+        default:
+          return 'default';
+      }
+    };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'paid':
-        return <CheckCircleIcon fontSize="small" />;
-      case 'overdue':
-        return <WarningIcon fontSize="small" />;
-      case 'pending':
-        return <ScheduleIcon fontSize="small" />;
-      default:
-        return null;
-    }
-  };
-
-  const StatusChip = ({ status }) => (
-    <Chip
-      icon={getStatusIcon(status)}
-      label={status}
-      size="small"
-      sx={{
-        backgroundColor: alpha(getStatusColor(status), 0.1),
-        color: getStatusColor(status),
-        fontWeight: 'bold',
-        '& .MuiChip-icon': {
-          color: getStatusColor(status)
-        }
-      }}
-    />
-  );
-
-  if (loading && !selectedClass) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
+      <Chip
+        label={status?.toUpperCase() || 'PENDING'}
+        color={getStatusColor()}
+        size="small"
+        variant="outlined"
+      />
     );
-  }
+  };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        mb: 4 
+      <Typography variant="h4" gutterBottom sx={{ 
+        color: 'primary.main',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        mb: 3
       }}>
-        <Typography variant="h4" sx={{ 
-          color: 'primary.main', 
-          fontWeight: 'bold',
-          flex: 1,
-          textAlign: 'center'
-        }}>
-          Manage Class Fees
-        </Typography>
-      </Box>
+        <MoneyIcon /> Enhanced Fee Management System
+      </Typography>
 
-      {error && (
-        <Fade in={!!error}>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        </Fade>
-      )}
+      {/* Success/Error Messages */}
+      <Snackbar
+        open={!!success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
+          {success}
+        </Alert>
+      </Snackbar>
 
-      {success && (
-        <Snackbar
-          open={!!success}
-          autoHideDuration={6000}
-          onClose={() => setSuccess(null)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Alert onClose={() => setSuccess(null)} severity="success">
-            {success}
-          </Alert>
-        </Snackbar>
-      )}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
 
       <Grid container spacing={3}>
         {/* Class Selection */}
@@ -337,6 +470,14 @@ const ManageClassFees = () => {
                       <Typography variant="body2" color="text.secondary">
                         Base Fee: ${classData.baseFee || 0}
                       </Typography>
+                      {classData.feeSettings?.autoGenerateFees && (
+                        <Chip 
+                          label="Auto Generate" 
+                          size="small" 
+                          color="success" 
+                          sx={{ mt: 1 }}
+                        />
+                      )}
                     </Paper>
                   </Zoom>
                 ))}
@@ -350,217 +491,650 @@ const ManageClassFees = () => {
           {selectedClass ? (
             <Card elevation={3}>
               <CardContent>
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" gutterBottom sx={{ 
-                    color: 'primary.main',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <EditIcon /> Class Details
-                  </Typography>
-                  {editMode ? (
-                    <Grid container spacing={2}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                  <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+                    <Tab label="Fee Management" icon={<MoneyIcon />} />
+                    <Tab label="Fee History" icon={<HistoryIcon />} />
+                    <Tab label="Statistics" icon={<TrendingUpIcon />} />
+                    <Tab label="Settings" icon={<SettingsIcon />} />
+                  </Tabs>
+                </Box>
+
+                {/* Tab 1: Fee Management */}
+                {activeTab === 0 && (
+                  <Box>
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="h6" gutterBottom sx={{ 
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}>
+                        <EditIcon /> Fee Settings for {selectedClass.className}
+                      </Typography>
+                      
+                      {editMode ? (
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Base Fee"
+                              name="baseFee"
+                              type="number"
+                              value={editedClass.baseFee}
+                              onChange={handleInputChange}
+                              InputProps={{
+                                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Late Fee Per Day"
+                              name="lateFeePerDay"
+                              type="number"
+                              value={editedClass.lateFeePerDay}
+                              onChange={handleInputChange}
+                              InputProps={{
+                                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Due Date"
+                              name="feeDueDate"
+                              type="date"
+                              value={editedClass.feeDueDate}
+                              onChange={handleInputChange}
+                              InputLabelProps={{
+                                shrink: true,
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              startIcon={<GenerateIcon />}
+                              onClick={() => setGenerateFeeDialog(true)}
+                              fullWidth
+                            >
+                              Generate Monthly Fees
+                            </Button>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<SaveIcon />}
+                                onClick={handleConfirmUpdate}
+                                disabled={loading}
+                              >
+                                {loading ? <CircularProgress size={24} /> : 'Save Changes'}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                startIcon={<CancelIcon />}
+                                onClick={handleCancelEdit}
+                              >
+                                Cancel
+                              </Button>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      ) : (
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Base Fee
+                            </Typography>
+                            <Typography variant="h6">
+                              ${selectedClass.baseFee || 0}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Late Fee Per Day
+                            </Typography>
+                            <Typography variant="h6">
+                              ${selectedClass.lateFeePerDay || 0}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Due Date
+                            </Typography>
+                            <Typography variant="h6">
+                              {selectedClass.feeDueDate ? formatDate(selectedClass.feeDueDate) : 'Not set'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                              <Button
+                                variant="outlined"
+                                color="primary"
+                                startIcon={<EditIcon />}
+                                onClick={handleEditClick}
+                              >
+                                Edit Fee Settings
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                color="secondary"
+                                startIcon={<GenerateIcon />}
+                                onClick={() => setGenerateFeeDialog(true)}
+                              >
+                                Generate Monthly Fees
+                              </Button>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      )}
+                    </Box>
+
+                    <Divider sx={{ my: 3 }} />
+
+                    {/* Student List */}
+                    <Box>
+                      <Typography variant="h6" gutterBottom sx={{ 
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}>
+                        <SearchIcon /> Student Fee Details
+                      </Typography>
+                      
+                      {/* Search and Filter */}
+                      <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+                        <TextField
+                          size="small"
+                          label="Search Students"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          sx={{ flexGrow: 1 }}
+                          InputProps={{
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                          }}
+                        />
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                          <InputLabel>Status</InputLabel>
+                          <Select
+                            value={filterStatus}
+                            label="Status"
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                          >
+                            <MenuItem value="all">All</MenuItem>
+                            <MenuItem value="paid">Paid</MenuItem>
+                            <MenuItem value="pending">Pending</MenuItem>
+                            <MenuItem value="overdue">Overdue</MenuItem>
+                            <MenuItem value="under_process">Under Process</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
+
+                      <TableContainer component={Paper}>
+                        <Table>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Student ID</TableCell>
+                              <TableCell>Name</TableCell>
+                              <TableCell>Monthly Fee</TableCell>
+                              <TableCell>Total Amount</TableCell>
+                              <TableCell>Status</TableCell>
+                              <TableCell>Due Date</TableCell>
+                              <TableCell>Last Updated</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {filteredStudents.map((student) => {
+                              const feeDetails = student.feeDetails?.[selectedClass._id];
+                              
+                              return (
+                                <TableRow 
+                                  key={student._id}
+                                  sx={{
+                                    '&:hover': {
+                                      backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                                    }
+                                  }}
+                                >
+                                  <TableCell>{student.studentID}</TableCell>
+                                  <TableCell>{student.studentName}</TableCell>
+                                  <TableCell>
+                                    <Typography variant="body2">
+                                      ${feeDetails?.monthlyFee || (selectedClass.baseFee / 12)}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Typography
+                                      sx={{
+                                        color: feeDetails?.status === 'overdue' ? 
+                                          theme.palette.error.main : 
+                                          theme.palette.text.primary,
+                                        fontWeight: 'bold'
+                                      }}
+                                    >
+                                      ${feeDetails?.totalAmount || 0}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell>
+                                    <StatusChip status={feeDetails?.status || 'pending'} />
+                                  </TableCell>
+                                  <TableCell>
+                                    {feeDetails?.dueDate
+                                      ? formatDate(feeDetails.dueDate)
+                                      : selectedClass.feeDueDate
+                                      ? formatDate(selectedClass.feeDueDate)
+                                      : 'Not set'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {feeDetails?.lastUpdated
+                                      ? formatDate(feeDetails.lastUpdated)
+                                      : 'Never'}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Tab 2: Fee History */}
+                {activeTab === 1 && (
+                  <Box>
+                    <Typography variant="h6" gutterBottom sx={{ 
+                      color: 'primary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}>
+                      <HistoryIcon /> Fee History for {selectedClass.className}
+                    </Typography>
+                    {/* Month/Year Filter */}
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Month</InputLabel>
+                        <Select
+                          value={historyMonth}
+                          label="Month"
+                          onChange={e => setHistoryMonth(e.target.value)}
+                        >
+                          <MenuItem value="">All Months</MenuItem>
+                          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
+                            <MenuItem key={m} value={idx+1}>{m}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                          value={historyYear}
+                          label="Year"
+                          onChange={e => setHistoryYear(e.target.value)}
+                        >
+                          <MenuItem value="">All Years</MenuItem>
+                          {Array.from(new Set((feeHistory||[]).map(h=>h.updatedAt ? new Date(h.updatedAt).getFullYear() : null).filter(Boolean))).map(y => (
+                            <MenuItem key={y} value={y}>{y}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    <Accordion>
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography variant="subtitle1">Fee Change History</Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <List>
+                          {feeHistory.filter(history => {
+                            const month = history.updatedAt ? new Date(history.updatedAt).getMonth()+1 : null;
+                            const year = history.updatedAt ? new Date(history.updatedAt).getFullYear() : null;
+                            const matchMonth = historyMonth ? String(month) === String(historyMonth) : true;
+                            const matchYear = historyYear ? String(year) === String(historyYear) : true;
+                            return matchMonth && matchYear;
+                          }).map((history, index) => (
+                            <ListItem key={index}>
+                              <ListItemIcon>
+                                <CalendarIcon />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={`Base Fee: $${history.baseFee} | Late Fee: $${history.lateFeePerDay}/day`}
+                                secondary={`Updated on ${formatDate(history.updatedAt)} by ${history.updatedBy?.adminName || 'Admin'}${history.reason ? ` - ${history.reason}` : ''}`}
+                              />
+                            </ListItem>
+                          ))}
+                          {feeHistory.filter(history => {
+                            const month = history.updatedAt ? new Date(history.updatedAt).getMonth()+1 : null;
+                            const year = history.updatedAt ? new Date(history.updatedAt).getFullYear() : null;
+                            const matchMonth = historyMonth ? String(month) === String(historyMonth) : true;
+                            const matchYear = historyYear ? String(year) === String(historyYear) : true;
+                            return matchMonth && matchYear;
+                          }).length === 0 && (
+                            <ListItem>
+                              <ListItemText primary="No fee history for selected month/year" />
+                            </ListItem>
+                          )}
+                        </List>
+                      </AccordionDetails>
+                    </Accordion>
+                  </Box>
+                )}
+
+                {/* Tab 3: Statistics */}
+                {activeTab === 2 && (
+                  <Box>
+                    <Typography variant="h6" gutterBottom sx={{ 
+                      color: 'primary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}>
+                      <TrendingUpIcon /> Fee Statistics for {selectedClass.className}
+                    </Typography>
+                    
+                    {feeStats && (
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Card sx={{ textAlign: 'center', p: 2 }}>
+                            <Typography variant="h4" color="primary">
+                              {feeStats.overview?.totalFees || 0}
+                            </Typography>
+                            <Typography variant="body2">Total Fees</Typography>
+                          </Card>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Card sx={{ textAlign: 'center', p: 2 }}>
+                            <Typography variant="h4" color="success.main">
+                              {feeStats.overview?.paidFees || 0}
+                            </Typography>
+                            <Typography variant="body2">Paid Fees</Typography>
+                          </Card>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Card sx={{ textAlign: 'center', p: 2 }}>
+                            <Typography variant="h4" color="warning.main">
+                              {feeStats.overview?.pendingFees || 0}
+                            </Typography>
+                            <Typography variant="body2">Pending Fees</Typography>
+                          </Card>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Card sx={{ textAlign: 'center', p: 2 }}>
+                            <Typography variant="h4" color="error.main">
+                              {feeStats.overview?.overdueFees || 0}
+                            </Typography>
+                            <Typography variant="body2">Overdue Fees</Typography>
+                          </Card>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Card sx={{ p: 2 }}>
+                            <Typography variant="h6" gutterBottom>Collection Rate</Typography>
+                            <Typography variant="h4" color="primary">
+                              {feeStats.overview?.collectionRate?.toFixed(1) || 0}%
+                            </Typography>
+                          </Card>
+                        </Grid>
+                      </Grid>
+                    )}
+                  </Box>
+                )}
+
+                {/* Tab 4: Settings */}
+                {activeTab === 3 && (
+                  <Box>
+                    <Typography variant="h6" gutterBottom sx={{ 
+                      color: 'primary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}>
+                      <SettingsIcon /> Fee Settings for {selectedClass.className}
+                    </Typography>
+                    
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Monthly Fee Calculation</InputLabel>
+                          <Select
+                            value={enhancedFeeSettings.monthlyFeeCalculation}
+                            label="Monthly Fee Calculation"
+                            onChange={(e) => handleEnhancedSettingChange('monthlyFeeCalculation', e.target.value)}
+                          >
+                            <MenuItem value="baseFee">Based on Base Fee (Base Fee / 12)</MenuItem>
+                            <MenuItem value="custom">Custom Monthly Fee</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {enhancedFeeSettings.monthlyFeeCalculation === 'custom' && (
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Custom Monthly Fee"
+                            type="number"
+                            value={enhancedFeeSettings.customMonthlyFee}
+                            onChange={(e) => handleEnhancedSettingChange('customMonthlyFee', Number(e.target.value))}
+                            InputProps={{
+                              startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
+                            }}
+                          />
+                        </Grid>
+                      )}
+                      
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Fee Frequency</InputLabel>
+                          <Select
+                            value={enhancedFeeSettings.feeFrequency}
+                            label="Fee Frequency"
+                            onChange={(e) => handleEnhancedSettingChange('feeFrequency', e.target.value)}
+                          >
+                            <MenuItem value="monthly">Monthly</MenuItem>
+                            <MenuItem value="quarterly">Quarterly</MenuItem>
+                            <MenuItem value="annually">Annually</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
-                          label="Base Fee"
-                          name="baseFee"
+                          label="Grace Period (Days)"
                           type="number"
-                          value={editedClass.baseFee}
-                          onChange={handleInputChange}
-                          InputProps={{
-                            startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
-                          }}
+                          value={enhancedFeeSettings.gracePeriod}
+                          onChange={(e) => handleEnhancedSettingChange('gracePeriod', Number(e.target.value))}
+                          inputProps={{ min: 0, max: 30 }}
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Late Fee Per Day"
-                          name="lateFeePerDay"
-                          type="number"
-                          value={editedClass.lateFeePerDay}
-                          onChange={handleInputChange}
-                          InputProps={{
-                            startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
-                          }}
-                        />
-                      </Grid>
+                      
                       <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          label="Fee Due Date"
-                          name="feeDueDate"
-                          type="date"
-                          value={editedClass.feeDueDate}
-                          onChange={handleInputChange}
-                          InputLabelProps={{ shrink: true }}
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={enhancedFeeSettings.autoGenerateFees}
+                              onChange={(e) => handleEnhancedSettingChange('autoGenerateFees', e.target.checked)}
+                            />
+                          }
+                          label="Auto-generate monthly fees"
                         />
                       </Grid>
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<SaveIcon />}
-                            onClick={handleConfirmUpdate}
-                            disabled={loading}
-                          >
-                            Save Changes
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            color="secondary"
-                            startIcon={<CancelIcon />}
-                            onClick={handleCancelEdit}
-                            disabled={loading}
-                          >
-                            Cancel
-                          </Button>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  ) : (
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Base Fee
-                        </Typography>
-                        <Typography variant="h6">
-                          ${selectedClass.baseFee || 0}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Late Fee Per Day
-                        </Typography>
-                        <Typography variant="h6">
-                          ${selectedClass.lateFeePerDay || 0}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Due Date
-                        </Typography>
-                        <Typography variant="h6">
-                          {selectedClass.feeDueDate ? format(new Date(selectedClass.feeDueDate), 'MMM dd, yyyy') : 'Not set'}
-                        </Typography>
-                      </Grid>
+                      
                       <Grid item xs={12}>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           color="primary"
-                          startIcon={<EditIcon />}
-                          onClick={handleEditClick}
+                          startIcon={<SaveIcon />}
+                          onClick={handleConfirmUpdate}
+                          disabled={loading}
                         >
-                          Edit Fee Settings
+                          Save Settings
                         </Button>
                       </Grid>
                     </Grid>
-                  )}
-                </Box>
-
-                <Divider sx={{ my: 3 }} />
-
-                {/* Student List */}
-                <Box>
-                  <Typography variant="h6" gutterBottom sx={{ 
-                    color: 'primary.main',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <SearchIcon /> Student Fee Details
-                  </Typography>
-                  
-                  {/* Search and Filter */}
-                  <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-                    <TextField
-                      size="small"
-                      label="Search Students"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      sx={{ flexGrow: 1 }}
-                      InputProps={{
-                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      }}
-                    />
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={filterStatus}
-                        label="Status"
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                      >
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="paid">Paid</MenuItem>
-                        <MenuItem value="pending">Pending</MenuItem>
-                        <MenuItem value="overdue">Overdue</MenuItem>
-                      </Select>
-                    </FormControl>
                   </Box>
+                )}
 
-                  <TableContainer component={Paper} elevation={2}>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Student ID</TableCell>
-                          <TableCell>Name</TableCell>
-                          <TableCell>Total Amount</TableCell>
-                          <TableCell>Status</TableCell>
-                          <TableCell>Due Date</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {filteredStudents.map((student) => {
-                          const feeDetails = student.feeDetails?.[selectedClass._id];
-                          const totalAmount = calculateOverdueFees(
-                            selectedClass.baseFee,
-                            selectedClass.lateFeePerDay,
-                            feeDetails?.dueDate || selectedClass.feeDueDate
-                          );
-                          
-                          return (
-                            <TableRow 
-                              key={student._id}
-                              sx={{
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.primary.main, 0.05)
-                                }
-                              }}
-                            >
-                              <TableCell>{student.studentID}</TableCell>
-                              <TableCell>{student.studentName}</TableCell>
-                              <TableCell>
-                                <Typography
-                                  sx={{
-                                    color: feeDetails?.status === 'overdue' ? 
-                                      theme.palette.error.main : 
-                                      theme.palette.text.primary,
-                                    fontWeight: 'bold'
-                                  }}
-                                >
-                                  ${totalAmount}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <StatusChip status={feeDetails?.status || 'pending'} />
-                              </TableCell>
-                              <TableCell>
-                                {feeDetails?.dueDate
-                                  ? format(new Date(feeDetails.dueDate), 'MMM dd, yyyy')
-                                  : selectedClass.feeDueDate
-                                  ? format(new Date(selectedClass.feeDueDate), 'MMM dd, yyyy')
-                                  : 'Not set'}
-                              </TableCell>
+                {/* Monthly Fee Records */}
+                {selectedClass && (
+                  <Box sx={{ mt: 4 }}>
+                    <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HistoryIcon /> Monthly Fee Records
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Month</InputLabel>
+                        <Select
+                          value={recordsMonth}
+                          label="Month"
+                          onChange={e => setRecordsMonth(e.target.value)}
+                        >
+                          <MenuItem value="">Select Month</MenuItem>
+                          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
+                            <MenuItem key={m} value={idx+1}>{m}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                          value={recordsYear}
+                          label="Year"
+                          onChange={e => setRecordsYear(e.target.value)}
+                        >
+                          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                            <MenuItem key={y} value={y}>{y}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Student ID</TableCell>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Amount</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Due Date</TableCell>
+                            <TableCell>Payment Date</TableCell>
+                            <TableCell>Late Fee</TableCell>
+                            <TableCell>Receipt/Transaction</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {recordsLoading ? (
+                            <TableRow><TableCell colSpan={8} align="center"><CircularProgress size={24} /></TableCell></TableRow>
+                          ) : monthlyFeeRecords.length === 0 ? (
+                            <TableRow><TableCell colSpan={8} align="center">No records found for selected month/year</TableCell></TableRow>
+                          ) : (
+                            monthlyFeeRecords.map((rec, idx) => (
+                              <TableRow key={rec._id || idx}>
+                                <TableCell>{rec.student?.studentID}</TableCell>
+                                <TableCell>{rec.student?.studentName}</TableCell>
+                                <TableCell>${rec.totalAmount}</TableCell>
+                                <TableCell>{rec.status}</TableCell>
+                                <TableCell>{rec.dueDate ? formatDate(rec.dueDate) : ''}</TableCell>
+                                <TableCell>{rec.paymentDate ? formatDate(rec.paymentDate) : '-'}</TableCell>
+                                <TableCell>${rec.lateFeeAmount || 0}</TableCell>
+                                <TableCell>{rec.receiptNumber || rec.transactionId || '-'}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                )}
+
+                {/* Payment History */}
+                {selectedClass && (
+                  <Box sx={{ mt: 4 }}>
+                    <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HistoryIcon /> Payment History (Parent Payments)
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Month</InputLabel>
+                        <Select
+                          value={paymentMonth}
+                          label="Month"
+                          onChange={e => setPaymentMonth(e.target.value)}
+                        >
+                          <MenuItem value="">Select Month</MenuItem>
+                          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
+                            <MenuItem key={m} value={idx+1}>{m}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                          value={paymentYear}
+                          label="Year"
+                          onChange={e => setPaymentYear(e.target.value)}
+                        >
+                          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                            <MenuItem key={y} value={y}>{y}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {error && (
+                      <Paper sx={{ p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
+                        {error}
+                      </Paper>
+                    )}
+                    {(!paymentMonth || !paymentYear) ? (
+                      <Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                        Please select a month and year to view payment history.
+                      </Paper>
+                    ) : paymentLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 100 }}>
+                        <CircularProgress size={32} />
+                      </Box>
+                    ) : paymentHistory.length === 0 ? (
+                      <Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                        No payments found for selected month/year.
+                      </Paper>
+                    ) : (
+                      <TableContainer component={Paper}>
+                        <Table>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Student ID</TableCell>
+                              <TableCell>Name</TableCell>
+                              <TableCell>Amount Paid</TableCell>
+                              <TableCell>Status</TableCell>
+                              <TableCell>Payment Date</TableCell>
+                              <TableCell>Payment Method</TableCell>
+                              <TableCell>Transaction/Receipt</TableCell>
                             </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
+                          </TableHead>
+                          <TableBody>
+                            {paymentHistory.map((rec, idx) => (
+                              <TableRow key={rec._id || idx}>
+                                <TableCell>{rec.student?.studentID || '-'}</TableCell>
+                                <TableCell>{rec.student?.studentName || '-'}</TableCell>
+                                <TableCell>{rec.totalAmount !== undefined ? `$${rec.totalAmount}` : '-'}</TableCell>
+                                <TableCell>{rec.status || '-'}</TableCell>
+                                <TableCell>{rec.paymentDate ? formatDate(rec.paymentDate) : '-'}</TableCell>
+                                <TableCell>{rec.paymentMethod || '-'}</TableCell>
+                                <TableCell>{rec.receiptNumber || rec.transactionId || '-'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </Box>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -613,6 +1187,61 @@ const ManageClassFees = () => {
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : 'Confirm Update'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Generate Monthly Fees Dialog */}
+      <Dialog
+        open={generateFeeDialog}
+        onClose={() => setGenerateFeeDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Generate Monthly Fees</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Month</InputLabel>
+                <Select
+                  value={selectedMonth}
+                  label="Month"
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  {months.map((month) => (
+                    <MenuItem key={month} value={month}>{month}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Year</InputLabel>
+                <Select
+                  value={selectedYear}
+                  label="Year"
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                >
+                  {years.map((year) => (
+                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGenerateFeeDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleGenerateMonthlyFees}
+            color="primary"
+            variant="contained"
+            disabled={!selectedMonth || loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Generate Fees'}
           </Button>
         </DialogActions>
       </Dialog>

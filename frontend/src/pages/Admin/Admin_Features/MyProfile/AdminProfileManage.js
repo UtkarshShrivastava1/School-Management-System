@@ -17,6 +17,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ChangeAdminPassword from "../../../../components/Admin/ChangeAdminPassword";
 import "./AdminProfileManage.css";
+
 const AdminProfileManage = ({ userRole = "admin" }) => {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,7 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
   const toggleShowBankDetails = () => {
     setShowBankDetails((prev) => !prev);
   };
+
   const API_URL =
     process.env.REACT_APP_NODE_ENV === "production"
       ? process.env.REACT_APP_PRODUCTION_URL
@@ -112,6 +114,15 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
     if (!isEditing) setFormData(adminData);
   };
 
+  // Helper to format date to yyyy-MM-dd
+  function formatDateToInput(date) {
+    if (!date) return '';
+    const d = new Date(date);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
+  }
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
@@ -145,15 +156,31 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
       // Use FormData for the request
       const formDataToSubmit = new FormData();
 
-      // Ensure adminID is included
-      formDataToSubmit.append("adminID", adminData.adminID);
-      
-      // Append all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          // For nested objects like emergencyContact and bankDetails
-          if (typeof value === "object" && !Array.isArray(value)) {
-            formDataToSubmit.append(key, JSON.stringify(value));
+      // Ensure adminID is included (fallback to formData or adminData)
+      const adminID = (adminData && adminData.adminID) || formData.adminID;
+      if (!adminID) {
+        toast.error("Admin ID is missing. Cannot update profile.");
+        setIsUpdating(false);
+        return;
+      }
+      formDataToSubmit.append("adminID", adminID);
+
+      // Only send allowed fields
+      const allowedFields = [
+        "adminID", "name", "email", "phone", "designation", "department", "address", "dob", "gender", "religion", "category", "bloodgroup", "emergencyContact", "experience", "highestQualification", "AADHARnumber", "salary", "bankDetails"
+      ];
+      allowedFields.forEach((key) => {
+        const value = formData[key];
+        if (value !== undefined && value !== null && key !== "adminID") {
+          if ((key === "emergencyContact" || key === "bankDetails") && typeof value === "object" && !Array.isArray(value)) {
+            // Append nested fields using bracket notation
+            Object.entries(value).forEach(([subKey, subValue]) => {
+              if (subValue !== undefined && subValue !== null) {
+                formDataToSubmit.append(`${key}[${subKey}]`, subValue);
+              }
+            });
+          } else if (key === "dob") {
+            formDataToSubmit.append(key, formatDateToInput(value));
           } else {
             formDataToSubmit.append(key, value);
           }
@@ -163,6 +190,11 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
       // Append the photo file if it exists
       if (photo) {
         formDataToSubmit.append("photo", photo);
+      }
+
+      // Debug: log FormData content
+      for (let pair of formDataToSubmit.entries()) {
+        console.log(pair[0]+ ': ' + pair[1]);
       }
 
       console.log("Sending admin profile update request");
@@ -181,11 +213,23 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
       setIsEditing(false);
       toast.success(response.data.message || "Profile updated successfully!");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update profile.");
+      if (err.response?.data?.errors) {
+        // Backend validation errors (array)
+        setValidationErrors(
+          err.response.data.errors.reduce((acc, curr) => {
+            acc[curr.field] = curr.message;
+            return acc;
+          }, {})
+        );
+        toast.error("Validation errors occurred. Please check the form.");
+      } else {
+        toast.error(err.response?.data?.message || "Failed to update profile.");
+      }
     } finally {
       setIsUpdating(false);
     }
   };
+
   if (loading) {
     return (
       <div className="textCenter">
@@ -206,6 +250,7 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
   const handleBack = () => {
     navigate(-1); // Navigate back to the previous page
   };
+
   return (
     <div className="admin-profile-container mt-5">
       <h2 className="text-center text-primary mb-4">Manage Profile</h2>
@@ -319,6 +364,16 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
           </div>
         ) : (
           <Form onSubmit={handleFormSubmit} className="p-4">
+            {/* Show all validation errors at the top if any */}
+            {Object.values(validationErrors).length > 0 && (
+              <Alert variant="danger">
+                <ul style={{ marginBottom: 0 }}>
+                  {Object.entries(validationErrors).map(([field, msg]) => (
+                    <li key={field}><strong>{field}:</strong> {msg}</li>
+                  ))}
+                </ul>
+              </Alert>
+            )}
             <Row>
               <Col md={6}>
                 <Form.Group controlId="formName">
@@ -357,9 +412,6 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
                     onChange={handleInputChange}
                   />
                 </Form.Group>
-                {validationErrors.email && (
-                  <Alert variant="danger">{validationErrors.email}</Alert>
-                )}
               </Col>
               <Col md={6}>
                 <Form.Group controlId="formPhone">
@@ -372,9 +424,6 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
                     onChange={handleInputChange}
                   />
                 </Form.Group>
-                {validationErrors.phone && (
-                  <Alert variant="danger">{validationErrors.phone}</Alert>
-                )}
               </Col>
             </Row>
             <Row>
@@ -389,11 +438,6 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
                     onChange={handleInputChange}
                   />
                 </Form.Group>
-                {validationErrors.AADHARnumber && (
-                  <Alert variant="danger">
-                    {validationErrors.AADHARnumber}
-                  </Alert>
-                )}
               </Col>
               <Col md={6}>
                 <Form.Group controlId="formPhoto">
@@ -434,7 +478,7 @@ const AdminProfileManage = ({ userRole = "admin" }) => {
             </Row>
             <Row>
               <Col md={6}>
-                <Form.Group controlId="formDob">
+                <Form.Group controlId="formDOB">
                   <Form.Label>Date of Birth</Form.Label>
                   <Form.Control
                     type="date"
