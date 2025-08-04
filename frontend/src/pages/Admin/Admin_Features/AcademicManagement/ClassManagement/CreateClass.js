@@ -17,11 +17,12 @@ const CreateClass = () => {
   const [standardName, setStandardName] = useState("");
   const [classStrength, setClassStrength] = useState("");
   const [section, setSection] = useState("");
-
-  const [subjects, setSubjects] = useState([]); // Array of subject objects
-  const [teachers, setTeachers] = useState([]); // Fetched teacher list for dropdown
+  const [subjects, setSubjects] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [availableSections, setAvailableSections] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -49,8 +50,51 @@ const CreateClass = () => {
     fetchTeachers();
   }, [API_URL]);
 
-  // Handle changes for standardName and classStrength
-  const handleStandardNameChange = (e) => setStandardName(e.target.value);
+  // Enhanced section fetching logic
+  const fetchAvailableSections = async (standard) => {
+    if (!standard) return;
+
+    try {
+      setLoading(true);
+      setErrorMessage("");
+
+      const response = await axios.get(
+        `${API_URL}/api/admin/auth/available-sections/${standard}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      const availableSecs = response.data.availableSections || [];
+      setAvailableSections(availableSecs);
+      setSection(""); // Reset selected section when standard changes
+    } catch (error) {
+      console.error("Error fetching sections:", error);
+      setErrorMessage("Failed to fetch available sections");
+      setAvailableSections([]);
+      toast.error("Failed to fetch available sections");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enhanced standard name change handler
+  const handleStandardNameChange = (e) => {
+    const value = e.target.value.trim();
+    setStandardName(value);
+
+    // Only fetch if there's a valid standard number
+    if (value && !isNaN(value) && parseInt(value) > 0) {
+      fetchAvailableSections(value);
+    } else {
+      setAvailableSections([]);
+      setSection("");
+    }
+  };
+
+  // Handle class strength change
   const handleClassStrengthChange = (e) => setClassStrength(e.target.value);
 
   // Handle dynamic subject input changes
@@ -100,7 +144,7 @@ const CreateClass = () => {
         section: section.trim(),
         classStrength: parseInt(classStrength, 10),
         subjects,
-        teachers: subjects.map(subj => subj.teacherId), // Collect all teacherIds from subjects
+        teachers: subjects.map((subj) => subj.teacherId), // Collect all teacherIds from subjects
       };
 
       const response = await axios.post(
@@ -158,16 +202,16 @@ const CreateClass = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="standardName">
-            Standard Name (e.g., 1, 2, 3, etc.):
-          </label>
+          <label htmlFor="standardName">Standard Name (1-12):</label>
           <input
-            type="text"
+            type="number"
             id="standardName"
             name="standardName"
             value={standardName}
             onChange={handleStandardNameChange}
-            placeholder="Enter standard name"
+            placeholder="Enter standard (1-12)"
+            min="1"
+            max="12"
             required
           />
         </div>
@@ -180,14 +224,21 @@ const CreateClass = () => {
             value={section}
             onChange={(e) => setSection(e.target.value)}
             required
+            disabled={!availableSections.length || loading}
           >
             <option value="">Select Section</option>
-            {["A", "B", "C", "D", "E"].map((sec) => (
+            {availableSections.map((sec) => (
               <option key={sec} value={sec}>
-                {sec}
+                Section {sec}
               </option>
             ))}
           </select>
+          {loading && <span className="loading-text">Loading sections...</span>}
+          {!loading && availableSections.length === 0 && standardName && (
+            <span className="no-sections-text">
+              No sections available for this standard
+            </span>
+          )}
         </div>
 
         <div className="form-group">

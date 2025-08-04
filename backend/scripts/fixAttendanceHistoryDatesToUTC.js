@@ -1,16 +1,16 @@
 const mongoose = require('mongoose');
 const Class = require('../models/ClassModel');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://sahilsharma06478:admin@cluster0.enasjof.mongodb.net/?retryWrites=true&w=majority&appName=AtlasDB';
+const  = process.env.MONGO_ATLAS_URI || 'mongodb+srv://sahilsharma06478:admin@cluster0.enasjof.mongodb.net/?retryWrites=true&w=majority&appName=AtlasDB';
 
-if (!MONGODB_URI) {
-  console.error('MongoDB URI is missing. Set MONGODB_URI in your environment.');
+if (!MONGO_ATLAS_URI) {
+  console.error('MongoDB URI is missing. Set MONGO_ATLAS_URI in your environment.');
   process.exit(1);
 }
 
 (async () => {
   try {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(MONGO_ATLAS_URI);
     console.log('✅ Connected to MongoDB');
     const classes = await Class.find({});
     let totalChanged = 0;

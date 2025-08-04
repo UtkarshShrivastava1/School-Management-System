@@ -16,21 +16,45 @@ const generateClassId = (standardName, sectionName) => {
   return `CLASS_${standardName.toUpperCase().replace(" ", "_")}_${sectionName}`;
 };
 
+const getAllowedSections = ["A", "B", "C", "D", "E"];
+
 const createClass = async (req, res) => {
   try {
     const { standardName, classStrength, section, subjects } = req.body;
     console.log("Incoming body =>", req.body);
 
     // Validate required fields
-    if (!standardName || !section || !classStrength || !Array.isArray(subjects) || subjects.length === 0) {
+    if (
+      !standardName ||
+      !section ||
+      !classStrength ||
+      !Array.isArray(subjects) ||
+      subjects.length === 0
+    ) {
       return res.status(400).json({
-        message: "Please provide standardName, section, classStrength, and a list of subjects with assigned teachers.",
+        message:
+          "Please provide standardName, section, classStrength, and a list of subjects with assigned teachers.",
       });
     }
 
-    // Validate section
-    const allowedSections = ["A", "B", "C", "D", "E"];
-    if (!allowedSections.includes(section.toUpperCase())) {
+    // Check for existing sections
+    const existingSections = await Class.find(
+      { className: standardName },
+      { section: 1, _id: 0 }
+    );
+    const usedSections = existingSections.map((item) => item.section);
+
+    // Validate if section is available
+    if (usedSections.includes(section.toUpperCase())) {
+      return res.status(400).json({
+        message: `Section ${section} already exists for class ${standardName}. Available sections: ${getAllowedSections
+          .filter((s) => !usedSections.includes(s))
+          .join(", ")}`,
+      });
+    }
+
+    // Validate section is in allowed list
+    if (!getAllowedSections.includes(section.toUpperCase())) {
       return res.status(400).json({
         message: "Section must be one of A, B, C, D, or E.",
       });
@@ -61,7 +85,11 @@ const createClass = async (req, res) => {
     const teacherToSubjects = {};
 
     // Process each subject and teacher
-    for (const { subjectName, teacherId, subjectCode: inputSubjectCode } of subjects) {
+    for (const {
+      subjectName,
+      teacherId,
+      subjectCode: inputSubjectCode,
+    } of subjects) {
       // Validate teacher
       const teacher = await Teacher.findOne({ teacherID: teacherId });
       if (!teacher) {
@@ -73,7 +101,8 @@ const createClass = async (req, res) => {
       // Create or update subject
       let subject = await Subject.findOne({ subjectName });
       if (!subject) {
-        const subjectCode = inputSubjectCode || generateSubjectCode(subjectName);
+        const subjectCode =
+          inputSubjectCode || generateSubjectCode(subjectName);
         const subjectCustomId = generateSubjectId(subjectCode);
         subject = new Subject({
           subjectName,
@@ -138,7 +167,8 @@ const createClass = async (req, res) => {
     await newClass.save();
 
     return res.status(201).json({
-      message: "Class created successfully with subjects and assigned teachers.",
+      message:
+        "Class created successfully with subjects and assigned teachers.",
       class: newClass,
     });
   } catch (error) {
@@ -157,7 +187,8 @@ const assignSubjectsToClass = async (req, res) => {
     // Validate required fields
     if (!classId || !Array.isArray(subjects) || subjects.length === 0) {
       return res.status(400).json({
-        message: "Please provide classId and a list of subjects with assigned teachers.",
+        message:
+          "Please provide classId and a list of subjects with assigned teachers.",
       });
     }
 
@@ -174,7 +205,11 @@ const assignSubjectsToClass = async (req, res) => {
     const teacherToSubjects = {};
 
     // Process each subject and teacher
-    for (const { subjectName, teacherId, subjectCode: inputSubjectCode } of subjects) {
+    for (const {
+      subjectName,
+      teacherId,
+      subjectCode: inputSubjectCode,
+    } of subjects) {
       // Validate teacher
       const teacher = await Teacher.findOne({ teacherID: teacherId });
       if (!teacher) {
@@ -186,7 +221,8 @@ const assignSubjectsToClass = async (req, res) => {
       // Create or update subject
       let subject = await Subject.findOne({ subjectName });
       if (!subject) {
-        const subjectCode = inputSubjectCode || generateSubjectCode(subjectName);
+        const subjectCode =
+          inputSubjectCode || generateSubjectCode(subjectName);
         const subjectCustomId = generateSubjectId(subjectCode);
         subject = new Subject({
           subjectName,
@@ -251,4 +287,53 @@ const assignSubjectsToClass = async (req, res) => {
   }
 };
 
-module.exports = { createClass, assignSubjectsToClass };
+const getAvailableSections = async (req, res) => {
+  try {
+    const { standardName } = req.params;
+
+    if (!standardName) {
+      return res.status(400).json({
+        message: "Please provide the class standard name",
+      });
+    }
+
+    const formattedStandardName = `Class ${standardName}`;
+
+    // Log the query
+    console.log("Searching for class:", formattedStandardName);
+
+    const existingSections = await Class.find(
+      { className: formattedStandardName },
+      { section: 1, _id: 0 }
+    ).lean(); // Use lean() for better performance
+
+    const usedSections = existingSections.map((item) => item.section);
+    const availableSections = ["A", "B", "C", "D", "E"].filter(
+      (section) => !usedSections.includes(section)
+    );
+
+    console.log("Found sections:", usedSections);
+    console.log("Available sections:", availableSections);
+
+    return res.status(200).json({
+      success: true,
+      message: "Available sections retrieved successfully",
+      standardName: formattedStandardName,
+      availableSections,
+      existingSections: usedSections,
+    });
+  } catch (error) {
+    console.error("Error in getAvailableSections:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching available sections",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
+  createClass,
+  assignSubjectsToClass,
+  getAvailableSections,
+};
