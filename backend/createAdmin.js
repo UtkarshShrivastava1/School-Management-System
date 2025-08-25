@@ -6,20 +6,28 @@ const Admin = require("./models/AdminModel");
 async function createDefaultAdmin() {
   try {
     console.log("Starting admin account creation...");
-    console.log(
-      "MongoDB URI:",
-      process.env.MONGO_ATLAS_URI ? "Configured" : "Not Configured"
-    );
+
+    const env = process.env.NODE_ENV || "development";
+    console.log("Environment:", env);
+
+    // Select the appropriate MongoDB URI based on environment
+    let mongoURI = "";
+
+    if (env === "production") {
+      mongoURI = process.env.MONGO_ATLAS_URI;
+    } else {
+      mongoURI =
+        process.env.MONGO_LOCAL_URI ||
+        "mongodb://localhost:27017/schoolManagementSystem";
+    }
+
+    console.log("MongoDB URI:", mongoURI ? "Configured" : "Not Configured");
 
     // Connect to MongoDB with options
-    await mongoose.connect(
-      process.env.MONGO_ATLAS_URI ||
-        "mongodb://localhost:27017/schoolManagementSystem",
-      {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      }
-    );
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log("Connected to MongoDB");
 
     // Check for existing admin

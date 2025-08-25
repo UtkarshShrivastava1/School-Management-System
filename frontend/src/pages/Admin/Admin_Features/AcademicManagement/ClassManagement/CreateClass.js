@@ -59,7 +59,7 @@ const CreateClass = () => {
       setErrorMessage("");
 
       const response = await axios.get(
-        `${API_URL}/api/admin/auth/available-sections/${standard}`,
+        `${API_URL}/api/admin/auth/available-sections/${standardName}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -69,7 +69,7 @@ const CreateClass = () => {
 
       const availableSecs = response.data.availableSections || [];
       setAvailableSections(availableSecs);
-      setSection(""); // Reset selected section when standard changes
+      setSection("");
     } catch (error) {
       console.error("Error fetching sections:", error);
       setErrorMessage("Failed to fetch available sections");
@@ -85,9 +85,8 @@ const CreateClass = () => {
     const value = e.target.value.trim();
     setStandardName(value);
 
-    // Only fetch if there's a valid standard number
     if (value && !isNaN(value) && parseInt(value) > 0) {
-      fetchAvailableSections(value);
+      fetchAvailableSections(value); // ✅ Pass value here
     } else {
       setAvailableSections([]);
       setSection("");
