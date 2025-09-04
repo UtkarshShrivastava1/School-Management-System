@@ -1,53 +1,71 @@
-import { useState } from "react";
-import { Alert, Button, Card, Container, Form, InputGroup } from "react-bootstrap";
-import { FaChalkboardTeacher, FaEye, FaEyeSlash, FaUserGraduate, FaUsers, FaUserShield } from "react-icons/fa";
+// src/pages/Signin.js
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Container,
+  Form,
+  InputGroup,
+} from "react-bootstrap";
+import {
+  FaChalkboardTeacher,
+  FaEye,
+  FaEyeSlash,
+  FaUserGraduate,
+  FaUsers,
+  FaUserShield,
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axiosInstance from '../utils/axiosConfig';
+
+import api from "../services/api";
 import "./Signin.css";
+
 const Signin = ({ setIsLoggedIn, setUserRole }) => {
-  const [loggingUser, setLoggingUser] = useState("Admin");
+  const [role, setRole] = useState("admin");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("admin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
+  const roleNames = useMemo(
+    () => ({
+      admin: "Admin",
+      teacher: "Teacher",
+      student: "Student",
+      parent: "Parent",
+    }),
+    []
+  );
 
-  const roleNames = {
-    admin: "Admin",
-    teacher: "Teacher",
-    student: "Student",
-    parent: "Parent",
-  };
+  // Keep prefixes aligned with backend ID format
+  const rolePrefixes = useMemo(
+    () => ({
+      admin: "ADM", // ADM1234
+      teacher: "TCHR", // TCHR1234
+      student: "STU", // STU12345 (adjust if needed)
+      parent: "PRNT", // PRNT12345 (adjust if needed)
+    }),
+    []
+  );
 
-  const rolePrefixes = {
-    admin: "ADM",
-    teacher: "TCHR",
-    student: "STU",
-    parent: "PRNT",
-  };
-
-  const handleRoleChange = (e) => {
-    const selectedRole = e.target.value;
-    setRole(selectedRole);
-    setLoggingUser(roleNames[selectedRole] || "Admin");
-    setUserId("");
-  };
+  const loggingUser = roleNames[role] || "Admin";
 
   const validateUserId = (id) => {
     const prefix = rolePrefixes[role];
-    const regex = new RegExp(
-      `^${prefix}\\d{${role === "student" || role === "parent" ? 5 : 4}}$`
-    );
+    const digits = role === "student" || role === "parent" ? 5 : 4;
+    const regex = new RegExp(`^${prefix}\\d{${digits}}$`);
     return regex.test(id);
+  };
+
+  const handleRoleChange = (e) => {
+    setRole(e.target.value);
+    setUserId("");
+    setError("");
   };
 
   const handleSubmit = async (e) => {
@@ -56,91 +74,60 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
     setError("");
 
     if (!validateUserId(userId)) {
-      setError(`Invalid ${loggingUser} ID format.`);
       setLoading(false);
-      return;
+      return setError(`Invalid ${loggingUser} ID format.`);
     }
 
     try {
-      const roleEndpoints = {
+      const endpoints = {
         admin: "/api/admin/auth/login",
         teacher: "/api/teacher/auth/login",
         student: "/api/student/auth/login",
         parent: "/api/parent/auth/login",
       };
 
-      const loginEndpoint = roleEndpoints[role];
-      console.log('Attempting login with:', {
-        url: loginEndpoint,
-        data: { [`${role}ID`]: userId }
-      });
+      const loginEndpoint = endpoints[role];
+      const idField = `${role}ID`; // adminID, teacherID, studentID, parentID
 
-      // First test if server is reachable
-      try {
-        const testResponse = await axiosInstance.get('/api/test');
-        console.log('Server test response:', testResponse.data);
-      } catch (testError) {
-        console.error('Server test failed:', testError);
-        throw new Error('Server is not reachable. Please check if the backend is running.');
-      }
-
-      const response = await axiosInstance.post(loginEndpoint, {
-        [`${role}ID`]: userId,
+      // api.post returns the payload object directly (unwrapped)
+      const resp = await api.post(loginEndpoint, {
+        [idField]: userId,
         password,
       });
 
-      console.log('Login response:', response.data);
+      // Expected payload: { message, token, role, data }
+      const token = resp?.token;
+      if (!token) throw new Error("No token received from server");
 
-      // Store token and role
-      const token = response.data.token;
-      if (!token) {
-        throw new Error("No token received from server");
-      }
-
-      // Store authentication data
+      // Persist token (axios header + localStorage)
+      api.setToken(token);
       localStorage.setItem("token", token);
       localStorage.setItem("userRole", role);
-      
-      // Store user info
-      const userInfo = response.data[role] || response.data.data;
-      if (userInfo) {
-        const enhancedUserInfo = {
-          ...userInfo,
-          [`${role}ID`]: userId
-        };
-        
-        console.log(`Storing ${role} info:`, enhancedUserInfo);
-        localStorage.setItem(`${role}Info`, JSON.stringify(enhancedUserInfo));
-      }
 
-      // Update app state
+      // Prefer `resp.data` (backend sends user in `data`)
+      const userInfo = resp?.data || resp?.[role] || {};
+      localStorage.setItem(`${role}Info`, JSON.stringify(userInfo));
+
+      // App state
       setIsLoggedIn(true);
       setUserRole(role);
 
       toast.success("Login successful!", {
         position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
         theme: "colored",
       });
 
-      // Navigate to appropriate dashboard
+      // Navigate to role dashboard
       navigate(`/${role}/${role}-dashboard`);
     } catch (err) {
-      console.error("Login error:", err);
-      setError(
-        err.response?.data?.message || err.message || "Login failed. Please try again."
-      );
-      toast.error("Failed to Login.", {
+      const msg =
+        err?.message ||
+        err?.data?.message ||
+        err?.raw?.response?.data?.message ||
+        "Login failed. Please try again.";
+      setError(msg);
+      toast.error(msg, {
         position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
         theme: "colored",
       });
     } finally {
@@ -177,7 +164,11 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
               <Form.Label>{loggingUser} ID</Form.Label>
               <Form.Control
                 type="text"
-                placeholder={`Enter ${loggingUser} ID (e.g., ${rolePrefixes[role]}1234)`}
+                placeholder={`Enter ${loggingUser} ID (e.g., ${
+                  rolePrefixes[role]
+                }${
+                  role === "student" || role === "parent" ? "12345" : "1234"
+                })`}
                 value={userId}
                 onChange={(e) => setUserId(e.target.value.toUpperCase())}
                 required
@@ -196,7 +187,7 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
                 />
                 <Button
                   variant="outline-secondary"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword((s) => !s)}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </Button>

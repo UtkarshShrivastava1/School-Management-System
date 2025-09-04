@@ -7,7 +7,7 @@ console.log(
 
 require("dotenv").config();
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const Admin = require("./models/AdminModel");
 
 // Connect to MongoDB

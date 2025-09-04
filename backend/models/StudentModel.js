@@ -3,201 +3,99 @@ const mongoose = require("mongoose");
 const studentSchema = new mongoose.Schema(
   {
     // Basic Information
-    studentName: {
-      type: String,
-      required: true,
-    },
-    studentID: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    studentPassword: {
-      type: String,
-      required: true,
-    },
+    studentName: { type: String, required: true, trim: true },
+    studentID: { type: String, required: true, unique: true, trim: true },
+    studentPassword: { type: String, required: true, select: false }, // 🔒 hidden
     studentEmail: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, "Invalid email"],
     },
     studentPhone: {
       type: String,
       required: true,
+      trim: true,
+      match: [/^\d{10}$/, "Phone number must be 10 digits"],
     },
-    studentAddress: {
-      type: String,
-      required: true,
-    },
-    studentDOB: {
-      type: Date,
-      required: true,
-    },
+    studentAddress: { type: String, required: true, trim: true },
+    studentDOB: { type: Date, required: true },
     studentGender: {
       type: String,
       required: true,
       enum: ["Male", "Female", "Other"],
     },
-    studentDateOfAdmission: {
-      type: Date,
-      default: Date.now,
-    },
-    studentFatherName: {
-      type: String,
-      required: true,
-    },
-    studentMotherName: {
-      type: String,
-      required: true,
-    },
-    religion: String,
-    category: String,
-    bloodgroup: String,
-    photo: {
-      type: String,
-      default: "",
-    },
+    studentDateOfAdmission: { type: Date, default: Date.now },
+
+    studentFatherName: { type: String, required: true, trim: true },
+    studentMotherName: { type: String, required: true, trim: true },
+
+    religion: { type: String, trim: true },
+    category: { type: String, trim: true },
+    bloodgroup: { type: String, trim: true },
+
+    photo: { type: String, default: "" },
+
+    // Parent link
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Parent",
-      required: true
+      required: true,
     },
-    enrolledClasses: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Class"
-    }],
-    feeDetails: {
-      type: Map,
-      of: {
-        classFee: Number,
-        monthlyFee: Number,
-        totalAmount: Number,
-        status: {
-          type: String,
-          enum: ['pending', 'paid', 'overdue', 'under_process', 'cancelled'],
-          default: 'pending'
-        },
-        lastUpdated: Date,
-        dueDate: Date,
-        lateFeePerDay: Number,
-        lateFeeAmount: Number,
-        paymentDate: Date,
-        paymentMethod: String,
-        receiptNumber: String,
-        // Enhanced fields
-        academicYear: String,
-        month: String,
-        year: Number,
-        paidMonth: String,
-        paidYear: Number,
-        currentMonth: String,
-        currentYear: Number,
-        paymentHistory: [{
-          month: String,
-          year: Number,
-          amount: Number,
-          status: String,
-          paymentDate: Date,
-          transactionId: String
-        }],
-        feeHistory: [{
-          month: String,
-          year: Number,
-          baseFee: Number,
-          monthlyFee: Number,
-          lateFeeAmount: Number,
-          totalAmount: Number,
-          status: String,
-          dueDate: Date,
-          paymentDate: Date
-        }],
-        gracePeriodUsed: {
-          type: Boolean,
-          default: false
-        },
-        remindersSent: {
-          type: Number,
-          default: 0
-        }
-      },
-      default: new Map()
+
+    // Admission workflow
+    requestedClass: { type: String, trim: true }, // intended grade
+    status: {
+      type: String,
+      enum: ["active", "inactive", "pending_class_assignment"],
+      default: "pending_class_assignment",
     },
+
     registeredBy: {
       adminID: String,
       name: String,
     },
-    // Contact Information
+
     emergencyContact: {
-      // Optional emergency contact information
-      name: String, // Name of the emergency contact person
-      relation: String, // Relationship with the student
+      name: String,
+      relation: String,
       phone: {
         type: String,
-        match: [/^\d{10}$/, "Phone number must be 10 digits"], // Phone validation
+        match: [/^\d{10}$/, "Phone number must be 10 digits"],
       },
     },
 
-    // Academic Information
-    studentDateOfAdmission: { type: Date, required: true }, // Admission date
-    actionHistory: [{ type: String }], // Array of logged actions performed by the student
+    actionHistory: [{ type: String }],
 
-    // Family Information
-    studentFatherName: { type: String, required: true }, // Father's name
-    studentMotherName: { type: String, required: true }, // Mother's name
+    AADHARnumber: { type: String, trim: true },
 
-    // Optional Identification Information
-    AADHARnumber: { type: String }, // AADHAR number (optional, for India)
+    lastLogin: { type: Date },
+    loginHistory: [{ type: Date }],
 
-    // Activity Information
-    lastLogin: { type: Date }, // Last login timestamp
-    loginHistory: [{ type: Date }], // Array of login timestamps
+    role: { type: String, default: "student" },
 
-    // Role Information
-    role: { type: String, default: "student" }, // Role in the system (default: "student")
-
-    // Attendance Information
-    attendance: [
-      {
-        date: {
-          type: Date,
-          required: true,
-        },
-        classId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Class",
-          required: true,
-        },
-        status: {
-          type: String,
-          enum: ["Present", "Absent"],
-          required: true,
-        },
-      },
-    ],
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    admissionDate: {
-      type: Date,
-      default: Date.now
-    }
+    isActive: { type: Boolean, default: true },
+    admissionDate: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
 
-// Add a pre-save middleware to ensure unique classes
-studentSchema.pre('save', async function(next) {
-  if (this.isModified('enrolledClasses')) {
-    // Remove any duplicate class IDs
-    this.enrolledClasses = [...new Set(this.enrolledClasses.map(id => id.toString()))];
-  }
-  next();
+// Helpful indexes
+studentSchema.index({ parent: 1 });
+studentSchema.index({ studentEmail: 1 }, { unique: true });
+studentSchema.index({ studentID: 1 }, { unique: true });
+studentSchema.index({ role: 1, isActive: 1 });
+studentSchema.index({ status: 1 });
+studentSchema.index({ requestedClass: 1 });
+
+// Hide sensitive fields in JSON
+studentSchema.set("toJSON", {
+  transform: (_, ret) => {
+    delete ret.studentPassword;
+    return ret;
+  },
 });
 
-// Create indexes for better query performance
-studentSchema.index({ parent: 1 });
-
-const Student = mongoose.model("Student", studentSchema);
-
-module.exports = Student;
+module.exports = mongoose.model("Student", studentSchema);

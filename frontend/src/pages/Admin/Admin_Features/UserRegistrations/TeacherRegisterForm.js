@@ -1,14 +1,25 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useMemo, useState } from "react";
 import "./TeacherRegisterForm.css";
 import { Modal, Button, Image } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft } from "react-icons/fa"; // Importing the back arrow icon
+import { FaArrowLeft } from "react-icons/fa";
+
+// ⬅️ Centralized API client
+import api from "../../../../services/api";
 
 const TeacherRegisterForm = () => {
   const navigate = useNavigate();
+
+  // Base URL (for showing uploaded image in modal)
+  const API_URL = useMemo(
+    () =>
+      process.env.REACT_APP_NODE_ENV === "production"
+        ? process.env.REACT_APP_PRODUCTION_URL
+        : process.env.REACT_APP_DEVELOPMENT_URL,
+    []
+  );
 
   const [formData, setFormData] = useState({
     name: "",
@@ -39,288 +50,254 @@ const TeacherRegisterForm = () => {
     photo: null,
   });
 
-  const [errors, setErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverErrors, setServerErrors] = useState([]); // express-validator errors
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [successData, setSuccessData] = useState(null);
-  //--------------------------------------------------------------------------------------------------------------------------------
-  //API URL controller
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-  //--------------------------------------------------------------------------------------------------------------------------------
-  // Handle the back button click
-  // Handle the back button click
+
   const handleBack = () => {
     navigate("/admin/admin-dashboard", {
       state: { activeTab: "User Registration" },
     });
   };
-  //------------------------------------------------------------------------------------------------------------
-  // Handles change
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name.startsWith("emergencyContact") || name.startsWith("bankDetails")) {
-      const fieldName = name.split(".")[1];
-      setFormData((prev) => {
-        const updatedData = {
-          ...prev,
-          [name.split(".")[0]]: {
-            ...prev[name.split(".")[0]],
-            [fieldName]: value,
-          },
-        };
-        console.log(`Form data updated: ${name} = ${value}`); // Log nested data change
-        return updatedData;
-      });
+
+  // ---------- client-side validation ----------
+  const validators = {
+    email: (v) =>
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "" : "Invalid email format",
+    phone: (v) =>
+      /^\d{10}$/.test(v) ? "" : "Phone number must be exactly 10 digits",
+    "emergencyContact.phone": (v) =>
+      /^\d{10}$/.test(v)
+        ? ""
+        : "Emergency contact phone must be exactly 10 digits",
+    AADHARnumber: (v) =>
+      /^\d{12}$/.test(v) ? "" : "AADHAR number must be exactly 12 digits",
+    salary: (v) =>
+      !isNaN(v) && Number(v) >= 0 ? "" : "Salary must be a non-negative number",
+    experience: (v) =>
+      !isNaN(v) && Number(v) >= 0
+        ? ""
+        : "Experience must be a non-negative number",
+  };
+
+  const required = [
+    "name",
+    "email",
+    "phone",
+    "designation",
+    "address",
+    "dob",
+    "gender",
+    "department",
+    "religion",
+    "category",
+    "bloodgroup",
+    "emergencyContact.name",
+    "emergencyContact.relation",
+    "emergencyContact.phone",
+    "experience",
+    "highestQualification",
+    "AADHARnumber",
+    "salary",
+    "bankDetails.accountNumber",
+    "bankDetails.bankName",
+    "bankDetails.ifscCode",
+  ];
+
+  const getValue = (path) => {
+    const parts = path.split(".");
+    return parts.reduce((acc, k) => (acc ? acc[k] : undefined), formData);
+  };
+
+  const setValue = (path, value) => {
+    const parts = path.split(".");
+    if (parts.length === 1) {
+      setFormData((p) => ({ ...p, [path]: value }));
     } else {
-      setFormData((prev) => {
-        const updatedData = {
-          ...prev,
-          [name]: value,
-        };
-        console.log(`Form data updated: ${name} = ${value}`); // Log simple data change
-        return updatedData;
+      setFormData((p) => {
+        const clone = { ...p };
+        let cur = clone;
+        for (let i = 0; i < parts.length - 1; i++) {
+          cur[parts[i]] = { ...(cur[parts[i]] || {}) };
+          cur = cur[parts[i]];
+        }
+        cur[parts[parts.length - 1]] = value;
+        return clone;
       });
     }
   };
-  //------------------------------------------------------------------------------------------------------------
 
-  // Handles file change
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setFormData((prev) => {
-      const updatedData = {
-        ...prev,
-        photo: file,
-      };
-      console.log(`File uploaded: photo = ${file?.name}`); // Log file upload
-      return updatedData;
-    });
-  };
-  //--------------------------------------------------------------------------------------------------------------------------------
-  //Handles Form Submit and create new teacher
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Form submission initiated.");
-    setLoading(true);
-    setErrors([]); // Clear previous errors
+  const validateForm = () => {
+    const errs = {};
 
-    const formDataToSend = new FormData();
-
-    // Populate FormData with nested and array data
-    Object.keys(formData).forEach((key) => {
-      if (key === "emergencyContact" || key === "bankDetails") {
-        // Parse nested objects differently - needed for proper backend handling
-        if (key === "emergencyContact") {
-          formDataToSend.append("emergencyContact.name", formData.emergencyContact.name || "");
-          formDataToSend.append("emergencyContact.relation", formData.emergencyContact.relation || "");
-          formDataToSend.append("emergencyContact.phone", formData.emergencyContact.phone || "");
-          console.log("Added emergencyContact fields");
-        } else if (key === "bankDetails") {
-          formDataToSend.append("bankDetails.accountNumber", formData.bankDetails.accountNumber || "");
-          formDataToSend.append("bankDetails.bankName", formData.bankDetails.bankName || "");
-          formDataToSend.append("bankDetails.ifscCode", formData.bankDetails.ifscCode || "");
-          console.log("Added bankDetails fields");
-        }
-      } else if (key === "salary" || key === "experience") {
-        // Ensure these are sent as numbers
-        const numValue = parseFloat(formData[key]) || 0;
-        formDataToSend.append(key, numValue.toString());
-        console.log(`Adding numeric field ${key}:`, numValue);
-      } else if (Array.isArray(formData[key])) {
-        formData[key].forEach((item, index) => {
-          formDataToSend.append(`${key}[${index}]`, item || "");
-        });
-      } else {
-        // Handle null/undefined values
-        const value = formData[key] || "";
-        formDataToSend.append(key, value);
-        console.log(`Adding field ${key}:`, value);
+    // required check
+    required.forEach((key) => {
+      const val = getValue(key);
+      if (val === null || val === undefined || String(val).trim() === "") {
+        errs[key] = "This field is required";
       }
     });
 
-    // Double-check required fields
-    const requiredFields = ["name", "email", "phone", "designation", "address", "dob", "gender", "department", "salary"];
-    const missingFields = requiredFields.filter(field => !formData[field] || formData[field] === "");
-    
-    if (missingFields.length > 0) {
-      setErrors(missingFields.map(field => ({ msg: `${field} is required` })));
-      setLoading(false);
-      toast.error(`Missing required fields: ${missingFields.join(", ")}`, {
+    // format checks
+    Object.entries(validators).forEach(([k, fn]) => {
+      const v = getValue(k);
+      if (v !== undefined && v !== null && String(v).trim() !== "") {
+        const msg = fn(String(v).trim());
+        if (msg) errs[k] = msg;
+      }
+    });
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ---------- handlers ----------
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setServerErrors([]);
+    setValue(name, value);
+
+    // live-validate that single field
+    const check =
+      validators[name] ||
+      (required.includes(name)
+        ? (v) => (String(v).trim() ? "" : "This field is required")
+        : null);
+    if (check) {
+      const msg = check(value);
+      setFieldErrors((p) => ({ ...p, [name]: msg || "" }));
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setServerErrors([]);
+    setFormData((p) => ({ ...p, photo: file }));
+  };
+
+  // Build FormData with dot-notation for nested fields (matches your backend)
+  const buildFormData = (data) => {
+    const fd = new FormData();
+    const append = (prefix, val) => {
+      if (val === undefined || val === null) return;
+      if (val instanceof File) {
+        fd.append(prefix, val);
+      } else if (Array.isArray(val)) {
+        val.forEach((v, i) => append(`${prefix}[${i}]`, v));
+      } else if (typeof val === "object") {
+        Object.keys(val).forEach((k) => append(`${prefix}.${k}`, val[k]));
+      } else {
+        fd.append(prefix, val);
+      }
+    };
+    Object.keys(data).forEach((k) => append(k, data[k]));
+    return fd;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setServerErrors([]);
+    if (!validateForm()) {
+      toast.error("Please correct the highlighted errors.", {
         position: "top-center",
         theme: "colored",
       });
       return;
     }
 
+    setLoading(true);
     try {
-      // Log each key-value pair in formDataToSend for debugging
-      console.log("Form data being sent:");
-      for (let pair of formDataToSend.entries()) {
-        console.log(pair[0], pair[1]);
-      }
-      
-      const response = await axios.post(
-        `${API_URL}/api/admin/auth/createteacher`,
-        formDataToSend,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "X-User-Role": "admin"
-          },
-        }
-      );
-      
-      setSuccessData(response.data);
-      setShowModal(true);
-
-      // Show success notification
-      toast.success("Teacher created successfully!", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "colored",
+      const body = buildFormData({
+        ...formData,
+        // normalize numeric inputs
+        salary: String(parseFloat(formData.salary || "0") || 0),
+        experience: String(parseFloat(formData.experience || "0") || 0),
       });
 
-      // Redirect to admin dashboard after 3 seconds
-      // setTimeout(() => {
-      //   navigate("/admin/admin-dashboard", {
-      //     state: { activeTab: "User Registration" }
-      //   });
-      // }, 3000);
-    } catch (error) {
-      console.error("Form submission error:", error);
-      console.error("Error response data:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      
-      // Display detailed error information for debugging
-      const errorResponse = error.response?.data || {};
-      const errorMessage = errorResponse.message || "Unknown error occurred";
-      const validationErrors = errorResponse.errors || [];
-      const detailedError = errorResponse.error || "";
-      
-      console.log("Error message:", errorMessage);
-      console.log("Validation errors:", validationErrors);
-      console.log("Detailed error:", detailedError);
-      
-      // Handle validation errors
-      if (validationErrors.length > 0) {
-        setErrors(validationErrors);
-        
-        // Show all validation errors in the toast
-        validationErrors.forEach(error => {
-          toast.error(error.msg, {
+      // ⬅️ central api client handles token header automatically
+      const data = await api.upload("/api/admin/auth/createteacher", body, {
+        headers: { "X-User-Role": "admin" },
+      });
+
+      // success payload is { message, teacher }
+      setSuccessData(data);
+      setShowModal(true);
+      toast.success("Teacher created successfully!", {
+        position: "top-center",
+        theme: "colored",
+      });
+    } catch (err) {
+      // Our api.js normalizes errors to { status, message, data, raw }
+      const backend = err?.data || {};
+      const valErrors = backend?.errors || [];
+
+      // express-validator detailed errors
+      if (Array.isArray(valErrors) && valErrors.length) {
+        setServerErrors(valErrors);
+        valErrors.forEach((e) => {
+          // e.param, e.msg, e.value
+          toast.error(`${e.param}: ${e.msg}`, {
             position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
             theme: "colored",
           });
+          // highlight field inline if it exists on the form
+          if (e.param) {
+            setFieldErrors((p) => ({ ...p, [e.param]: e.msg }));
+          }
         });
       } else {
-        // Handle other types of errors
-        let displayErrorMessage = errorMessage;
-        
-        if (detailedError.includes("duplicate key error")) {
-          if (detailedError.includes("AADHARnumber")) {
-            displayErrorMessage = "A teacher with this AADHAR number already exists.";
-            setFormData(prev => ({ ...prev, AADHARnumber: "" }));
-          } else if (detailedError.includes("phone")) {
-            displayErrorMessage = "A teacher with this phone number already exists.";
-            setFormData(prev => ({ ...prev, phone: "" }));
-          } else if (detailedError.includes("email")) {
-            displayErrorMessage = "A teacher with this email already exists.";
-            setFormData(prev => ({ ...prev, email: "" }));
-          }
-        }
-        
-        setErrors([{ msg: displayErrorMessage }]);
-        toast.error(displayErrorMessage, {
-          position: "top-center",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          theme: "colored",
-        });
+        // other errors (dup key etc.)
+        const msg = backend?.message || err?.message || "Request failed";
+        setServerErrors([{ msg }]);
+        toast.error(msg, { position: "top-center", theme: "colored" });
       }
     } finally {
       setLoading(false);
     }
   };
 
-  //-------------------------------------------------------------------------------------------------
-  // Handles closing modal and navigation back to teacher dashboard
   const handleCloseModal = () => {
     setShowModal(false);
-    // setTimeout(() => navigate("/admin-dashboard"), 300);
-    navigate("/admin-dashboard");
+    navigate("/admin/admin-dashboard", {
+      state: { activeTab: "User Registration" },
+    });
   };
-  //--------------------------------------------------------------------------------------------------------------------------------
-  //Handles Print Modal
+
   const handlePrint = () => {
-    const printContent = document.getElementById("modalContent");
-    if (printContent) {
-      const printWindow = window.open("", "_blank");
-      printWindow.document.write(`
+    const el = document.getElementById("modalContent");
+    if (!el) return;
+    const w = window.open("", "_blank");
+    w.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Print Details</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-            }
-            .photo-section {
-              text-align: center;
-              margin-bottom: 20px;
-            }
-            .photo-section img {
-              width: 150px;
-              height: 150px;
-              object-fit: cover;
-              border-radius: 50%;
-              border: 2px solid #007bff;
-              margin-bottom: 20px;
-            }
-            p {
-              margin: 10px 0;
-              font-size: 16px;
-            }
-            strong {
-              color: #007bff;
-            }
-            span {
-              color: red;
-            }
-            button {
-              display: none; /* Hide buttons in print view */
-            }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .photo-section { text-align: center; margin-bottom: 20px; }
+            .photo-section img { width: 150px; height: 150px; object-fit: cover; border-radius: 50%; border: 2px solid #007bff; margin-bottom: 20px; }
+            p { margin: 10px 0; font-size: 16px; }
+            strong { color: #007bff; }
+            span { color: red; }
+            button { display: none; }
           </style>
         </head>
-        <body>
-          ${printContent.outerHTML} <!-- Use outerHTML to include the content and its wrapping element -->
-        </body>
+        <body>${el.outerHTML}</body>
       </html>
     `);
-      printWindow.document.close();
-      printWindow.print();
-    }
+    w.document.close();
+    w.print();
   };
-  //------------------------------------------------------------------------------------------------------------
+
+  // helper for input classes
+  const cls = (name) =>
+    fieldErrors[name] ? "invalid" : fieldErrors[name] === "" ? "valid" : "";
+
   return (
     <div className="teacher-register-form">
-      {/* Back button with icon */}
+      {/* back */}
       <div className="back-button" style={{ marginBottom: "20px" }}>
         <FaArrowLeft
           onClick={handleBack}
@@ -345,236 +322,300 @@ const TeacherRegisterForm = () => {
           Back
         </span>
       </div>
+
       <h2>Create New Teacher</h2>
-      <form onSubmit={handleSubmit}>
-        {errors.length > 0 && (
+
+      <form onSubmit={handleSubmit} noValidate>
+        {!!serverErrors.length && (
           <div className="error-messages">
-            {errors.map((error, index) => (
-              <p key={index} style={{ color: "red" }}>
-                {error.msg}
+            {serverErrors.map((e, i) => (
+              <p key={i} style={{ color: "red" }}>
+                {e.param ? `${e.param}: ${e.msg}` : e.msg}
               </p>
             ))}
           </div>
         )}
 
+        {/* Basic fields */}
         <div>
           <label>Name</label>
           <input
+            className={cls("name")}
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
             required
           />
+          {fieldErrors.name && (
+            <span className="error-text">{fieldErrors.name}</span>
+          )}
         </div>
 
         <div>
           <label>Email</label>
           <input
+            className={cls("email")}
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
             required
           />
+          {fieldErrors.email && (
+            <span className="error-text">{fieldErrors.email}</span>
+          )}
         </div>
 
         <div>
           <label>Phone</label>
           <input
+            className={cls("phone")}
             type="text"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
             required
-            pattern="[0-9]{10}"
-            maxLength="10"
+            maxLength={10}
             placeholder="10-digit phone number"
           />
-          {formData.phone && formData.phone.length !== 10 && (
-            <span style={{ color: "red", fontSize: "0.8rem" }}>
-              Phone number must be exactly 10 digits
-            </span>
+          {fieldErrors.phone && (
+            <span className="error-text">{fieldErrors.phone}</span>
           )}
         </div>
 
         <div>
           <label>Designation</label>
           <input
+            className={cls("designation")}
             type="text"
             name="designation"
             value={formData.designation}
             onChange={handleChange}
             required
           />
+          {fieldErrors.designation && (
+            <span className="error-text">{fieldErrors.designation}</span>
+          )}
         </div>
 
         <div>
           <label>Address</label>
           <input
+            className={cls("address")}
             type="text"
             name="address"
             value={formData.address}
             onChange={handleChange}
             required
           />
+          {fieldErrors.address && (
+            <span className="error-text">{fieldErrors.address}</span>
+          )}
         </div>
 
         <div>
           <label>Date of Birth</label>
           <input
+            className={cls("dob")}
             type="date"
             name="dob"
             value={formData.dob}
             onChange={handleChange}
             required
           />
+          {fieldErrors.dob && (
+            <span className="error-text">{fieldErrors.dob}</span>
+          )}
         </div>
 
         <div>
           <label>Gender</label>
           <select
+            className={cls("gender")}
             name="gender"
             value={formData.gender}
             onChange={handleChange}
             required
           >
             <option value="">Select Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
           </select>
+          {fieldErrors.gender && (
+            <span className="error-text">{fieldErrors.gender}</span>
+          )}
         </div>
 
         <div>
           <label>Department</label>
           <input
+            className={cls("department")}
             type="text"
             name="department"
             value={formData.department}
             onChange={handleChange}
             required
           />
+          {fieldErrors.department && (
+            <span className="error-text">{fieldErrors.department}</span>
+          )}
         </div>
 
         <div>
           <label>Religion</label>
           <input
+            className={cls("religion")}
             type="text"
             name="religion"
             value={formData.religion}
             onChange={handleChange}
             required
           />
+          {fieldErrors.religion && (
+            <span className="error-text">{fieldErrors.religion}</span>
+          )}
         </div>
 
         <div>
           <label>Category</label>
           <input
+            className={cls("category")}
             type="text"
             name="category"
             value={formData.category}
             onChange={handleChange}
             required
           />
+          {fieldErrors.category && (
+            <span className="error-text">{fieldErrors.category}</span>
+          )}
         </div>
 
         <div>
           <label>Blood Group</label>
           <input
+            className={cls("bloodgroup")}
             type="text"
             name="bloodgroup"
             value={formData.bloodgroup}
             onChange={handleChange}
             required
           />
+          {fieldErrors.bloodgroup && (
+            <span className="error-text">{fieldErrors.bloodgroup}</span>
+          )}
         </div>
 
+        {/* Emergency Contact */}
         <div>
           <label>Emergency Contact Name</label>
           <input
+            className={cls("emergencyContact.name")}
             type="text"
             name="emergencyContact.name"
             value={formData.emergencyContact.name}
             onChange={handleChange}
             required
           />
+          {fieldErrors["emergencyContact.name"] && (
+            <span className="error-text">
+              {fieldErrors["emergencyContact.name"]}
+            </span>
+          )}
         </div>
 
         <div>
           <label>Emergency Contact Relation</label>
           <input
+            className={cls("emergencyContact.relation")}
             type="text"
             name="emergencyContact.relation"
             value={formData.emergencyContact.relation}
             onChange={handleChange}
             required
           />
-        </div>
-
-        <div>
-          <label>Emergency Contact Phone</label>
-          <input
-            type="text"
-            name="emergencyContact.phone"
-            value={formData.emergencyContact.phone}
-            onChange={handleChange}
-            required
-            pattern="[0-9]{10}"
-            maxLength="10"
-            placeholder="10-digit phone number"
-          />
-          {formData.emergencyContact.phone && formData.emergencyContact.phone.length !== 10 && (
-            <span style={{ color: "red", fontSize: "0.8rem" }}>
-              Emergency contact phone must be exactly 10 digits
+          {fieldErrors["emergencyContact.relation"] && (
+            <span className="error-text">
+              {fieldErrors["emergencyContact.relation"]}
             </span>
           )}
         </div>
 
         <div>
+          <label>Emergency Contact Phone</label>
+          <input
+            className={cls("emergencyContact.phone")}
+            type="text"
+            name="emergencyContact.phone"
+            value={formData.emergencyContact.phone}
+            onChange={handleChange}
+            required
+            maxLength={10}
+            placeholder="10-digit phone number"
+          />
+          {fieldErrors["emergencyContact.phone"] && (
+            <span className="error-text">
+              {fieldErrors["emergencyContact.phone"]}
+            </span>
+          )}
+        </div>
+
+        {/* Professional */}
+        <div>
           <label>Experience</label>
           <input
+            className={cls("experience")}
             type="number"
             name="experience"
             value={formData.experience}
             onChange={handleChange}
             required
           />
+          {fieldErrors.experience && (
+            <span className="error-text">{fieldErrors.experience}</span>
+          )}
         </div>
 
         <div>
           <label>Highest Qualification</label>
           <input
+            className={cls("highestQualification")}
             type="text"
             name="highestQualification"
             value={formData.highestQualification}
             onChange={handleChange}
             required
           />
+          {fieldErrors.highestQualification && (
+            <span className="error-text">
+              {fieldErrors.highestQualification}
+            </span>
+          )}
         </div>
 
         <div>
           <label>AADHAR Number</label>
           <input
+            className={cls("AADHARnumber")}
             type="text"
             name="AADHARnumber"
             value={formData.AADHARnumber}
             onChange={handleChange}
             required
-            pattern="[0-9]{12}"
-            maxLength="12"
+            maxLength={12}
             placeholder="12-digit AADHAR number"
           />
-          {formData.AADHARnumber && formData.AADHARnumber.length !== 12 && (
-            <span style={{ color: "red", fontSize: "0.8rem" }}>
-              AADHAR number must be exactly 12 digits
-            </span>
+          {fieldErrors.AADHARnumber && (
+            <span className="error-text">{fieldErrors.AADHARnumber}</span>
           )}
         </div>
 
         <div>
           <label>Salary</label>
           <input
+            className={cls("salary")}
             type="number"
             name="salary"
             value={formData.salary}
@@ -583,41 +624,64 @@ const TeacherRegisterForm = () => {
             min="0"
             placeholder="Enter salary amount"
           />
+          {fieldErrors.salary && (
+            <span className="error-text">{fieldErrors.salary}</span>
+          )}
         </div>
 
+        {/* Bank */}
         <div>
           <label>Bank Account Number</label>
           <input
+            className={cls("bankDetails.accountNumber")}
             type="text"
             name="bankDetails.accountNumber"
             value={formData.bankDetails.accountNumber}
             onChange={handleChange}
             required
           />
+          {fieldErrors["bankDetails.accountNumber"] && (
+            <span className="error-text">
+              {fieldErrors["bankDetails.accountNumber"]}
+            </span>
+          )}
         </div>
 
         <div>
           <label>Bank Name</label>
           <input
+            className={cls("bankDetails.bankName")}
             type="text"
             name="bankDetails.bankName"
             value={formData.bankDetails.bankName}
             onChange={handleChange}
             required
           />
+          {fieldErrors["bankDetails.bankName"] && (
+            <span className="error-text">
+              {fieldErrors["bankDetails.bankName"]}
+            </span>
+          )}
         </div>
 
         <div>
           <label>IFSC Code</label>
           <input
+            className={cls("bankDetails.ifscCode")}
             type="text"
             name="bankDetails.ifscCode"
             value={formData.bankDetails.ifscCode}
             onChange={handleChange}
             required
           />
+          {fieldErrors["bankDetails.ifscCode"] && (
+            <span className="error-text">
+              {fieldErrors["bankDetails.ifscCode"]}
+            </span>
+          )}
         </div>
 
+        {/* Photo */}
         <div>
           <label>Upload Photo</label>
           <input type="file" name="photo" onChange={handleFileChange} />
@@ -633,30 +697,26 @@ const TeacherRegisterForm = () => {
           <Modal.Title>Teacher Registered Successfully</Modal.Title>
         </Modal.Header>
         <Modal.Body id="modalContent">
-          {successData?.data ? (
+          {successData?.teacher ? (
             <>
-              {/* teacher Photo */}
               <div
                 className="photo-section"
-                style={{
-                  textAlign: "center",
-                  marginBottom: "20px",
-                }}
+                style={{ textAlign: "center", marginBottom: 20 }}
               >
                 <Image
-                  src={successData?.data?.photo ? 
-                    `${API_URL}/uploads/Teacher/${successData.data.photo}` : 
-                    `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`
+                  src={
+                    successData.teacher.photo
+                      ? `${API_URL}/uploads/Teacher/${successData.teacher.photo}`
+                      : `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`
                   }
                   alt="Teacher Profile"
                   onError={(e) => {
-                    console.log("Teacher image load error, using data URI placeholder");
-                    // Using a simple data URI for a gray square with a person icon
-                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23cccccc'/%3E%3Cpath d='M75 75 Q95 45 115 75 L115 115 L35 115 L35 75 Q55 45 75 75' fill='%23888888'/%3E%3Ccircle cx='75' cy='45' r='20' fill='%23888888'/%3E%3C/svg%3E";
+                    e.currentTarget.src =
+                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23cccccc'/%3E%3Cpath d='M75 75 Q95 45 115 75 L115 115 L35 115 L35 75 Q55 45 75 75' fill='%23888888'/%3E%3Ccircle cx='75' cy='45' r='20' fill='%23888888'/%3E%3C/svg%3E";
                   }}
                   style={{
-                    width: "150px",
-                    height: "150px",
+                    width: 150,
+                    height: 150,
                     objectFit: "cover",
                     borderRadius: "50%",
                   }}
@@ -665,36 +725,36 @@ const TeacherRegisterForm = () => {
 
               <div>
                 <h2>Teacher Details</h2>
+
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Basic Information</h3>
                   <p>
-                    <strong>Name:</strong> {successData.data.name}
+                    <strong>Name:</strong> {successData.teacher.name}
                   </p>
                   <p>
-                    <strong>Teacher ID:</strong> {successData.data.teacherID}
+                    <strong>Teacher ID:</strong> {successData.teacher.teacherID}
                   </p>
                   <p>
                     <strong>Email:</strong>{" "}
-                    {successData.data.email || "Not Provided"}
+                    {successData.teacher.email || "Not Provided"}
                   </p>
                   <p>
                     <strong>Phone:</strong>{" "}
-                    {successData.data.phone || "Not Provided"}
+                    {successData.teacher.phone || "Not Provided"}
                   </p>
                   <p>
-                    <strong>Role:</strong> {successData.data.role || "teacher"}
+                    <strong>Role:</strong> teacher
                   </p>
                   <p>
-                    <strong>Password:</strong>{" "}
-                    {successData.data.password || "teacher123"}{" "}
+                    <strong>Password:</strong> {"teacher123"}
                     <span style={{ color: "red", fontWeight: "bold" }}>
-                      (Please change after first login)
+                      {"  (Please change after first login)"}
                     </span>
                   </p>
                 </div>
@@ -702,92 +762,93 @@ const TeacherRegisterForm = () => {
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Professional Information</h3>
                   <p>
                     <strong>Designation:</strong>{" "}
-                    {successData.data.designation || "Not Provided"}
+                    {successData.teacher.designation || "Not Provided"}
                   </p>
                   <p>
                     <strong>Department:</strong>{" "}
-                    {successData.data.department || "Not Provided"}
+                    {successData.teacher.department || "Not Provided"}
                   </p>
                   <p>
                     <strong>Highest Qualification:</strong>{" "}
-                    {successData.data.highestQualification || "Not Provided"}
+                    {successData.teacher.highestQualification || "Not Provided"}
                   </p>
                 </div>
 
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Personal Information</h3>
                   <p>
                     <strong>Address:</strong>{" "}
-                    {successData.data.address || "Not Provided"}
+                    {successData.teacher.address || "Not Provided"}
                   </p>
                   <p>
                     <strong>Date of Birth:</strong>{" "}
-                    {successData.data.dob
-                      ? new Date(successData.data.dob).toLocaleDateString()
+                    {successData.teacher.dob
+                      ? new Date(successData.teacher.dob).toLocaleDateString()
                       : "Not Provided"}
                   </p>
                   <p>
                     <strong>Gender:</strong>{" "}
-                    {successData.data.gender || "Not Provided"}
+                    {successData.teacher.gender || "Not Provided"}
                   </p>
                   <p>
                     <strong>Religion:</strong>{" "}
-                    {successData.data.religion || "Not Provided"}
+                    {successData.teacher.religion || "Not Provided"}
                   </p>
                   <p>
                     <strong>Category:</strong>{" "}
-                    {successData.data.category || "Not Provided"}
+                    {successData.teacher.category || "Not Provided"}
                   </p>
                   <p>
                     <strong>Blood Group:</strong>{" "}
-                    {successData.data.bloodgroup || "Not Provided"}
+                    {successData.teacher.bloodgroup || "Not Provided"}
                   </p>
                   <p>
                     <strong>AADHAR Number:</strong>{" "}
-                    {successData.data.AADHARnumber || "Not Provided"}
+                    {successData.teacher.AADHARnumber || "Not Provided"}
                   </p>
                 </div>
 
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Registration Information</h3>
                   <p>
                     <strong>Registered By:</strong>{" "}
-                    {successData.data.registeredBy
-                      ? `${successData.data.registeredBy.name} (ID: ${successData.data.registeredBy.adminID})`
+                    {successData.teacher.registeredBy
+                      ? `${successData.teacher.registeredBy.name} (ID: ${successData.teacher.registeredBy.adminID})`
                       : "Unknown"}
                   </p>
                   <p>
                     <strong>Registered At:</strong>{" "}
-                    {new Date(successData.data.createdAt).toLocaleString()}
+                    {successData.teacher.createdAt
+                      ? new Date(successData.teacher.createdAt).toLocaleString()
+                      : new Date().toLocaleString()}
                   </p>
                 </div>
               </div>
 
-              {/* Print Button */}
               <Button
                 variant="primary"
                 onClick={handlePrint}
                 style={{
-                  marginTop: "20px",
+                  marginTop: 20,
                   display: "block",
                   marginLeft: "auto",
                   marginRight: "auto",
@@ -806,7 +867,7 @@ const TeacherRegisterForm = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      {/* Toast notifications container */}
+
       <ToastContainer />
     </div>
   );

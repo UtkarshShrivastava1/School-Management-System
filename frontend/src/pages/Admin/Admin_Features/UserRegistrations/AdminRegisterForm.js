@@ -1,11 +1,14 @@
+// src/pages/AdminRegisterForm.js
 import React, { useState } from "react";
-import axios from "axios";
 import "./AdminRegisterForm.css";
 import { Modal, Button, Image } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaArrowLeft } from "react-icons/fa";
+
+// ✅ centralized API client
+import api from "../../../../services/api";
 
 const AdminRegisterForm = () => {
   const navigate = useNavigate();
@@ -39,33 +42,30 @@ const AdminRegisterForm = () => {
     photo: null,
   });
 
-  // Server-side errors
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [successData, setSuccessData] = useState(null);
 
-  // Client-side field errors and touched state for validation feedback
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
 
-  // API URL controller
-  const API_URL =
+  // Where uploads are served from (server.js mounts /uploads to ./uploads)
+  const API_BASE =
     process.env.REACT_APP_NODE_ENV === "production"
       ? process.env.REACT_APP_PRODUCTION_URL
       : process.env.REACT_APP_DEVELOPMENT_URL;
 
-  // Navigate back to dashboard
   const handleBack = () => {
     navigate("/admin/admin-dashboard", {
       state: { activeTab: "User Registration" },
     });
   };
 
-  // Validate simple fields
+  /* ------------------------------- Validation ------------------------------ */
   const validateField = (name, value) => {
     let error = "";
-    if (!value || value.trim() === "") {
+    if (!value || String(value).trim() === "") {
       error = "This field is required";
     } else {
       switch (name) {
@@ -75,8 +75,8 @@ const AdminRegisterForm = () => {
           }
           break;
         case "phone":
-          if (!/^[+\d]?(?:[\d\s\-().]*)$/.test(value)) {
-            error = "Invalid phone number";
+          if (!/^\d{10}$/.test(value)) {
+            error = "Phone must be 10 digits";
           }
           break;
         case "AADHARnumber":
@@ -97,47 +97,37 @@ const AdminRegisterForm = () => {
     return error;
   };
 
-  // Validate nested fields (e.g., emergencyContact, bankDetails)
   const validateNestedField = (parent, name, value) => {
     let error = "";
-    if (!value || value.trim() === "") {
+    if (!value || String(value).trim() === "") {
       error = "This field is required";
-    } else {
-      if (parent === "emergencyContact" && name === "phone") {
-        if (!/^[+\d]?(?:[\d\s\-().]*)$/.test(value)) {
-          error = "Invalid phone number";
-        }
+    } else if (parent === "emergencyContact" && name === "phone") {
+      if (!/^\d{10}$/.test(value)) {
+        error = "Invalid phone number (10 digits)";
       }
-      // Additional nested validations can be added here.
     }
     return error;
   };
 
-  // Validate the entire form and update fieldErrors state
   const validateForm = () => {
     const newErrors = {};
 
     Object.keys(formData).forEach((key) => {
       if (key === "emergencyContact" || key === "bankDetails") {
         Object.keys(formData[key]).forEach((subKey) => {
-          const fieldName = `${key}.${subKey}`;
-          const error = validateNestedField(key, subKey, formData[key][subKey]);
-          if (error) {
-            newErrors[fieldName] = error;
-          }
+          const err = validateNestedField(key, subKey, formData[key][subKey]);
+          if (err) newErrors[`${key}.${subKey}`] = err;
         });
       } else if (key === "photo") {
         if (formData.photo) {
-          const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-          if (!allowedTypes.includes(formData.photo.type)) {
+          const allowed = ["image/jpeg", "image/png", "image/jpg"];
+          if (!allowed.includes(formData.photo.type)) {
             newErrors.photo = "Only JPG, JPEG, and PNG files are allowed";
           }
         }
       } else {
-        const error = validateField(key, formData[key]);
-        if (error) {
-          newErrors[key] = error;
-        }
+        const err = validateField(key, formData[key]);
+        if (err) newErrors[key] = err;
       }
     });
 
@@ -145,7 +135,7 @@ const AdminRegisterForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle input change for both simple and nested fields
+  /* -------------------------------- Handlers ------------------------------- */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -154,118 +144,124 @@ const AdminRegisterForm = () => {
       const [parent, child] = name.split(".");
       setFormData((prev) => ({
         ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value,
-        },
+        [parent]: { ...prev[parent], [child]: value },
       }));
-      const error = validateNestedField(parent, child, value);
-      setFieldErrors((prev) => ({ ...prev, [name]: error }));
+      setFieldErrors((prev) => ({
+        ...prev,
+        [name]: validateNestedField(parent, child, value),
+      }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
-      const error = validateField(name, value);
-      setFieldErrors((prev) => ({ ...prev, [name]: error }));
+      setFieldErrors((prev) => ({
+        ...prev,
+        [name]: validateField(name, value),
+      }));
     }
   };
 
-  // Handle file selection and validate file type
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     setTouched((prev) => ({ ...prev, photo: true }));
+
     if (file) {
-      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-      if (!allowedTypes.includes(file.type)) {
+      const allowed = ["image/jpeg", "image/png", "image/jpg"];
+      if (!allowed.includes(file.type)) {
         setFieldErrors((prev) => ({
           ...prev,
           photo: "Only JPG, JPEG, and PNG files are allowed",
         }));
         setFormData((prev) => ({ ...prev, photo: null }));
         return;
-      } else {
-        setFieldErrors((prev) => ({ ...prev, photo: "" }));
       }
+      setFieldErrors((prev) => ({ ...prev, photo: "" }));
       setFormData((prev) => ({ ...prev, photo: file }));
+    } else {
+      setFormData((prev) => ({ ...prev, photo: null }));
     }
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validateForm()) {
       toast.error("Please fix the errors in the form.", {
         position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        pauseOnHover: true,
-        draggable: true,
         theme: "colored",
       });
       return;
     }
-    setLoading(true);
 
-    const formDataToSend = new FormData();
-    Object.keys(formData).forEach((key) => {
-      if (key === "emergencyContact" || key === "bankDetails") {
-        Object.keys(formData[key]).forEach((subKey) => {
-          formDataToSend.append(`${key}.${subKey}`, formData[key][subKey]);
-        });
-      } else {
-        formDataToSend.append(key, formData[key]);
-      }
-    });
+    setLoading(true);
+    setErrors([]);
 
     try {
-      const response = await axios.post(
-        `${API_URL}/api/admin/auth/createadmin`,
-        formDataToSend,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+      // Build multipart form data
+      const fd = new FormData();
+
+      // Simple fields
+      [
+        "name",
+        "email",
+        "phone",
+        "designation",
+        "address",
+        "dob",
+        "gender",
+        "department",
+        "religion",
+        "category",
+        "bloodgroup",
+        "experience",
+        "highestQualification",
+        "AADHARnumber",
+        "salary",
+      ].forEach((key) => fd.append(key, formData[key] ?? ""));
+
+      // Nested as JSON strings — controller should JSON.parse them if they’re strings
+      fd.append(
+        "emergencyContact",
+        JSON.stringify(formData.emergencyContact || {})
       );
-      setSuccessData(response.data);
+      fd.append("bankDetails", JSON.stringify(formData.bankDetails || {}));
+
+      // Photo (optional)
+      if (formData.photo) {
+        fd.append("photo", formData.photo);
+      }
+
+      // POST using centralized api client
+      const data = await api.upload("/api/admin/auth/createadmin", fd);
+
+      setSuccessData(data);
       setShowModal(true);
+
       toast.success("Admin created successfully!", {
         position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        pauseOnHover: true,
-        draggable: true,
         theme: "colored",
       });
-    } catch (error) {
-      const errData = error.response?.data || {
-        errors: [{ msg: error.message }],
-      };
-      setErrors(errData.errors || [{ msg: error.message }]);
-      toast.error("Failed to create admin. Please try again.", {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "colored",
-      });
+    } catch (err) {
+      const serverErrors = err?.data?.errors || [];
+      const message =
+        err?.message || "Failed to create admin. Please try again.";
+      setErrors(serverErrors.length ? serverErrors : [{ msg: message }]);
+
+      toast.error(message, { position: "top-center", theme: "colored" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Close modal and navigate back to admin dashboard
   const handleCloseModal = () => {
     setShowModal(false);
     navigate("/admin/admin-dashboard");
   };
 
-  // Print modal content
   const handlePrint = () => {
     const printContent = document.getElementById("modalContent");
-    if (printContent) {
-      const printWindow = window.open("", "_blank");
-      printWindow.document.write(`
+    if (!printContent) return;
+
+    const w = window.open("", "_blank");
+    w.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
@@ -280,23 +276,21 @@ const AdminRegisterForm = () => {
             button { display: none; }
           </style>
         </head>
-        <body>
-          ${printContent.outerHTML}
-        </body>
+        <body>${printContent.outerHTML}</body>
       </html>
     `);
-      printWindow.document.close();
-      printWindow.print();
-    }
+    w.document.close();
+    w.print();
   };
 
-  // Determine input class for visual feedback
-  const inputClass = (name) => {
-    if (touched[name]) {
-      return fieldErrors[name] ? "invalid" : "valid";
-    }
-    return "";
-  };
+  const inputClass = (name) =>
+    touched[name] ? (fieldErrors[name] ? "invalid" : "valid") : "";
+
+  const created = successData?.data; // backend returns { message, token, data, defaultPassword? }
+  const defaultPwd = successData?.defaultPassword || "admin123"; // will show real one in non-prod if backend sends it
+  const photoURL = created?.photo
+    ? `${API_BASE}/uploads/Admin/${created.photo}`
+    : `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`;
 
   return (
     <div className="admin-register-form">
@@ -304,12 +298,7 @@ const AdminRegisterForm = () => {
         <FaArrowLeft
           onClick={handleBack}
           size={24}
-          style={{
-            cursor: "pointer",
-            color: "#007bff",
-            display: "inline-block",
-            marginRight: "10px",
-          }}
+          style={{ cursor: "pointer", color: "#007bff", marginRight: "10px" }}
         />
         <span
           onClick={handleBack}
@@ -324,27 +313,29 @@ const AdminRegisterForm = () => {
           Back
         </span>
       </div>
-      <h2>Create New Admin</h2>
-      <form onSubmit={handleSubmit} noValidate>
-        {errors.length > 0 && (
-          <div className="error-messages">
-            {errors.map((error, index) => (
-              <p key={index} style={{ color: "red" }}>
-                {error.msg}
-              </p>
-            ))}
-          </div>
-        )}
 
+      <h2>Create New Admin</h2>
+
+      {errors.length > 0 && (
+        <div className="error-messages">
+          {errors.map((e, i) => (
+            <p key={i} style={{ color: "red" }}>
+              {e.msg || e.message}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} noValidate>
+        {/* Basic fields */}
         <div>
           <label htmlFor="name">Name</label>
           <input
             id="name"
-            type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, name: true }))}
             className={inputClass("name")}
             required
           />
@@ -357,11 +348,10 @@ const AdminRegisterForm = () => {
           <label htmlFor="email">Email</label>
           <input
             id="email"
-            type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, email: true }))}
             className={inputClass("email")}
             required
           />
@@ -374,11 +364,10 @@ const AdminRegisterForm = () => {
           <label htmlFor="phone">Phone</label>
           <input
             id="phone"
-            type="text"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
             className={inputClass("phone")}
             required
           />
@@ -391,13 +380,10 @@ const AdminRegisterForm = () => {
           <label htmlFor="designation">Designation</label>
           <input
             id="designation"
-            type="text"
             name="designation"
             value={formData.designation}
             onChange={handleChange}
-            onBlur={() =>
-              setTouched((prev) => ({ ...prev, designation: true }))
-            }
+            onBlur={() => setTouched((t) => ({ ...t, designation: true }))}
             className={inputClass("designation")}
             required
           />
@@ -410,17 +396,13 @@ const AdminRegisterForm = () => {
           <label htmlFor="address">Address</label>
           <input
             id="address"
-            type="text"
             name="address"
             value={formData.address}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, address: true }))}
             className={inputClass("address")}
             required
           />
-          {touched.address && fieldErrors.address && (
-            <span className="error-text">{fieldErrors.address}</span>
-          )}
         </div>
 
         <div>
@@ -431,7 +413,7 @@ const AdminRegisterForm = () => {
             name="dob"
             value={formData.dob}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, dob: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, dob: true }))}
             className={inputClass("dob")}
             required
           />
@@ -447,14 +429,14 @@ const AdminRegisterForm = () => {
             name="gender"
             value={formData.gender}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, gender: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, gender: true }))}
             className={inputClass("gender")}
             required
           >
             <option value="">Select Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
           </select>
           {touched.gender && fieldErrors.gender && (
             <span className="error-text">{fieldErrors.gender}</span>
@@ -465,11 +447,10 @@ const AdminRegisterForm = () => {
           <label htmlFor="department">Department</label>
           <input
             id="department"
-            type="text"
             name="department"
             value={formData.department}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, department: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, department: true }))}
             className={inputClass("department")}
             required
           />
@@ -482,66 +463,51 @@ const AdminRegisterForm = () => {
           <label htmlFor="religion">Religion</label>
           <input
             id="religion"
-            type="text"
             name="religion"
             value={formData.religion}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, religion: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, religion: true }))}
             className={inputClass("religion")}
             required
           />
-          {touched.religion && fieldErrors.religion && (
-            <span className="error-text">{fieldErrors.religion}</span>
-          )}
         </div>
 
         <div>
           <label htmlFor="category">Category</label>
           <input
             id="category"
-            type="text"
             name="category"
             value={formData.category}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, category: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, category: true }))}
             className={inputClass("category")}
             required
           />
-          {touched.category && fieldErrors.category && (
-            <span className="error-text">{fieldErrors.category}</span>
-          )}
         </div>
 
         <div>
           <label htmlFor="bloodgroup">Blood Group</label>
           <input
             id="bloodgroup"
-            type="text"
             name="bloodgroup"
             value={formData.bloodgroup}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, bloodgroup: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, bloodgroup: true }))}
             className={inputClass("bloodgroup")}
             required
           />
-          {touched.bloodgroup && fieldErrors.bloodgroup && (
-            <span className="error-text">{fieldErrors.bloodgroup}</span>
-          )}
         </div>
 
+        {/* Emergency Contact */}
         <div>
           <label htmlFor="emergencyContact.name">Emergency Contact Name</label>
           <input
             id="emergencyContact.name"
-            type="text"
             name="emergencyContact.name"
             value={formData.emergencyContact.name}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                "emergencyContact.name": true,
-              }))
+              setTouched((t) => ({ ...t, "emergencyContact.name": true }))
             }
             className={inputClass("emergencyContact.name")}
             required
@@ -560,15 +526,11 @@ const AdminRegisterForm = () => {
           </label>
           <input
             id="emergencyContact.relation"
-            type="text"
             name="emergencyContact.relation"
             value={formData.emergencyContact.relation}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                "emergencyContact.relation": true,
-              }))
+              setTouched((t) => ({ ...t, "emergencyContact.relation": true }))
             }
             className={inputClass("emergencyContact.relation")}
             required
@@ -587,15 +549,11 @@ const AdminRegisterForm = () => {
           </label>
           <input
             id="emergencyContact.phone"
-            type="text"
             name="emergencyContact.phone"
             value={formData.emergencyContact.phone}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                "emergencyContact.phone": true,
-              }))
+              setTouched((t) => ({ ...t, "emergencyContact.phone": true }))
             }
             className={inputClass("emergencyContact.phone")}
             required
@@ -608,6 +566,7 @@ const AdminRegisterForm = () => {
             )}
         </div>
 
+        {/* Other fields */}
         <div>
           <label htmlFor="experience">Experience</label>
           <input
@@ -616,47 +575,35 @@ const AdminRegisterForm = () => {
             name="experience"
             value={formData.experience}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, experience: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, experience: true }))}
             className={inputClass("experience")}
             required
           />
-          {touched.experience && fieldErrors.experience && (
-            <span className="error-text">{fieldErrors.experience}</span>
-          )}
         </div>
 
         <div>
           <label htmlFor="highestQualification">Highest Qualification</label>
           <input
             id="highestQualification"
-            type="text"
             name="highestQualification"
             value={formData.highestQualification}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({ ...prev, highestQualification: true }))
+              setTouched((t) => ({ ...t, highestQualification: true }))
             }
             className={inputClass("highestQualification")}
             required
           />
-          {touched.highestQualification && fieldErrors.highestQualification && (
-            <span className="error-text">
-              {fieldErrors.highestQualification}
-            </span>
-          )}
         </div>
 
         <div>
           <label htmlFor="AADHARnumber">AADHAR Number</label>
           <input
             id="AADHARnumber"
-            type="text"
             name="AADHARnumber"
             value={formData.AADHARnumber}
             onChange={handleChange}
-            onBlur={() =>
-              setTouched((prev) => ({ ...prev, AADHARnumber: true }))
-            }
+            onBlur={() => setTouched((t) => ({ ...t, AADHARnumber: true }))}
             className={inputClass("AADHARnumber")}
             required
           />
@@ -673,28 +620,22 @@ const AdminRegisterForm = () => {
             name="salary"
             value={formData.salary}
             onChange={handleChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, salary: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, salary: true }))}
             className={inputClass("salary")}
             required
           />
-          {touched.salary && fieldErrors.salary && (
-            <span className="error-text">{fieldErrors.salary}</span>
-          )}
         </div>
 
+        {/* Bank */}
         <div>
           <label htmlFor="bankDetails.accountNumber">Bank Account Number</label>
           <input
             id="bankDetails.accountNumber"
-            type="text"
             name="bankDetails.accountNumber"
             value={formData.bankDetails.accountNumber}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                "bankDetails.accountNumber": true,
-              }))
+              setTouched((t) => ({ ...t, "bankDetails.accountNumber": true }))
             }
             className={inputClass("bankDetails.accountNumber")}
             required
@@ -711,15 +652,11 @@ const AdminRegisterForm = () => {
           <label htmlFor="bankDetails.bankName">Bank Name</label>
           <input
             id="bankDetails.bankName"
-            type="text"
             name="bankDetails.bankName"
             value={formData.bankDetails.bankName}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                "bankDetails.bankName": true,
-              }))
+              setTouched((t) => ({ ...t, "bankDetails.bankName": true }))
             }
             className={inputClass("bankDetails.bankName")}
             required
@@ -736,15 +673,11 @@ const AdminRegisterForm = () => {
           <label htmlFor="bankDetails.ifscCode">IFSC Code</label>
           <input
             id="bankDetails.ifscCode"
-            type="text"
             name="bankDetails.ifscCode"
             value={formData.bankDetails.ifscCode}
             onChange={handleChange}
             onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                "bankDetails.ifscCode": true,
-              }))
+              setTouched((t) => ({ ...t, "bankDetails.ifscCode": true }))
             }
             className={inputClass("bankDetails.ifscCode")}
             required
@@ -757,6 +690,7 @@ const AdminRegisterForm = () => {
             )}
         </div>
 
+        {/* Photo */}
         <div>
           <label htmlFor="photo">Upload Photo</label>
           <input
@@ -764,7 +698,7 @@ const AdminRegisterForm = () => {
             type="file"
             name="photo"
             onChange={handleFileChange}
-            onBlur={() => setTouched((prev) => ({ ...prev, photo: true }))}
+            onBlur={() => setTouched((t) => ({ ...t, photo: true }))}
             className={inputClass("photo")}
             accept="image/jpeg,image/png,image/jpg"
           />
@@ -778,156 +712,154 @@ const AdminRegisterForm = () => {
         </button>
       </form>
 
+      {/* Success modal */}
       <Modal show={showModal} onHide={handleCloseModal}>
         <Modal.Header closeButton>
           <Modal.Title>Admin Registered Successfully</Modal.Title>
         </Modal.Header>
         <Modal.Body id="modalContent">
-          {successData?.data ? (
+          {created ? (
             <>
               <div
                 className="photo-section"
-                style={{ textAlign: "center", marginBottom: "20px" }}
+                style={{ textAlign: "center", marginBottom: 20 }}
               >
                 <Image
-                  src={successData?.data?.photo ? 
-                    `${API_URL}/uploads/admins/${successData.data.photo}` : 
-                    `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`
-                  }
+                  src={photoURL}
                   alt="Admin Profile"
                   onError={(e) => {
-                    console.log("Admin image load error, using data URI placeholder");
-                    // Using a simple data URI for a gray square with a person icon
-                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23cccccc'/%3E%3Cpath d='M75 75 Q95 45 115 75 L115 115 L35 115 L35 75 Q55 45 75 75' fill='%23888888'/%3E%3Ccircle cx='75' cy='45' r='20' fill='%23888888'/%3E%3C/svg%3E";
+                    e.currentTarget.src = `${process.env.PUBLIC_URL}/placeholders/user-placeholder.png`;
                   }}
                   style={{
-                    width: "150px",
-                    height: "150px",
+                    width: 150,
+                    height: 150,
                     objectFit: "cover",
                     borderRadius: "50%",
                   }}
                 />
               </div>
+
               <div>
                 <h2>Admin Details</h2>
+
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Basic Information</h3>
                   <p>
-                    <strong>Name:</strong> {successData.data.name}
+                    <strong>Name:</strong> {created.name}
                   </p>
                   <p>
-                    <strong>Admin ID:</strong> {successData.data.adminID}
+                    <strong>Admin ID:</strong> {created.adminID}
                   </p>
                   <p>
-                    <strong>Email:</strong>{" "}
-                    {successData.data.email || "Not Provided"}
+                    <strong>Email:</strong> {created.email || "Not Provided"}
                   </p>
                   <p>
-                    <strong>Phone:</strong>{" "}
-                    {successData.data.phone || "Not Provided"}
+                    <strong>Phone:</strong> {created.phone || "Not Provided"}
                   </p>
                   <p>
-                    <strong>Role:</strong> {successData.data.role || "Admin"}
+                    <strong>Role:</strong> {created.role || "Admin"}
                   </p>
                   <p>
-                    <strong>Password:</strong>{" "}
-                    {successData.data.password || "admin123"}{" "}
+                    <strong>Default Password:</strong> {defaultPwd}{" "}
                     <span style={{ color: "red", fontWeight: "bold" }}>
                       (Please change after first login)
                     </span>
                   </p>
                 </div>
+
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Professional Information</h3>
                   <p>
                     <strong>Designation:</strong>{" "}
-                    {successData.data.designation || "Not Provided"}
+                    {created.designation || "Not Provided"}
                   </p>
                   <p>
                     <strong>Department:</strong>{" "}
-                    {successData.data.department || "Not Provided"}
+                    {created.department || "Not Provided"}
                   </p>
                   <p>
                     <strong>Highest Qualification:</strong>{" "}
-                    {successData.data.highestQualification || "Not Provided"}
+                    {created.highestQualification || "Not Provided"}
                   </p>
                 </div>
+
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Personal Information</h3>
                   <p>
                     <strong>Address:</strong>{" "}
-                    {successData.data.address || "Not Provided"}
+                    {created.address || "Not Provided"}
                   </p>
                   <p>
                     <strong>Date of Birth:</strong>{" "}
-                    {successData.data.dob
-                      ? new Date(successData.data.dob).toLocaleDateString()
+                    {created.dob
+                      ? new Date(created.dob).toLocaleDateString()
                       : "Not Provided"}
                   </p>
                   <p>
-                    <strong>Gender:</strong>{" "}
-                    {successData.data.gender || "Not Provided"}
+                    <strong>Gender:</strong> {created.gender || "Not Provided"}
                   </p>
                   <p>
                     <strong>Religion:</strong>{" "}
-                    {successData.data.religion || "Not Provided"}
+                    {created.religion || "Not Provided"}
                   </p>
                   <p>
                     <strong>Category:</strong>{" "}
-                    {successData.data.category || "Not Provided"}
+                    {created.category || "Not Provided"}
                   </p>
                   <p>
                     <strong>Blood Group:</strong>{" "}
-                    {successData.data.bloodgroup || "Not Provided"}
+                    {created.bloodgroup || "Not Provided"}
                   </p>
                   <p>
                     <strong>AADHAR Number:</strong>{" "}
-                    {successData.data.AADHARnumber || "Not Provided"}
+                    {created.AADHARnumber || "Not Provided"}
                   </p>
                 </div>
+
                 <div
                   style={{
                     borderBottom: "1px solid #ddd",
-                    paddingBottom: "5px",
-                    marginBottom: "10px",
+                    paddingBottom: 5,
+                    marginBottom: 10,
                   }}
                 >
                   <h3>Registration Information</h3>
                   <p>
                     <strong>Registered By:</strong>{" "}
-                    {successData.data.registeredBy
-                      ? `${successData.data.registeredBy.name} (ID: ${successData.data.registeredBy.adminID})`
+                    {created.registeredBy
+                      ? `${created.registeredBy.name} (ID: ${created.registeredBy.adminID})`
                       : "Unknown"}
                   </p>
                   <p>
                     <strong>Registered At:</strong>{" "}
-                    {new Date(successData.data.createdAt).toLocaleString()}
+                    {new Date(created.createdAt).toLocaleString()}
                   </p>
                 </div>
               </div>
+
               <Button
                 variant="primary"
                 onClick={handlePrint}
                 style={{
-                  marginTop: "20px",
+                  marginTop: 20,
                   display: "block",
                   marginLeft: "auto",
                   marginRight: "auto",
@@ -946,6 +878,7 @@ const AdminRegisterForm = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
       <ToastContainer />
     </div>
   );

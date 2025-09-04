@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const Teacher = require("../models/TeacherModel"); // Import Teacher model
 const Subject = require("../models/SubjectModel"); // Import Teacher model
 const Class = require("../models/ClassModel"); // Adjust the path to match your project structure
@@ -54,7 +54,7 @@ exports.createTeacher = async (req, res, next) => {
   try {
     const loggedInAdmin = req.admin;
     console.log("Logged-in Admin:", loggedInAdmin);
-    
+
     if (!loggedInAdmin) {
       return res.status(400).json({ message: "Logged-in Admin not found" });
     }
@@ -85,28 +85,54 @@ exports.createTeacher = async (req, res, next) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !email || !phone || !designation || !address || !dob || !gender || !department || !salary) {
-      return res.status(400).json({ 
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !designation ||
+      !address ||
+      !dob ||
+      !gender ||
+      !department ||
+      !salary
+    ) {
+      return res.status(400).json({
         message: "Missing required fields",
-        required: ["name", "email", "phone", "designation", "address", "dob", "gender", "department", "salary"]
+        required: [
+          "name",
+          "email",
+          "phone",
+          "designation",
+          "address",
+          "dob",
+          "gender",
+          "department",
+          "salary",
+        ],
       });
     }
 
     // Validate phone number format
     if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({ message: "Phone number must be 10 digits" });
+      return res
+        .status(400)
+        .json({ message: "Phone number must be 10 digits" });
     }
 
     // Check if teacher already exists with the same email
     const existingTeacher = await Teacher.findOne({ email });
     if (existingTeacher) {
-      return res.status(400).json({ message: "Teacher with this email already exists" });
+      return res
+        .status(400)
+        .json({ message: "Teacher with this email already exists" });
     }
 
     // Check if teacher already exists with the same phone
     const existingPhone = await Teacher.findOne({ phone });
     if (existingPhone) {
-      return res.status(400).json({ message: "Teacher with this phone number already exists" });
+      return res
+        .status(400)
+        .json({ message: "Teacher with this phone number already exists" });
     }
 
     // Generate a unique teacherID
@@ -133,20 +159,24 @@ exports.createTeacher = async (req, res, next) => {
       teacherID,
       password: hashedPassword,
       photo: req.file ? req.file.filename : null,
-      emergencyContact: emergencyContact ? {
-        name: emergencyContact.name || "",
-        relation: emergencyContact.relation || "",
-        phone: emergencyContact.phone || "",
-      } : undefined,
+      emergencyContact: emergencyContact
+        ? {
+            name: emergencyContact.name || "",
+            relation: emergencyContact.relation || "",
+            phone: emergencyContact.phone || "",
+          }
+        : undefined,
       experience: experience || 0,
       highestQualification: highestQualification || "",
       AADHARnumber: AADHARnumber || "",
       salary: salary || 0,
-      bankDetails: bankDetails ? {
-        accountNumber: bankDetails.accountNumber || "",
-        bankName: bankDetails.bankName || "",
-        ifscCode: bankDetails.ifscCode || "",
-      } : undefined,
+      bankDetails: bankDetails
+        ? {
+            accountNumber: bankDetails.accountNumber || "",
+            bankName: bankDetails.bankName || "",
+            ifscCode: bankDetails.ifscCode || "",
+          }
+        : undefined,
       registeredBy: {
         adminID: loggedInAdmin.adminID,
         name: loggedInAdmin.name,
@@ -165,10 +195,10 @@ exports.createTeacher = async (req, res, next) => {
   } catch (error) {
     console.error("Error creating teacher:", error);
     // Send a more detailed error response
-    res.status(500).json({ 
-      message: "Internal Server Error", 
+    res.status(500).json({
+      message: "Internal Server Error",
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -430,8 +460,8 @@ exports.getAssignedClasses = async (req, res) => {
         select: "className classId subjects",
         populate: {
           path: "subjects",
-          select: "subjectName subjectId subjectCode"
-        }
+          select: "subjectName subjectId subjectCode",
+        },
       });
 
     if (!teacher) {
@@ -443,9 +473,9 @@ exports.getAssignedClasses = async (req, res) => {
     // Format the response to group subjects by class
     const assignedClasses = teacher.assignedClasses.map((cls) => {
       // Filter only subjects relevant to this class
-      const subjectsForClass = teacher.assignedSubjects.filter((sub) => 
-        cls.subjects?.some(classSubject => 
-          classSubject.subjectId === sub.subjectId
+      const subjectsForClass = teacher.assignedSubjects.filter((sub) =>
+        cls.subjects?.some(
+          (classSubject) => classSubject.subjectId === sub.subjectId
         )
       );
 
@@ -463,17 +493,17 @@ exports.getAssignedClasses = async (req, res) => {
     // Sort classes by className and then by section
     const sortedAssignedClasses = assignedClasses.sort((a, b) => {
       // First sort by class name (Class 1, Class 2, etc.)
-      const classA = parseInt(a.className.split(' ')[1]);
-      const classB = parseInt(b.className.split(' ')[1]);
-      
+      const classA = parseInt(a.className.split(" ")[1]);
+      const classB = parseInt(b.className.split(" ")[1]);
+
       if (classA !== classB) {
         return classA - classB;
       }
-      
+
       // If same class, sort by section (A, B, C, etc.)
       // Extract section from classID if available
-      const sectionA = a.classID.split('-')[1] || '';
-      const sectionB = b.classID.split('-')[1] || '';
+      const sectionA = a.classID.split("-")[1] || "";
+      const sectionB = b.classID.split("-")[1] || "";
       return sectionA.localeCompare(sectionB);
     });
 

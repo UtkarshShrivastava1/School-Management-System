@@ -1,8 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
-const { createNotification, getTeacherNotifications, getStudentNotifications, getParentNotifications } = require("../controllers/notificationController");
-const { verifyAdminToken, verifyTeacherToken, verifyStudentToken, verifyParentToken, protect, authorize } = require("../middleware/authMiddleware");
+const {
+  createNotification,
+  getTeacherNotifications,
+  getStudentNotifications,
+  getParentNotifications,
+} = require("../controllers/notificationController");
+const {
+  verifyAdminToken,
+  verifyTeacherToken,
+  verifyStudentToken,
+  verifyParentToken,
+  protect,
+  authorize,
+} = require("../middleware/auth");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -46,7 +58,9 @@ const upload = multer({
 // Error handling middleware
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    return res.status(400).json({ message: "File upload error: " + err.message });
+    return res
+      .status(400)
+      .json({ message: "File upload error: " + err.message });
   } else if (err) {
     return res.status(400).json({ message: err.message });
   }
@@ -89,7 +103,9 @@ router.get("/", (req, res) => {
 // Error handling for routes
 router.use((err, req, res, next) => {
   console.error("Notification route error:", err);
-  res.status(500).json({ message: "Internal server error", error: err.message });
+  res
+    .status(500)
+    .json({ message: "Internal server error", error: err.message });
 });
 
-module.exports = router; 
+module.exports = router;

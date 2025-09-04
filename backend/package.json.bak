@@ -1,0 +1,45 @@
+{
+  "name": "school-management-system-backend",
+  "version": "1.0.0",
+  "description": "The School Management System is a web-based platform designed to streamline school administration and communication. It allows admins to manage students, teachers, classes, attendance, fees, and exam results. Teachers can track student performance and communicate with parents, while students and parents can access academic records, pay fees, and stay updated with school activities. Built with the MERN stack, the system provides a scalable, secure, and user-friendly solution for efficient school management.",
+  "main": "server.js",
+  "scripts": {
+    "start": "nodemon  server.js",
+    "dev": "nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UtkarshShrivastava1/School-Management-System.git"
+  },
+  "author": "Utkarsh Shrivastava",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/UtkarshShrivastava1/school-management-system/issues"
+  },
+  "homepage": "https://github.com/UtkarshShrivastava1/school-management-system#readme",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "chalk": "^5.3.0",
+    "colors": "^1.4.0",
+    "compression": "^1.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.4",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemon": "^2.0.22",
+    "react-datepicker": "^7.6.0",
+    "school-management-system-backend": "file:",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

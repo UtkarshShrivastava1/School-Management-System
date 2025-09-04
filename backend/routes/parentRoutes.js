@@ -4,20 +4,20 @@ const multer = require("multer");
 const { body, validationResult } = require("express-validator");
 const path = require("path");
 const fs = require("fs");
-const bcrypt = require("bcryptjs");
-const { 
-  parentLogin, 
-  getParentProfile, 
+const bcrypt = require("bcrypt");
+const {
+  parentLogin,
+  getParentProfile,
   updateParentInfo,
   changeParentPassword,
   getChildFees,
   payFee,
-  getChildProfile
+  getChildProfile,
 } = require("../controllers/parentController"); // Import all controller functions
 const Parent = require("../models/ParentModel"); // Importing Parent model
-const { verifyParentToken } = require("../middleware/authMiddleware");
+const { verifyParentToken } = require("../middleware/auth");
 // const Parent = require("../models/ParentModel");
-// const bcrypt = require("bcryptjs");
+// const bcrypt = require("bcrypt");
 
 // Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
@@ -39,7 +39,7 @@ const storage = multer.diskStorage({
       fs.mkdirSync(uploadDir, { recursive: true });
       console.log(`Created parent upload directory: ${uploadDir}`);
     }
-    
+
     console.log(`Saving parent photo to: ${uploadDir}`);
     cb(null, uploadDir); // Store files in "uploads/Parent" folder
   },
@@ -55,7 +55,9 @@ const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpg|jpeg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (extname && mimetype) {
@@ -91,11 +93,7 @@ router.post(
 
 //------------------------------------------------------------------------------------------------
 // Route: Get parent profile using GET "/api/parent/auth/parentprofile"
-router.get(
-  "/parentprofile", 
-  verifyParentToken, 
-  getParentProfile
-);
+router.get("/parentprofile", verifyParentToken, getParentProfile);
 
 //------------------------------------------------------------------------------------------------
 // Route: Update parent info using PUT "/api/parent/auth/updateparentinfo"
@@ -106,7 +104,10 @@ router.put(
   upload.single("photo"), // Middleware to handle photo upload
   [
     body("parentID").notEmpty().withMessage("Parent ID is required"),
-    body("parentEmail").optional().isEmail().withMessage("Invalid email format"),
+    body("parentEmail")
+      .optional()
+      .isEmail()
+      .withMessage("Invalid email format"),
     body("parentContactNumber")
       .optional()
       .isLength({ min: 10, max: 10 })
@@ -131,7 +132,9 @@ router.put(
   "/changeparentpassword",
   verifyParentToken,
   [
-    body("currentPassword").notEmpty().withMessage("Current password is required"),
+    body("currentPassword")
+      .notEmpty()
+      .withMessage("Current password is required"),
     body("newPassword")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters long")
@@ -145,10 +148,10 @@ router.put(
 );
 
 // Get child fees
-router.get('/child-fees', verifyParentToken, getChildFees);
+router.get("/child-fees", verifyParentToken, getChildFees);
 
 // Pay fee
-router.post('/pay-fee', verifyParentToken, payFee);
+router.post("/pay-fee", verifyParentToken, payFee);
 
 // Get child profile
 router.get("/childprofile", verifyParentToken, getChildProfile);

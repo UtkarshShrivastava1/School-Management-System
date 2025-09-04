@@ -5,15 +5,14 @@ const { body, validationResult } = require("express-validator");
 const path = require("path");
 const fs = require("fs");
 const {
-  createStudent,
   studentLogin,
   getAllStudents,
   assignStudentToClass,
   searchStudents,
   getStudentProfile,
-  updateStudentInfo
+  updateStudentInfo,
 } = require("../controllers/studentController");
-const { verifyStudentToken } = require("../middleware/authMiddleware");
+const { verifyStudentToken } = require("../middleware/auth");
 const Student = require("../models/StudentModel");
 const bcrypt = require("bcrypt");
 
@@ -37,7 +36,7 @@ const storage = multer.diskStorage({
       fs.mkdirSync(uploadDir, { recursive: true });
       console.log(`Created upload directory: ${uploadDir}`);
     }
-    
+
     console.log(`Saving student photo to: ${uploadDir}`);
     cb(null, uploadDir); // Store files in "uploads/Student" folder
   },
@@ -53,7 +52,9 @@ const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpg|jpeg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (extname && mimetype) {
@@ -101,7 +102,10 @@ router.put(
   upload.single("photo"), // Middleware to handle photo upload
   [
     body("studentID").notEmpty().withMessage("Student ID is required"),
-    body("studentEmail").optional().isEmail().withMessage("Invalid email format"),
+    body("studentEmail")
+      .optional()
+      .isEmail()
+      .withMessage("Invalid email format"),
     body("studentPhone")
       .optional()
       .isLength({ min: 10, max: 10 })
@@ -139,10 +143,10 @@ router.put(
   handleValidationErrors,
   async (req, res) => {
     try {
-      console.log("Password change request received:", { 
+      console.log("Password change request received:", {
         studentID: req.body.studentID,
         passwordLength: req.body.newPassword?.length,
-        confirmMatch: req.body.newPassword === req.body.confirmNewPassword
+        confirmMatch: req.body.newPassword === req.body.confirmNewPassword,
       });
 
       const { studentID, newPassword } = req.body;
@@ -155,10 +159,10 @@ router.put(
         return res.status(404).json({ message: "Student not found" });
       }
 
-      console.log("Student found:", { 
-        id: student._id, 
+      console.log("Student found:", {
+        id: student._id,
         studentID: student.studentID,
-        name: student.studentName
+        name: student.studentName,
       });
 
       // Hash the new password and update it
@@ -169,7 +173,7 @@ router.put(
       console.log("Hashing new password...");
       const hashedPassword = await bcrypt.hash(newPassword, salt);
       console.log("Password hashed successfully");
-      
+
       // Update password in the database - IMPORTANT: using studentPassword field
       student.studentPassword = hashedPassword;
 
@@ -177,11 +181,19 @@ router.put(
       await student.save();
 
       // Validate the password was saved correctly by checking if it can be verified
-      const verifyPasswordUpdate = await bcrypt.compare(newPassword, student.studentPassword);
-      console.log("Password verification check:", verifyPasswordUpdate ? "Success" : "Failed");
+      const verifyPasswordUpdate = await bcrypt.compare(
+        newPassword,
+        student.studentPassword
+      );
+      console.log(
+        "Password verification check:",
+        verifyPasswordUpdate ? "Success" : "Failed"
+      );
 
       if (!verifyPasswordUpdate) {
-        return res.status(500).json({ message: "Password update failed verification" });
+        return res
+          .status(500)
+          .json({ message: "Password update failed verification" });
       }
 
       // Respond with a success message
@@ -195,7 +207,6 @@ router.put(
 );
 
 // Admin routes
-router.post("/", createStudent);
 router.get("/", getAllStudents);
 router.put("/:id/assign-class", assignStudentToClass);
 router.get("/search", searchStudents);
