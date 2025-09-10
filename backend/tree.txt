@@ -1,18 +1,19 @@
-﻿2025-09-10 13:20:37Z  Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
+2025-09-10 08:00:33.162Z   Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
 Exclude: node_modules, uploads; MaxDepth: 5
- 
+
 ├── archive
 │   ├── pre_reorg
+│   │   ├── ClassModel.js
+│   │   ├── TeacherAttendanceModel.js
 │   │   ├── academicClass.routes.js
 │   │   ├── admin.routes.js
 │   │   ├── attendance.routes.js
-│   │   ├── ClassModel.js
+│   │   ├── attendanceController.js
 │   │   ├── classOverview.routes.js
 │   │   ├── enrollment.routes.js
 │   │   ├── section.routes.js
 │   │   ├── session.routes.js
 │   │   ├── studentRoutes.js
-│   │   ├── TeacherAttendanceModel.js
 │   │   ├── teacherRoutes.js
 │   │   ├── teachingAssignment.routes.js
 ├── config
@@ -37,11 +38,10 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   │   ├── subjectController.js
 │   │   ├── teacherController.js
 │   ├── classmanagement
+│   │   ├── TeacherAttendanceController.js
 │   │   ├── attendance.controller.js
 │   │   ├── classController.js
 │   │   ├── classEditController.js
-│   │   ├── TeacherAttendanceController.js
-│   ├── attendanceController.js
 │   ├── feeController.js
 │   ├── helper.js
 │   ├── result.controller.js
@@ -117,21 +117,22 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   ├── checkUploads.js
 ├── .env
 ├── .gitignore
-├── createAdmin.js
-├── createAdminAccount.js
 ├── create-parent-test-data.js
 ├── create-test-data.js
+├── createAdmin.js
+├── createAdminAccount.js
 ├── fix-fee-data.js
 ├── jsconfig.json
+├── package-lock.json
 ├── package.json
 ├── package.json.bak
-├── package-lock.json
 ├── reorg_changes_report.txt
-├── repo-structure.txt
 ├── repo-structure-clean.txt
+├── repo-structure.txt
 ├── server.js
 ├── test-db.js
 ├── test-fee-api.js
+├── tree.js
 ├── tree.txt
- 
+
 Finished writing tree to tree.txt
