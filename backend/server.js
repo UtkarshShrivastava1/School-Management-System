@@ -89,6 +89,8 @@ app.use("/api", require("./routes/result.routes"));
 app.use("/api", require("./routes/rollover.routes"));
 app.use("/api", require("./routes/attendance.routes"));
 app.use("/api", require("./routes/teacherAttendance.routes"));
+app.use("/api", require("./routes/session.routes"));
+app.use("/api", require("./routes/section.routes"));
 
 /* ------------------------------- Static files ----------------------------- */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
