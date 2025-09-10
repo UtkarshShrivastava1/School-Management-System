@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { requireAdmin } = require("../middleware/auth");
-const rc = require("../controllers/result.controller");
+const { requireAdmin } = require("../../middleware/auth");
+const rc = require("../../controllers/result.controller");
 
 router.post("/results/assessments", requireAdmin, rc.bulkUpsertAssessments);
 router.post("/results/compute", requireAdmin, rc.computeResults);

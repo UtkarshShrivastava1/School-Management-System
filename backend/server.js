@@ -85,10 +85,10 @@ app.use("/api/fees", feeRoutes);
 app.use("/api", require("./routes/academicClass.routes"));
 app.use("/api", require("./routes/teachingAssignment.routes"));
 app.use("/api", require("./routes/enrollment.routes"));
-app.use("/api", require("./routes/result.routes"));
-app.use("/api", require("./routes/rollover.routes"));
+app.use("/api", require("./routes/academic/result.routes"));
+app.use("/api", require("./routes/rollover/rollover.routes"));
 app.use("/api", require("./routes/attendance.routes"));
-app.use("/api", require("./routes/teacherAttendance.routes"));
+app.use("/api", require("./routes/attendance/teacherAttendance.routes"));
 app.use("/api", require("./routes/session.routes"));
 app.use("/api", require("./routes/section.routes"));
 

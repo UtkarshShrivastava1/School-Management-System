@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const ctrl = require("../controllers/teacherAttendance.controller");
-const { requireAdmin } = require("../middleware/auth");
+const { requireAdmin } = require("../../middleware/auth");
 
 // only admins/HR mark teacher attendance
 router.post("/teacher-attendance", requireAdmin, ctrl.markTeacherAttendance);

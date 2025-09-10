@@ -1,33 +1,50 @@
-﻿2025-09-10 12:53:49Z  Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
+﻿2025-09-10 13:20:37Z  Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
 Exclude: node_modules, uploads; MaxDepth: 5
  
+├── archive
+│   ├── pre_reorg
+│   │   ├── academicClass.routes.js
+│   │   ├── admin.routes.js
+│   │   ├── attendance.routes.js
+│   │   ├── ClassModel.js
+│   │   ├── classOverview.routes.js
+│   │   ├── enrollment.routes.js
+│   │   ├── section.routes.js
+│   │   ├── session.routes.js
+│   │   ├── studentRoutes.js
+│   │   ├── TeacherAttendanceModel.js
+│   │   ├── teacherRoutes.js
+│   │   ├── teachingAssignment.routes.js
 ├── config
 │   ├── db.js
 │   ├── generateToken.js
 │   ├── multerConfig.js
 ├── controllers
-│   ├── academicClass.controller.js
-│   ├── admin.controller.js
-│   ├── adminManagementController.js
-│   ├── attendance.controller.js
+│   ├── academic
+│   │   ├── academicClass.controller.js
+│   │   ├── classOverview.controller.js
+│   │   ├── enrollment.controller.js
+│   │   ├── rollover.controller.js
+│   │   ├── section.controller.js
+│   │   ├── session.controller.js
+│   │   ├── teachingAssignment.controller.js
+│   ├── admin
+│   │   ├── admin.controller.js
+│   │   ├── adminManagementController.js
+│   │   ├── notificationController.js
+│   │   ├── parentController.js
+│   │   ├── studentController.js
+│   │   ├── subjectController.js
+│   │   ├── teacherController.js
+│   ├── classmanagement
+│   │   ├── attendance.controller.js
+│   │   ├── classController.js
+│   │   ├── classEditController.js
+│   │   ├── TeacherAttendanceController.js
 │   ├── attendanceController.js
-│   ├── classController.js
-│   ├── classEditController.js
-│   ├── classOverview.controller.js
-│   ├── enrollment.controller.js
 │   ├── feeController.js
 │   ├── helper.js
-│   ├── notificationController.js
-│   ├── parentController.js
 │   ├── result.controller.js
-│   ├── rollover.controller.js
-│   ├── section.controller.js
-│   ├── session.controller.js
-│   ├── studentController.js
-│   ├── subjectController.js
-│   ├── TeacherAttendanceController.js
-│   ├── teacherController.js
-│   ├── teachingAssignment.controller.js
 ├── middleware
 │   ├── auth.js
 │   ├── handleValidationErrors .js
@@ -39,43 +56,51 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   │   ├── Assessment.js
 │   │   ├── Attendance.js
 │   │   ├── ClassTemplate.js
+│   │   ├── Enrollment.js
 │   │   ├── ResultSummary.js
 │   │   ├── Section.js
 │   │   ├── TeacherAttendance.js
-│   ├── AdminModel.js
-│   ├── AuditLog.js
-│   ├── ClassModel.js
-│   ├── Enrollment.js
-│   ├── FeeModel.js
-│   ├── NotificationModel.js
-│   ├── ParentModel.js
-│   ├── PaymentModel.js
-│   ├── StudentModel.js
-│   ├── SubjectModel.js
-│   ├── TeacherAttendanceModel.js
-│   ├── TeacherModel.js
+│   ├── core
+│   │   ├── AdminModel.js
+│   │   ├── AuditLog.js
+│   │   ├── FeeModel.js
+│   │   ├── NotificationModel.js
+│   │   ├── ParentModel.js
+│   │   ├── PaymentModel.js
+│   │   ├── StudentModel.js
+│   │   ├── SubjectModel.js
+│   │   ├── TeacherModel.js
 │   ├── TeachingAssignment.js
 ├── routes
 │   ├── academic
+│   │   ├── academicClass.routes.js
 │   │   ├── classOverview.routes.js
-│   ├── academicClass.routes.js
-│   ├── admin.routes.js
+│   │   ├── enrollment.routes.js
+│   │   ├── result.routes.js
+│   │   ├── section.routes.js
+│   │   ├── session.routes.js
+│   │   ├── teachingAssignment.routes.js
+│   ├── admin
+│   │   ├── admin.routes.js
+│   ├── attendance
+│   │   ├── teacherAttendance.routes.js
+│   ├── communication
+│   │   ├── notification.routes.js
+│   ├── finance
+│   │   ├── fee.routes.js
+│   │   ├── payment.routes.js
+│   ├── people
+│   │   ├── parent.routes.js
+│   │   ├── student.routes.js
+│   │   ├── teacher.routes.js
+│   ├── rollover
+│   │   ├── rollover.routes.js
 │   ├── adminProtected.js
-│   ├── attendance.routes.js
 │   ├── attendanceRoutes.js
 │   ├── classRoutes.js
-│   ├── enrollment.routes.js
 │   ├── feeRoutes.js
 │   ├── notificationRoutes.js
 │   ├── parentRoutes.js
-│   ├── result.routes.js
-│   ├── rollover.routes.js
-│   ├── section.routes.js
-│   ├── session.routes.js
-│   ├── studentRoutes.js
-│   ├── teacherAttendance.routes.js
-│   ├── teacherRoutes.js
-│   ├── teachingAssignment.routes.js
 ├── scripts
 │   ├── addTestFeeDetail.js
 │   ├── checkAdminAccount.js
@@ -101,6 +126,7 @@ Exclude: node_modules, uploads; MaxDepth: 5
 ├── package.json
 ├── package.json.bak
 ├── package-lock.json
+├── reorg_changes_report.txt
 ├── repo-structure.txt
 ├── repo-structure-clean.txt
 ├── server.js
