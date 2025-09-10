@@ -1,7 +1,27 @@
-2025-09-10 08:00:33.162Z   Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
+2025-09-10 08:38:44.993Z   Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
 Exclude: node_modules, uploads; MaxDepth: 5
 
 ├── archive
+│   ├── model_rename_backups
+│   │   ├── AcademicClass.js
+│   │   ├── AcademicSession.js
+│   │   ├── AdminModel.js
+│   │   ├── Assessment.js
+│   │   ├── Attendance.js
+│   │   ├── AuditLog.js
+│   │   ├── ClassTemplate.js
+│   │   ├── Enrollment.js
+│   │   ├── FeeModel.js
+│   │   ├── NotificationModel.js
+│   │   ├── ParentModel.js
+│   │   ├── PaymentModel.js
+│   │   ├── ResultSummary.js
+│   │   ├── Section.js
+│   │   ├── StudentModel.js
+│   │   ├── SubjectModel.js
+│   │   ├── TeacherAttendance.js
+│   │   ├── TeacherModel.js
+│   │   ├── TeachingAssignment.js
 │   ├── pre_reorg
 │   │   ├── ClassModel.js
 │   │   ├── TeacherAttendanceModel.js
@@ -47,6 +67,7 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   ├── result.controller.js
 ├── middleware
 │   ├── auth.js
+│   ├── auth.js.rename.bak
 │   ├── handleValidationErrors .js
 │   ├── uploadMiddleware.js
 ├── models
@@ -60,17 +81,27 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   │   ├── ResultSummary.js
 │   │   ├── Section.js
 │   │   ├── TeacherAttendance.js
+│   ├── academic
+│   │   ├── academic-class.model.js
+│   │   ├── academic-session.model.js
+│   │   ├── assessment.model.js
+│   │   ├── attendance.model.js
+│   │   ├── class-template.model.js
+│   │   ├── enrollment.model.js
+│   │   ├── result-summary.model.js
+│   │   ├── section.model.js
+│   │   ├── teacher-attendance.model.js
 │   ├── core
-│   │   ├── AdminModel.js
-│   │   ├── AuditLog.js
-│   │   ├── FeeModel.js
-│   │   ├── NotificationModel.js
-│   │   ├── ParentModel.js
-│   │   ├── PaymentModel.js
-│   │   ├── StudentModel.js
-│   │   ├── SubjectModel.js
-│   │   ├── TeacherModel.js
-│   ├── TeachingAssignment.js
+│   │   ├── admin.model.js
+│   │   ├── auditlog.model.js
+│   │   ├── fee.model.js
+│   │   ├── notification.model.js
+│   │   ├── parent.model.js
+│   │   ├── payment.model.js
+│   │   ├── student.model.js
+│   │   ├── subject.model.js
+│   │   ├── teacher.model.js
+│   │   ├── teaching-assignment.model.js
 ├── routes
 │   ├── academic
 │   │   ├── academicClass.routes.js
@@ -90,7 +121,6 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   │   ├── fee.routes.js
 │   │   ├── payment.routes.js
 │   ├── people
-│   │   ├── parent.routes.js
 │   │   ├── student.routes.js
 │   │   ├── teacher.routes.js
 │   ├── rollover
@@ -99,8 +129,10 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   ├── attendanceRoutes.js
 │   ├── classRoutes.js
 │   ├── feeRoutes.js
+│   ├── feeRoutes.js.rename.bak
 │   ├── notificationRoutes.js
 │   ├── parentRoutes.js
+│   ├── parentRoutes.js.rename.bak
 ├── scripts
 │   ├── addTestFeeDetail.js
 │   ├── checkAdminAccount.js
@@ -109,10 +141,12 @@ Exclude: node_modules, uploads; MaxDepth: 5
 │   ├── fixStudentEnrollment.js
 │   ├── initializeClasses.js
 │   ├── removeEnrolledClassesIndex.js
+│   ├── rename-models.ps1
 │   ├── seedClassTemplates.js
 │   ├── waitlist-cron.js
 ├── services
 │   ├── waitlist.service.js
+│   ├── waitlist.service.js.rename.bak
 ├── utils
 │   ├── checkUploads.js
 ├── .env
@@ -126,6 +160,7 @@ Exclude: node_modules, uploads; MaxDepth: 5
 ├── package-lock.json
 ├── package.json
 ├── package.json.bak
+├── rename_report.txt
 ├── reorg_changes_report.txt
 ├── repo-structure-clean.txt
 ├── repo-structure.txt
@@ -133,6 +168,5 @@ Exclude: node_modules, uploads; MaxDepth: 5
 ├── test-db.js
 ├── test-fee-api.js
 ├── tree.js
-├── tree.txt
 
 Finished writing tree to tree.txt

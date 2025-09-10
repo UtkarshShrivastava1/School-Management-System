@@ -1,7 +1,7 @@
-const Teacher = require("../models/TeacherModel");
-const Student = require("../models/StudentModel");
-const Parent = require("../models/ParentModel");
-const Subject = require("../models/SubjectModel");
+﻿const Teacher = require(../models/t-ea-ch-er.model");
+const Student = require(../models/s-tu-de-nt.model");
+const Parent = require(../models/p-ar-en-t.model");
+const Subject = require(../models/s-ub-je-ct.model");
 
 /* ----------------------------- ID Generator ------------------------------- */
 async function generateId(prefix, Model, field, digits) {
@@ -266,3 +266,4 @@ exports.getAllSubjects = async (_req, res, next) => {
     next(err);
   }
 };
+

@@ -1,6 +1,6 @@
-const bcrypt = require("bcrypt");
-const Student = require("../models/StudentModel"); // Import Student model
-const Parent = require("../models/ParentModel"); // Import Parent model
+﻿const bcrypt = require("bcrypt");
+const Student = require(../models/s-tu-de-nt.model"); // Import Student model
+const Parent = require(../models/p-ar-en-t.model"); // Import Parent model
 const generateToken = require("../config/generateToken"); // Helper for JWT token generation
 const { validationResult } = require("express-validator"); // For input validation
 const Class = require("../models/ClassModel");
@@ -147,15 +147,15 @@ exports.createStudent = async (req, res, next) => {
       const defaultParentPassword = "parent123"; // let Parent schema pre-save hook hash this
 
       parent = await Parent.create({
-        parentID, // ✅ matches schema (and 5 digits)
-        parentName, // ✅ matches schema
-        parentEmail, // ✅ matches schema
-        parentContactNumber, // ✅ matches schema
-        relationship, // ✅ matches schema
+        parentID, // âœ… matches schema (and 5 digits)
+        parentName, // âœ… matches schema
+        parentEmail, // âœ… matches schema
+        parentContactNumber, // âœ… matches schema
+        relationship, // âœ… matches schema
         parentAddress: parentAddress || undefined,
         parentOccupation: parentOccupation || undefined,
         parentPhoto: parentPhoto || undefined,
-        parentPassword: defaultParentPassword, // ✅ schema should hash in pre-save
+        parentPassword: defaultParentPassword, // âœ… schema should hash in pre-save
         status: "active",
       });
     } else {
@@ -176,7 +176,7 @@ exports.createStudent = async (req, res, next) => {
 
     // Create Student (NO actual class assignment here)
     const student = await Student.create({
-      studentID, // ✅ STU + 5 digits
+      studentID, // âœ… STU + 5 digits
       studentName,
       studentEmail,
       studentPhone,
@@ -191,7 +191,7 @@ exports.createStudent = async (req, res, next) => {
       photo: studentPhoto || undefined,
       parent: parent._id,
 
-      studentPassword: defaultStudentPassword, // ✅ schema pre-save hash
+      studentPassword: defaultStudentPassword, // âœ… schema pre-save hash
 
       AADHARnumber: AADHARnumber || undefined,
 
@@ -1037,3 +1037,4 @@ exports.getStudentsByClass = async (req, res) => {
       .json({ message: "Error retrieving students", error: error.message });
   }
 };
+

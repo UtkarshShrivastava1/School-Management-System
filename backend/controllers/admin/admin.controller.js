@@ -1,6 +1,6 @@
-const bcrypt = require("bcrypt");
+﻿const bcrypt = require("bcrypt");
 const { validationResult } = require("express-validator");
-const Admin = require("../models/AdminModel");
+const Admin = require(../models/a-dm-in.model");
 const generateToken = require("../config/generateToken");
 
 /* ---------------------------------- Helpers --------------------------------- */
@@ -135,7 +135,7 @@ const createAdmin = async (req, res, next) => {
 
     const photo = req.file ? req.file.filename : undefined;
 
-    // 🔎 Parse multipart JSON fields if they arrived as strings
+    // ðŸ”Ž Parse multipart JSON fields if they arrived as strings
     const parseErrors = [];
     let parsedEmergency = emergencyContact;
     let parsedBank = bankDetails;
@@ -168,7 +168,7 @@ const createAdmin = async (req, res, next) => {
     }
     if (parseErrors.length) return sendValidation(res, parseErrors);
 
-    // 🔁 Uniqueness check: email
+    // ðŸ” Uniqueness check: email
     const existing = await Admin.findOne({ email }).lean();
     if (existing) {
       return sendValidation(res, [
@@ -198,7 +198,7 @@ const createAdmin = async (req, res, next) => {
       bloodgroup,
       role: role || "admin",
       adminID,
-      password: defaultPassword, // plain → hashed by pre-save
+      password: defaultPassword, // plain â†’ hashed by pre-save
       photo,
       emergencyContact: parsedEmergency || undefined,
       experience: isNaN(Number(experience)) ? 0 : Number(experience),
@@ -221,7 +221,7 @@ const createAdmin = async (req, res, next) => {
       ...(process.env.NODE_ENV !== "production" ? { defaultPassword } : {}),
     });
   } catch (err) {
-    // 🧰 Provide super-informative validation output
+    // ðŸ§° Provide super-informative validation output
     if (err?.name === "ValidationError") {
       return sendValidation(res, formatMongooseValidationErrors(err));
     }
@@ -603,3 +603,4 @@ module.exports = {
   updateAdmin,
   changePassword,
 };
+

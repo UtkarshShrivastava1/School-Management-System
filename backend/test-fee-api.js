@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const Fee = require('./models/FeeModel');
-const Student = require('./models/StudentModel');
+﻿const mongoose = require('mongoose');
+const Fee = require(./models/f-ee.model');
+const Student = require(./models/s-tu-de-nt.model');
 require('dotenv').config();
 
 async function testFeeAPI() {
@@ -11,17 +11,17 @@ async function testFeeAPI() {
       ? process.env.MONGO_ATLAS_URI
       : process.env.MONGO_LOCAL_URI || 'mongodb://localhost:27017/school_management';
     
-    console.log(`🔗 Connecting to: ${isProduction ? 'Production (Atlas)' : 'Local MongoDB'}`);
+    console.log(`ðŸ”— Connecting to: ${isProduction ? 'Production (Atlas)' : 'Local MongoDB'}`);
     
     await mongoose.connect(mongoURI);
-    console.log('✅ Connected to database');
+    console.log('âœ… Connected to database');
     
     // Get all fee records
     const allFees = await Fee.find().populate('student', 'studentName studentID').populate('class', 'className');
-    console.log(`\n📊 Total fee records in database: ${allFees.length}`);
+    console.log(`\nðŸ“Š Total fee records in database: ${allFees.length}`);
     
     if (allFees.length === 0) {
-      console.log('❌ No fee records found');
+      console.log('âŒ No fee records found');
       return;
     }
     
@@ -38,7 +38,7 @@ async function testFeeAPI() {
       feesByStudent[studentId].fees.push(fee);
     });
     
-    console.log(`\n👥 Students with fees: ${Object.keys(feesByStudent).length}`);
+    console.log(`\nðŸ‘¥ Students with fees: ${Object.keys(feesByStudent).length}`);
     
     // Test the API logic for each student
     for (const [studentId, data] of Object.entries(feesByStudent)) {
@@ -58,21 +58,21 @@ async function testFeeAPI() {
       });
       
       for (const [classId, classData] of Object.entries(feesByClass)) {
-        console.log(`\n📚 Class: ${classData.class.className}`);
+        console.log(`\nðŸ“š Class: ${classData.class.className}`);
         
         // Sort fees by due date (descending)
         const sortedFees = classData.fees.sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
         
         // Current fee (most recent)
         const currentFee = sortedFees[0];
-        console.log(`   Current Fee: ${currentFee ? `${currentFee.status} - ₹${currentFee.amount}` : 'None'}`);
+        console.log(`   Current Fee: ${currentFee ? `${currentFee.status} - â‚¹${currentFee.amount}` : 'None'}`);
         
         // Payment history (paid or under_process)
         const paymentHistory = sortedFees.filter(fee => fee.status === 'paid' || fee.status === 'under_process');
         console.log(`   Payment History: ${paymentHistory.length} records`);
         
         paymentHistory.forEach((payment, index) => {
-          console.log(`     ${index + 1}. ${payment.status} - ₹${payment.amount} - ${new Date(payment.dueDate).toLocaleDateString()}`);
+          console.log(`     ${index + 1}. ${payment.status} - â‚¹${payment.amount} - ${new Date(payment.dueDate).toLocaleDateString()}`);
           if (payment.paymentDate) {
             console.log(`        Paid on: ${new Date(payment.paymentDate).toLocaleDateString()}`);
           }
@@ -87,16 +87,16 @@ async function testFeeAPI() {
         // All fee history
         console.log(`   Total Fee Records: ${sortedFees.length}`);
         sortedFees.forEach((fee, index) => {
-          console.log(`     ${index + 1}. ${fee.status} - ₹${fee.amount} - Due: ${new Date(fee.dueDate).toLocaleDateString()}`);
+          console.log(`     ${index + 1}. ${fee.status} - â‚¹${fee.amount} - Due: ${new Date(fee.dueDate).toLocaleDateString()}`);
         });
       }
     }
     
     await mongoose.connection.close();
-    console.log('\n✅ Database connection closed');
+    console.log('\nâœ… Database connection closed');
     
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('âŒ Error:', error);
   }
 }
 

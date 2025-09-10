@@ -1,6 +1,6 @@
-const Class = require("../models/ClassModel");
-const Subject = require("../models/SubjectModel");
-const Teacher = require("../models/TeacherModel");
+﻿const Class = require("../models/ClassModel");
+const Subject = require(../models/s-ub-je-ct.model");
+const Teacher = require(../models/t-ea-ch-er.model");
 
 const generateSubjectCode = (subjectName) => {
   const subjectCodePrefix = subjectName.slice(0, 4).toUpperCase();
@@ -337,3 +337,4 @@ module.exports = {
   assignSubjectsToClass,
   getAvailableSections,
 };
+

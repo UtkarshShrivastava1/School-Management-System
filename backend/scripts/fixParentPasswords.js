@@ -1,4 +1,4 @@
-/**
+﻿/**
  * This script checks all parent accounts and ensures the parentPassword field is properly set.
  * It fixes any accounts where the password might be stored under a different field name.
  */
@@ -7,7 +7,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 
-const Parent = require("../models/ParentModel");
+const Parent = require(../models/p-ar-en-t.model");
 
 // Connect to MongoDB
 mongoose
@@ -74,3 +74,4 @@ async function fixParentPasswords() {
 }
 
 fixParentPasswords();
+

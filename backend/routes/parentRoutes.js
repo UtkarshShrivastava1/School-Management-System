@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { body, validationResult } = require("express-validator");
@@ -14,9 +14,9 @@ const {
   payFee,
   getChildProfile,
 } = require("../controllers/parentController"); // Import all controller functions
-const Parent = require("../models/ParentModel"); // Importing Parent model
+const Parent = require(../models/p-ar-en-t.model"); // Importing Parent model
 const { verifyParentToken } = require("../middleware/auth");
-// const Parent = require("../models/ParentModel");
+// const Parent = require(../models/p-ar-en-t.model");
 // const bcrypt = require("bcrypt");
 
 // Middleware to handle validation errors
@@ -158,3 +158,4 @@ router.get("/childprofile", verifyParentToken, getChildProfile);
 
 // Export the router
 module.exports = router;
+

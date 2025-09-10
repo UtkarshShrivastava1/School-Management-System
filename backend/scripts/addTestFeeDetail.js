@@ -1,10 +1,10 @@
-// Usage: node scripts/addTestFeeDetail.js
+﻿// Usage: node scripts/addTestFeeDetail.js
 // Adds a test fee detail and fee record for a specific student and class
 
 const mongoose = require('mongoose');
-const Student = require('../models/StudentModel');
+const Student = require(../models/s-tu-de-nt.model');
 const Class = require('../models/ClassModel');
-const Fee = require('../models/FeeModel');
+const Fee = require(../models/f-ee.model');
 
 const MONGO_URI = 'mongodb://localhost:27017/school_management'; // Change if needed
 

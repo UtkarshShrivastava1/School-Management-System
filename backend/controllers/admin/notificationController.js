@@ -1,5 +1,5 @@
-const { validationResult } = require("express-validator");
-const Notification = require("../models/NotificationModel");
+﻿const { validationResult } = require("express-validator");
+const Notification = require(../models/n-ot-if-ic-at-io-n.model");
 
 // POST /api/notifications/send
 exports.createNotification = async (req, res) => {

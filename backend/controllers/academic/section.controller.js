@@ -1,6 +1,6 @@
-const Section = require("../models/ClassManagementModels/Section");
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
-const Enrollment = require("../models/ClassManagementModels/Enrollment");
+﻿const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
+const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
+const Enrollment = require(../models/ClassManagementModels/e-nr-ol-lm-en-t.model");
 // POST /classes/academic/:id/sections
 exports.createSection = async (req, res) => {
   try {
@@ -95,3 +95,4 @@ exports.getSectionStats = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
+

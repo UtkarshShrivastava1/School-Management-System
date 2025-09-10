@@ -1,0 +1,83 @@
+Model rename mapping preview: 2025-09-10 13:52:10Z
+
+MAP: models\core\FeeModel.js -> 
+MAP: models\ClassManagementModels\Enrollment.js -> 
+MAP: models\core\AuditLog.js -> 
+MAP: models\core\ParentModel.js -> 
+MAP: models\core\NotificationModel.js -> 
+MAP: models\core\StudentModel.js -> 
+MAP: models\core\PaymentModel.js -> 
+MAP: models\ClassManagementModels\AcademicSession.js -> 
+MAP: models\core\AdminModel.js -> 
+MAP: models\ClassManagementModels\TeacherAttendance.js -> 
+MAP: models\core\SubjectModel.js -> 
+MAP: models\core\TeacherModel.js -> 
+MAP: models\ClassManagementModels\ResultSummary.js -> 
+MAP: models\ClassManagementModels\Assessment.js -> 
+MAP: models\ClassManagementModels\Section.js -> 
+MAP: models\ClassManagementModels\Attendance.js -> 
+MAP: models\TeachingAssignment.js -> 
+MAP: models\ClassManagementModels\AcademicClass.js -> 
+MAP: models\ClassManagementModels\ClassTemplate.js -> 
+MOVED: models\core\FeeModel.js -> 
+MOVED: models\ClassManagementModels\Enrollment.js -> 
+MOVED: models\core\AuditLog.js -> 
+MOVED: models\core\ParentModel.js -> 
+MOVED: models\core\NotificationModel.js -> 
+MOVED: models\core\StudentModel.js -> 
+MOVED: models\core\PaymentModel.js -> 
+MOVED: models\ClassManagementModels\AcademicSession.js -> 
+MOVED: models\core\AdminModel.js -> 
+MOVED: models\ClassManagementModels\TeacherAttendance.js -> 
+MOVED: models\core\SubjectModel.js -> 
+MOVED: models\core\TeacherModel.js -> 
+MOVED: models\ClassManagementModels\ResultSummary.js -> 
+MOVED: models\ClassManagementModels\Assessment.js -> 
+MOVED: models\ClassManagementModels\Section.js -> 
+MOVED: models\ClassManagementModels\Attendance.js -> 
+MOVED: models\TeachingAssignment.js -> 
+MOVED: models\ClassManagementModels\AcademicClass.js -> 
+MOVED: models\ClassManagementModels\ClassTemplate.js -> 
+
+Now updating require() occurrences (best-effort replacements)
+
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\create-parent-test-data.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\create-parent-test-data.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\create-test-data.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\create-test-data.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\createAdmin.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\createAdmin.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\createAdminAccount.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\createAdminAccount.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\fix-fee-data.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\fix-fee-data.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\test-db.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\test-db.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\test-fee-api.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\test-fee-api.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\feeController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\feeController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\result.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\result.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\academicClass.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\academicClass.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\classOverview.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\classOverview.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\enrollment.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\enrollment.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\rollover.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\rollover.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\section.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\section.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\session.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\session.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\teachingAssignment.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\academic\teachingAssignment.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\admin.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\admin.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\adminManagementController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\adminManagementController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\notificationController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\notificationController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\parentController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\parentController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\studentController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\studentController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\subjectController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\subjectController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\teacherController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\admin\teacherController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\attendance.controller.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\attendance.controller.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\classController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\classController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\classEditController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\classEditController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\TeacherAttendanceController.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\controllers\classmanagement\TeacherAttendanceController.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\middleware\auth.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\middleware\auth.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\routes\feeRoutes.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\routes\feeRoutes.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\routes\parentRoutes.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\routes\parentRoutes.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\addTestFeeDetail.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\addTestFeeDetail.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\checkAdminAccount.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\checkAdminAccount.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\fixParentPasswords.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\fixParentPasswords.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\fixStudentEnrollment.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\fixStudentEnrollment.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\seedClassTemplates.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\seedClassTemplates.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\waitlist-cron.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\scripts\waitlist-cron.js.rename.bak)
+PATCHED REQUIRES: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\services\waitlist.service.js (backup: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend\services\waitlist.service.js.rename.bak)
+
+Rename completed at 2025-09-10 13:52:11Z 
+Review the report and the backups in .\archive\model_rename_backups

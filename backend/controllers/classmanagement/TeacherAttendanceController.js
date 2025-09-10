@@ -1,5 +1,5 @@
-const TeacherAttendance = require("../models/TeacherAttendanceModel");
-const Teacher = require("../models/TeacherModel");
+﻿const TeacherAttendance = require("../models/TeacherAttendanceModel");
+const Teacher = require(../models/t-ea-ch-er.model");
 
 //==================================================================================================
 //==================================================================================================
@@ -213,3 +213,4 @@ exports.fetchTeacherAttendanceRecords = async (req, res) => {
 // Controller to delete attendance records by date or teacher details
 //================================================================================================
 //================================================================================================
+

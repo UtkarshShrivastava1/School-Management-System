@@ -1,6 +1,6 @@
-/* run with: node scripts/seedClassTemplates.js */
+﻿/* run with: node scripts/seedClassTemplates.js */
 const mongoose = require("mongoose");
-const ClassTemplate = require("../models/ClassTemplate");
+const ClassTemplate = require(../models/c-la-ss-te-mp-la-te.model");
 
 const GRADE_CATALOG = [
   { code: "PN", label: "Pre-Nursery", order: 0, stage: "preprimary" },
@@ -38,3 +38,4 @@ const GRADE_CATALOG = [
     process.exit(1);
   }
 })();
+

@@ -1,4 +1,4 @@
-console.log("Starting admin account creation script...");
+﻿console.log("Starting admin account creation script...");
 console.log("Current directory:", __dirname);
 console.log(
   "Environment variables:",
@@ -8,7 +8,7 @@ console.log(
 require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const Admin = require("./models/AdminModel");
+const Admin = require(./models/a-dm-in.model");
 
 // Connect to MongoDB
 console.log("Connecting to MongoDB...");
@@ -109,3 +109,4 @@ async function createAdminAccount() {
 }
 
 createAdminAccount();
+

@@ -1,8 +1,8 @@
-const bcrypt = require("bcrypt");
-const Parent = require("../models/ParentModel"); // Importing Parent model
+﻿const bcrypt = require("bcrypt");
+const Parent = require(../models/p-ar-en-t.model"); // Importing Parent model
 const generateToken = require("../config/generateToken"); // Importing token generator
-const Fee = require("../models/FeeModel"); // Importing Fee model
-const Student = require("../models/StudentModel"); // Importing Student model
+const Fee = require(../models/f-ee.model"); // Importing Fee model
+const Student = require(../models/s-tu-de-nt.model"); // Importing Student model
 const Class = require("../models/ClassModel");
 
 // Controller for logging in parents
@@ -700,3 +700,4 @@ module.exports = {
   payFee,
   getChildProfile,
 };
+

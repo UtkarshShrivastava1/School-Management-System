@@ -1,8 +1,8 @@
-const mongoose = require("mongoose");
-const Enrollment = require("../models/Enrollment");
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
-const Section = require("../models/ClassManagementModels/Section");
-const Student = require("../models/StudentModel");
+﻿const mongoose = require("mongoose");
+const Enrollment = require(../models/e-nr-ol-lm-en-t.model");
+const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
+const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
+const Student = require(../models/s-tu-de-nt.model");
 
 // helper: count active enrollments in a section
 async function sectionLoad(sectionId) {
@@ -364,3 +364,4 @@ exports.transfer = async (req, res) => {
     res.status(500).json({ message: "Server error", error: e.message });
   }
 };
+

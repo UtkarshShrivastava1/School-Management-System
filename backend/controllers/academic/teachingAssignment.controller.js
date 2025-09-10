@@ -1,8 +1,8 @@
-const TeachingAssignment = require("../models/TeachingAssignment");
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
-const Section = require("../models/ClassManagementModels/Section");
-const Subject = require("../models/SubjectModel");
-const Teacher = require("../models/TeacherModel");
+﻿const TeachingAssignment = require(../models/t-ea-ch-in-ga-ss-ig-nm-en-t.model");
+const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
+const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
+const Subject = require(../models/s-ub-je-ct.model");
+const Teacher = require(../models/t-ea-ch-er.model");
 
 // POST /teaching-assignments
 // body: { sessionId, academicClassId, sectionId?, subjectId, teacherId, periodsPerWeek? }
@@ -156,3 +156,4 @@ exports.searchSubjects = async (req, res) => {
     .lean();
   res.json({ items });
 };
+

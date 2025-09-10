@@ -1,7 +1,7 @@
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
-const ClassTemplate = require("../models/ClassManagementModels/ClassTemplate");
-const AcademicSession = require("../models/ClassManagementModels/AcademicSession");
-const Section = require("../models/ClassManagementModels/Section");
+﻿const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
+const ClassTemplate = require(../models/ClassManagementModels/c-la-ss-te-mp-la-te.model");
+const AcademicSession = require(../models/ClassManagementModels/a-ca-de-mi-cs-es-si-on.model");
+const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
 
 // POST /classes/academic
 exports.createAcademicClass = async (req, res) => {
@@ -68,3 +68,4 @@ exports.getAcademicClass = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
+

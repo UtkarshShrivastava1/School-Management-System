@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const Student = require("../models/StudentModel");
+﻿const mongoose = require("mongoose");
+const Student = require(../models/s-tu-de-nt.model");
 const Class = require("../models/ClassModel");
 
 const fixStudentEnrollment = async () => {
@@ -53,3 +53,4 @@ const fixStudentEnrollment = async () => {
 };
 
 fixStudentEnrollment();
+

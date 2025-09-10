@@ -1,5 +1,5 @@
-const Attendance = require("../models/Attendance");
-const Enrollment = require("../models/Enrollment");
+﻿const Attendance = require(../models/a-tt-en-da-nc-e.model");
+const Enrollment = require(../models/e-nr-ol-lm-en-t.model");
 
 // POST /attendance
 // body: { sessionId, academicClassId, sectionId, date, records:[{ enrollmentId, studentId, status, remarks? }] }
@@ -91,3 +91,4 @@ exports.getStudentAttendance = async (req, res) => {
     res.status(500).json({ message: "Server error", error: e.message });
   }
 };
+

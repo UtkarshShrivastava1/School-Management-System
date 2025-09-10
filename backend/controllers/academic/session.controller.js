@@ -1,4 +1,4 @@
-const AcademicSession = require("../models/AcademicSession");
+﻿const AcademicSession = require(../models/a-ca-de-mi-cs-es-si-on.model");
 
 exports.createSession = async (req, res) => {
   try {
@@ -34,3 +34,4 @@ exports.listSessions = async (_req, res) => {
   const items = await AcademicSession.find().sort({ startDate: -1 }).lean();
   res.json({ items });
 };
+

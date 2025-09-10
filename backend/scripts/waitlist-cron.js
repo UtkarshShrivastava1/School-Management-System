@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const Section = require("../models/ClassManagementModels/Section");
+﻿const mongoose = require("mongoose");
+const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
 const { allocateFromWaitlist } = require("../services/waitlist.service");
 
 // Example: run once to scan all sections and allocate up to N per section
@@ -27,3 +27,4 @@ async function scanAllSectionsAndAllocate() {
 }
 
 module.exports = { scanAllSectionsAndAllocate };
+

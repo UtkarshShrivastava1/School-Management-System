@@ -1,8 +1,8 @@
-const jwt = require("jsonwebtoken");
-const Admin = require("../models/AdminModel");
-const Teacher = require("../models/TeacherModel");
-const Student = require("../models/StudentModel");
-const Parent = require("../models/ParentModel");
+﻿const jwt = require("jsonwebtoken");
+const Admin = require(../models/a-dm-in.model");
+const Teacher = require(../models/t-ea-ch-er.model");
+const Student = require(../models/s-tu-de-nt.model");
+const Parent = require(../models/p-ar-en-t.model");
 
 /** Extract Bearer token from header or cookie */
 function getToken(req) {
@@ -117,3 +117,4 @@ module.exports = {
   // alias used in controllers/routes I shared
   requireAdmin,
 };
+

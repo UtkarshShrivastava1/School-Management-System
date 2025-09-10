@@ -1,7 +1,7 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const Admin = require("../models/AdminModel");
+const Admin = require(../models/a-dm-in.model");
 
 async function checkAdminAccount() {
   try {
@@ -94,3 +94,4 @@ async function checkAdminAccount() {
 
 // Run the function
 checkAdminAccount();
+

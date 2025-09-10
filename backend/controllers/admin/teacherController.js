@@ -1,6 +1,6 @@
-const bcrypt = require("bcrypt");
-const Teacher = require("../models/TeacherModel"); // Import Teacher model
-const Subject = require("../models/SubjectModel"); // Import Teacher model
+﻿const bcrypt = require("bcrypt");
+const Teacher = require(../models/t-ea-ch-er.model"); // Import Teacher model
+const Subject = require(../models/s-ub-je-ct.model"); // Import Teacher model
 const Class = require("../models/ClassModel"); // Adjust the path to match your project structure
 const generateToken = require("../config/generateToken"); // Helper for JWT token generation
 const { validationResult } = require("express-validator"); // For input validation
@@ -522,3 +522,4 @@ exports.getAssignedClasses = async (req, res) => {
 // Controller to fetch a teacher's assigned subjects
 
 //===================================================================================================
+

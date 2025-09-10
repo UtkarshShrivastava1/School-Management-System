@@ -1,7 +1,7 @@
-// createAdmin.js
+﻿// createAdmin.js
 require("dotenv").config();
 const mongoose = require("mongoose");
-const Admin = require("./models/AdminModel");
+const Admin = require(./models/a-dm-in.model");
 
 async function createDefaultAdmin() {
   console.log("Starting admin account creation...");
@@ -18,7 +18,7 @@ async function createDefaultAdmin() {
 
   if (!mongoURI) {
     console.error(
-      "❌ MongoDB URI not configured. Set MONGO_LOCAL_URI or MONGO_ATLAS_URI in .env"
+      "âŒ MongoDB URI not configured. Set MONGO_LOCAL_URI or MONGO_ATLAS_URI in .env"
     );
     process.exit(1);
   }
@@ -27,7 +27,7 @@ async function createDefaultAdmin() {
 
   try {
     await mongoose.connect(mongoURI); // Mongoose 8: no extra options needed
-    console.log("✅ Connected to MongoDB");
+    console.log("âœ… Connected to MongoDB");
 
     // Make sure indexes are ready (unique checks)
     await Admin.init();
@@ -69,7 +69,7 @@ async function createDefaultAdmin() {
     }).lean();
 
     if (existing) {
-      console.log("ℹ️ Admin already exists:");
+      console.log("â„¹ï¸ Admin already exists:");
       console.log("  Admin ID:", existing.adminID);
       console.log("  Email   :", existing.email);
       return;
@@ -84,14 +84,14 @@ async function createDefaultAdmin() {
     console.log("Password : admin@123  (change after first login)");
     console.log("==================================\n");
   } catch (err) {
-    console.error("❌ Error creating admin:", err.message);
+    console.error("âŒ Error creating admin:", err.message);
     if (err.name === "ValidationError") {
       console.error("Validation fields:", Object.keys(err.errors));
     }
   } finally {
     try {
       await mongoose.connection.close();
-      console.log("🔌 MongoDB connection closed");
+      console.log("ðŸ”Œ MongoDB connection closed");
     } catch (closeErr) {
       console.error("Error closing MongoDB connection:", closeErr);
     }
@@ -100,3 +100,4 @@ async function createDefaultAdmin() {
 }
 
 createDefaultAdmin();
+

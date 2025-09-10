@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const Fee = require('./models/FeeModel');
-const Student = require('./models/StudentModel');
+﻿const mongoose = require('mongoose');
+const Fee = require(./models/f-ee.model');
+const Student = require(./models/s-tu-de-nt.model');
 const Class = require('./models/ClassModel');
 
 async function fixFeeData() {
@@ -26,29 +26,29 @@ async function fixFeeData() {
       
       // Check if student exists
       if (!fee.student) {
-        console.log('❌ Fee has no student reference');
+        console.log('âŒ Fee has no student reference');
         hasIssues = true;
       } else {
         const studentExists = await Student.findById(fee.student);
         if (!studentExists) {
-          console.log('❌ Student referenced in fee does not exist');
+          console.log('âŒ Student referenced in fee does not exist');
           hasIssues = true;
         } else {
-          console.log(`✅ Student exists: ${studentExists.studentName}`);
+          console.log(`âœ… Student exists: ${studentExists.studentName}`);
         }
       }
       
       // Check if class exists
       if (!fee.class) {
-        console.log('❌ Fee has no class reference');
+        console.log('âŒ Fee has no class reference');
         hasIssues = true;
       } else {
         const classExists = await Class.findById(fee.class);
         if (!classExists) {
-          console.log('❌ Class referenced in fee does not exist');
+          console.log('âŒ Class referenced in fee does not exist');
           hasIssues = true;
         } else {
-          console.log(`✅ Class exists: ${classExists.className}`);
+          console.log(`âœ… Class exists: ${classExists.className}`);
         }
       }
       
@@ -70,23 +70,23 @@ async function fixFeeData() {
             
             try {
               await fee.save();
-              console.log('✅ Fee fixed successfully');
+              console.log('âœ… Fee fixed successfully');
               fixedFees++;
             } catch (error) {
-              console.log('❌ Failed to fix fee:', error.message);
+              console.log('âŒ Failed to fix fee:', error.message);
               // Delete the invalid fee
               await Fee.findByIdAndDelete(fee._id);
-              console.log('🗑️ Deleted invalid fee');
+              console.log('ðŸ—‘ï¸ Deleted invalid fee');
               deletedFees++;
             }
           } else {
-            console.log('❌ No valid student or class found, deleting fee');
+            console.log('âŒ No valid student or class found, deleting fee');
             await Fee.findByIdAndDelete(fee._id);
             deletedFees++;
           }
         }
       } else {
-        console.log('✅ Fee is valid');
+        console.log('âœ… Fee is valid');
       }
     }
     

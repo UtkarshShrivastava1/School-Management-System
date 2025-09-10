@@ -1,8 +1,8 @@
-const mongoose = require('mongoose');
-const Student = require('./models/StudentModel');
+﻿const mongoose = require('mongoose');
+const Student = require(./models/s-tu-de-nt.model');
 const Class = require('./models/ClassModel');
-const Parent = require('./models/ParentModel');
-const Fee = require('./models/FeeModel');
+const Parent = require(./models/p-ar-en-t.model');
+const Fee = require(./models/f-ee.model');
 
 async function createParentTestData() {
   try {
@@ -15,8 +15,8 @@ async function createParentTestData() {
     
     for (let i = 0; i < classes.length; i++) {
       const classDoc = classes[i];
-      classDoc.baseFee = 12000; // ₹12,000 per year
-      classDoc.lateFeePerDay = 50; // ₹50 per day
+      classDoc.baseFee = 12000; // â‚¹12,000 per year
+      classDoc.lateFeePerDay = 50; // â‚¹50 per day
       classDoc.feeDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
       classDoc.section = "A"; // Add required section
       classDoc.classStrength = 30; // Add required class strength

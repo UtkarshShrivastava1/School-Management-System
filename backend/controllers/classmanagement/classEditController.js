@@ -1,6 +1,6 @@
-const Class = require("../models/ClassModel");
-const Subject = require("../models/SubjectModel");
-const Teacher = require("../models/TeacherModel");
+﻿const Class = require("../models/ClassModel");
+const Subject = require(../models/s-ub-je-ct.model");
+const Teacher = require(../models/t-ea-ch-er.model");
 
 /**
  * Helper Functions to generate subject codes/IDs if needed

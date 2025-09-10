@@ -1,6 +1,6 @@
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
-const Section = require("../models/ClassManagementModels/Section");
-const Enrollment = require("../models/ClassManagementModels/Enrollment");
+﻿const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
+const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
+const Enrollment = require(../models/ClassManagementModels/e-nr-ol-lm-en-t.model");
 
 /**
  * GET /api/classes/overview?sessionId=<id>
@@ -73,3 +73,4 @@ exports.getOverview = async (req, res, next) => {
     next(err);
   }
 };
+

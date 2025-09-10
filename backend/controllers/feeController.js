@@ -1,7 +1,7 @@
-const Fee = require("../models/FeeModel");
-const Student = require("../models/StudentModel");
+﻿const Fee = require(../models/f-ee.model");
+const Student = require(../models/s-tu-de-nt.model");
 const Class = require("../models/ClassModel");
-const Teacher = require("../models/TeacherModel");
+const Teacher = require(../models/t-ea-ch-er.model");
 const { validationResult } = require("express-validator");
 
 // Create a new fee record

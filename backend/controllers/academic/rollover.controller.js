@@ -1,8 +1,8 @@
-const mongoose = require("mongoose");
-const ResultSummary = require("../models/ResultSummary");
-const Enrollment = require("../models/Enrollment");
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
-const ClassTemplate = require("../models/ClassManagementModels/ClassTemplate");
+﻿const mongoose = require("mongoose");
+const ResultSummary = require(../models/r-es-ul-ts-um-ma-ry.model");
+const Enrollment = require(../models/e-nr-ol-lm-en-t.model");
+const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
+const ClassTemplate = require(../models/ClassManagementModels/c-la-ss-te-mp-la-te.model");
 
 // Helper: find/create next year's AcademicClass for next grade
 async function ensureNextAcademicClass(fromAcademicClassId, toSessionId) {
@@ -158,3 +158,4 @@ exports.execute = async (req, res) => {
       .json({ message: "Rollover failed", error: e.message });
   }
 };
+

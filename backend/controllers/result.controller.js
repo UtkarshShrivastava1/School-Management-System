@@ -1,8 +1,8 @@
-const mongoose = require("mongoose");
-const Assessment = require("../models/ClassManagementModels/Assessment");
-const ResultSummary = require("../models/ClassManagementModels/ResultSummary");
-const Enrollment = require("../models/Enrollment");
-const AcademicClass = require("../models/ClassManagementModels/AcademicClass");
+﻿const mongoose = require("mongoose");
+const Assessment = require(../models/ClassManagementModels/a-ss-es-sm-en-t.model");
+const ResultSummary = require(../models/ClassManagementModels/r-es-ul-ts-um-ma-ry.model");
+const Enrollment = require(../models/e-nr-ol-lm-en-t.model");
+const AcademicClass = require(../models/ClassManagementModels/a-ca-de-mi-cc-la-ss.model");
 
 // Configurable pass rules (simple defaults)
 const PASS_MARK_PER_SUBJECT = 33; // percent
@@ -170,3 +170,4 @@ exports.getEnrollmentResult = async (req, res) => {
   if (!doc) return res.status(404).json({ message: "Result not found" });
   return res.json(doc);
 };
+

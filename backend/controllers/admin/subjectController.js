@@ -1,4 +1,4 @@
-const Subject = require("../models/SubjectModel");
+﻿const Subject = require(../models/s-ub-je-ct.model");
 
 const generateSubjectCode = (subjectName) => {
   // A simple example: Create a code like MATH101, SCI202
@@ -74,3 +74,4 @@ const getAllSubjects = async (req, res) => {
   }
 };
 module.exports = { createSubject, getAllSubjects };
+

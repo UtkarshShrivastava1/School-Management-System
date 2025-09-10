@@ -1,6 +1,6 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
-const Fee = require("../models/FeeModel");
+const Fee = require(../models/f-ee.model");
 const {
   verifyAdminToken,
   verifyTeacherToken,
@@ -217,3 +217,4 @@ router.get(
 );
 
 module.exports = router;
+

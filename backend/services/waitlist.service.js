@@ -1,8 +1,8 @@
-// simple service to allocate seats from waitlist into a section
+﻿// simple service to allocate seats from waitlist into a section
 const mongoose = require("mongoose");
-const Enrollment = require("../models/ClassManagementModels/Enrollment");
-const Section = require("../models/ClassManagementModels/Section");
-const AuditLog = require("../models/AuditLog");
+const Enrollment = require(../models/ClassManagementModels/e-nr-ol-lm-en-t.model");
+const Section = require(../models/ClassManagementModels/s-ec-ti-on.model");
+const AuditLog = require(../models/a-ud-it-lo-g.model");
 
 /**
  * Try to allocate up to `limit` waitlisted students into a given section.
@@ -92,3 +92,4 @@ async function allocateFromWaitlist(
 }
 
 module.exports = { allocateFromWaitlist };
+
