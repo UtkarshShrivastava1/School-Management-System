@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize } = require("../middleware/auth");
 const classController = require("../controllers/classController");
-const { verifyAdminToken } = require("../middleware/authMiddleware");
+const { verifyAdminToken } = require("../middleware/auth");
 
 // Basic route for testing
 router.get("/", (req, res) => {

@@ -1,0 +1,111 @@
+﻿2025-09-10 12:53:49Z  Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
+Exclude: node_modules, uploads; MaxDepth: 5
+ 
+├── config
+│   ├── db.js
+│   ├── generateToken.js
+│   ├── multerConfig.js
+├── controllers
+│   ├── academicClass.controller.js
+│   ├── admin.controller.js
+│   ├── adminManagementController.js
+│   ├── attendance.controller.js
+│   ├── attendanceController.js
+│   ├── classController.js
+│   ├── classEditController.js
+│   ├── classOverview.controller.js
+│   ├── enrollment.controller.js
+│   ├── feeController.js
+│   ├── helper.js
+│   ├── notificationController.js
+│   ├── parentController.js
+│   ├── result.controller.js
+│   ├── rollover.controller.js
+│   ├── section.controller.js
+│   ├── session.controller.js
+│   ├── studentController.js
+│   ├── subjectController.js
+│   ├── TeacherAttendanceController.js
+│   ├── teacherController.js
+│   ├── teachingAssignment.controller.js
+├── middleware
+│   ├── auth.js
+│   ├── handleValidationErrors .js
+│   ├── uploadMiddleware.js
+├── models
+│   ├── ClassManagementModels
+│   │   ├── AcademicClass.js
+│   │   ├── AcademicSession.js
+│   │   ├── Assessment.js
+│   │   ├── Attendance.js
+│   │   ├── ClassTemplate.js
+│   │   ├── ResultSummary.js
+│   │   ├── Section.js
+│   │   ├── TeacherAttendance.js
+│   ├── AdminModel.js
+│   ├── AuditLog.js
+│   ├── ClassModel.js
+│   ├── Enrollment.js
+│   ├── FeeModel.js
+│   ├── NotificationModel.js
+│   ├── ParentModel.js
+│   ├── PaymentModel.js
+│   ├── StudentModel.js
+│   ├── SubjectModel.js
+│   ├── TeacherAttendanceModel.js
+│   ├── TeacherModel.js
+│   ├── TeachingAssignment.js
+├── routes
+│   ├── academic
+│   │   ├── classOverview.routes.js
+│   ├── academicClass.routes.js
+│   ├── admin.routes.js
+│   ├── adminProtected.js
+│   ├── attendance.routes.js
+│   ├── attendanceRoutes.js
+│   ├── classRoutes.js
+│   ├── enrollment.routes.js
+│   ├── feeRoutes.js
+│   ├── notificationRoutes.js
+│   ├── parentRoutes.js
+│   ├── result.routes.js
+│   ├── rollover.routes.js
+│   ├── section.routes.js
+│   ├── session.routes.js
+│   ├── studentRoutes.js
+│   ├── teacherAttendance.routes.js
+│   ├── teacherRoutes.js
+│   ├── teachingAssignment.routes.js
+├── scripts
+│   ├── addTestFeeDetail.js
+│   ├── checkAdminAccount.js
+│   ├── fixAttendanceHistoryDatesToUTC.js
+│   ├── fixParentPasswords.js
+│   ├── fixStudentEnrollment.js
+│   ├── initializeClasses.js
+│   ├── removeEnrolledClassesIndex.js
+│   ├── seedClassTemplates.js
+│   ├── waitlist-cron.js
+├── services
+│   ├── waitlist.service.js
+├── utils
+│   ├── checkUploads.js
+├── .env
+├── .gitignore
+├── createAdmin.js
+├── createAdminAccount.js
+├── create-parent-test-data.js
+├── create-test-data.js
+├── fix-fee-data.js
+├── jsconfig.json
+├── package.json
+├── package.json.bak
+├── package-lock.json
+├── repo-structure.txt
+├── repo-structure-clean.txt
+├── server.js
+├── test-db.js
+├── test-fee-api.js
+├── tree.txt
+ 
+Finished writing tree to tree.txt

@@ -7,8 +7,8 @@ const {
   getAssignedClasses,
 } = require("../controllers/teacherController");
 const { validationResult } = require("express-validator");
-const bcrypt = require("bcryptjs");
-const { verifyTeacherToken } = require("../middleware/authMiddleware");
+const bcrypt = require("bcrypt");
+const { verifyTeacherToken } = require("../middleware/auth");
 const mongoose = require("mongoose"); // Ensure mongoose is imported
 
 const Teacher = require("../models/TeacherModel"); // Importing Teacher model
@@ -126,7 +126,7 @@ router.get("/teacherprofile", verifyTeacherToken, async (req, res) => {
 
     console.log("Teacher data retrieved:", {
       teacherID: teacherData.teacherID,
-      name: teacherData.name
+      name: teacherData.name,
     });
 
     res.status(200).json({ teacher: teacherData });
@@ -145,32 +145,43 @@ router.put(
   [
     body("name").optional().trim(),
     body("email").optional().isEmail().withMessage("Invalid email format"),
-    body("phone").optional().isLength({ min: 10, max: 10 }).withMessage("Phone must be 10 digits"),
+    body("phone")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone must be 10 digits"),
     body("designation").optional().trim(),
     body("department").optional().trim(),
     body("address").optional().trim(),
-    body("experience").optional().isNumeric().withMessage("Experience must be a number"),
+    body("experience")
+      .optional()
+      .isNumeric()
+      .withMessage("Experience must be a number"),
   ],
   handleValidationErrors, // Middleware to handle validation errors
   async (req, res) => {
     try {
       const teacherID = req.teacher?.id;
       if (!teacherID) {
-        return res.status(401).json({ message: "Unauthorized - Invalid token" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized - Invalid token" });
       }
 
       // Find teacher by ID from token or by teacherID if provided in the body
       let teacher;
-      
+
       // First try to find by token ID
       teacher = await Teacher.findById(teacherID);
-      
+
       // If not found and teacherID is in request body, try that
       if (!teacher && req.body.teacherID) {
-        console.log("Teacher not found by token ID, trying body teacherID:", req.body.teacherID);
+        console.log(
+          "Teacher not found by token ID, trying body teacherID:",
+          req.body.teacherID
+        );
         teacher = await Teacher.findOne({ teacherID: req.body.teacherID });
       }
-      
+
       if (!teacher) {
         console.error("Teacher not found for ID:", teacherID);
         return res.status(404).json({ message: "Teacher not found" });
@@ -188,23 +199,23 @@ router.put(
         address,
         experience,
       } = req.body;
-      
-      console.log("Update request received for teacher:", { 
-        teacherID, 
-        name, 
+
+      console.log("Update request received for teacher:", {
+        teacherID,
+        name,
         email,
         phone,
         experience,
-        hasPhoto: !!req.file
+        hasPhoto: !!req.file,
       });
-      
-      // Handle uploaded photo
-      const photo = req.file ? req.file.filename : null; 
 
-      console.log("Teacher found:", { 
-        id: teacher._id, 
-        teacherID: teacher.teacherID, 
-        name: teacher.name 
+      // Handle uploaded photo
+      const photo = req.file ? req.file.filename : null;
+
+      console.log("Teacher found:", {
+        id: teacher._id,
+        teacherID: teacher.teacherID,
+        name: teacher.name,
       });
 
       // Update fields if provided
@@ -219,8 +230,8 @@ router.put(
 
       // Save the updated teacher document
       const updatedTeacher = await teacher.save();
-      console.log("Teacher updated successfully:", { 
-        id: updatedTeacher._id, 
+      console.log("Teacher updated successfully:", {
+        id: updatedTeacher._id,
         teacherID: updatedTeacher.teacherID,
         updatedFields: {
           email: !!email,
@@ -230,8 +241,8 @@ router.put(
           department: !!department,
           address: !!address,
           experience: experience !== undefined,
-          photo: !!photo
-        }
+          photo: !!photo,
+        },
       });
 
       // Respond with the updated teacher data
@@ -245,14 +256,17 @@ router.put(
       if (error.errors) {
         // Mongoose validation errors
         Object.keys(error.errors).forEach((key) => {
-          console.error(`Validation error for ${key}:`, error.errors[key].message);
+          console.error(
+            `Validation error for ${key}:`,
+            error.errors[key].message
+          );
         });
       }
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Server error",
         error: error.message,
         stack: error.stack,
-        requestBody: req.body
+        requestBody: req.body,
       });
     }
   }
@@ -274,21 +288,20 @@ router.put(
       .withMessage("Password must contain at least one number")
       .matches(/[!@#$%^&*]/)
       .withMessage("Password must contain at least one special character"),
-    body("confirmNewPassword")
-      .custom((value, { req }) => {
-        if (value !== req.body.newPassword) {
-          throw new Error("Passwords do not match");
-        }
-        return true;
-      })
+    body("confirmNewPassword").custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error("Passwords do not match");
+      }
+      return true;
+    }),
   ],
   handleValidationErrors,
   async (req, res) => {
     try {
-      console.log("Password change request received:", { 
+      console.log("Password change request received:", {
         teacherID: req.body.teacherID,
         passwordLength: req.body.newPassword?.length,
-        confirmMatch: req.body.newPassword === req.body.confirmNewPassword
+        confirmMatch: req.body.newPassword === req.body.confirmNewPassword,
       });
 
       const { teacherID, newPassword } = req.body;
@@ -300,10 +313,10 @@ router.put(
         return res.status(404).json({ message: "Teacher not found" });
       }
 
-      console.log("Teacher found:", { 
-        id: teacher._id, 
+      console.log("Teacher found:", {
+        id: teacher._id,
         teacherID: teacher.teacherID,
-        name: teacher.name
+        name: teacher.name,
       });
 
       // Hash the new password and update it
@@ -314,7 +327,7 @@ router.put(
       console.log("Hashing new password...");
       const hashedPassword = await bcrypt.hash(newPassword, salt);
       console.log("Password hashed successfully");
-      
+
       // Update password in the database
       teacher.password = hashedPassword;
 
@@ -324,11 +337,19 @@ router.put(
       await teacher.save();
 
       // Validate the password was saved correctly by checking if it can be verified
-      const verifyPasswordUpdate = await bcrypt.compare(newPassword, teacher.password);
-      console.log("Password verification check:", verifyPasswordUpdate ? "Success" : "Failed");
+      const verifyPasswordUpdate = await bcrypt.compare(
+        newPassword,
+        teacher.password
+      );
+      console.log(
+        "Password verification check:",
+        verifyPasswordUpdate ? "Success" : "Failed"
+      );
 
       if (!verifyPasswordUpdate) {
-        return res.status(500).json({ message: "Password update failed verification" });
+        return res
+          .status(500)
+          .json({ message: "Password update failed verification" });
       }
 
       // Respond with a success message
@@ -336,9 +357,9 @@ router.put(
       res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
       console.error("Error changing password:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Server error",
-        error: error.message 
+        error: error.message,
       });
     }
   }

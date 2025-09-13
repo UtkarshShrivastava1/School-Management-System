@@ -4,7 +4,7 @@
  */
 
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 require("dotenv").config();
 
 const Parent = require("../models/ParentModel");

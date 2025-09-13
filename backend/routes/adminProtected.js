@@ -1,7 +1,7 @@
 // routes/adminProtected.js
 const express = require("express");
 const router = express.Router();
-const authenticateAdmin = require("../middleware/authMiddleware");
+const authenticateAdmin = require("../middleware/auth");
 
 // Protect a route
 router.get("/dashboard", authenticateAdmin, (req, res) => {
