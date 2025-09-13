@@ -262,8 +262,9 @@ const TeacherRegisterForm = () => {
   // Handles closing modal and navigation back to teacher dashboard
   const handleCloseModal = () => {
     setShowModal(false);
-    // setTimeout(() => navigate("/admin-dashboard"), 300);
-    navigate("/admin-dashboard");
+    navigate("/admin/admin-dashboard", {
+      state: { activeTab: "User Registration" }
+    });
   };
   //--------------------------------------------------------------------------------------------------------------------------------
   //Handles Print Modal

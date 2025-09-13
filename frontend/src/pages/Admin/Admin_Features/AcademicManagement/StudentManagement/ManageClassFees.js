@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import * as adminApi from "../../../../../api/adminApi";
+
+import feeApi from "../../../../../api/feeApi";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { 
@@ -72,101 +74,121 @@ const ManageClassFees = () => {
     fetchClasses();
   }, [page]);
 
-  const fetchClasses = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      console.log('Fetching classes from:', `${API_URL}/api/admin/auth/classes`);
+  // const fetchClasses = async () => {
+  //   try {
+  //     setLoading(true);
+  //     setError("");
+  //     console.log('Fetching classes from:', `${API_URL}/api/admin/auth/classes`);
       
-      const response = await axios.get(
-        `${API_URL}/api/admin/auth/classes`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+  //     const response = await axios.get(
+  //       `${API_URL}/api/admin/auth/classes`,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${localStorage.getItem("token")}`,
+  //         },
+  //       }
+  //     );
       
-      console.log('Raw API Response:', response);
-      console.log('Response Data:', response.data);
+  //     console.log('Raw API Response:', response);
+  //     console.log('Response Data:', response.data);
       
-      let classesData = [];
+  //     let classesData = [];
       
-      // Handle different response formats
-      if (Array.isArray(response.data)) {
-        classesData = response.data;
-      } else if (response.data && Array.isArray(response.data.classes)) {
-        classesData = response.data.classes;
-      } else if (response.data && Array.isArray(response.data.data)) {
-        classesData = response.data.data;
-      }
+  //     // Handle different response formats
+  //     if (Array.isArray(response.data)) {
+  //       classesData = response.data;
+  //     } else if (response.data && Array.isArray(response.data.classes)) {
+  //       classesData = response.data.classes;
+  //     } else if (response.data && Array.isArray(response.data.data)) {
+  //       classesData = response.data.data;
+  //     }
 
-      console.log('Extracted Classes Data:', classesData);
+  //     console.log('Extracted Classes Data:', classesData);
 
-      if (classesData.length === 0) {
-        console.log('No classes found in response, trying alternative endpoint');
-        try {
-          const allClassesResponse = await axios.get(
-            `${API_URL}/api/admin/auth/get-all-classes`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
+  //     if (classesData.length === 0) {
+  //       console.log('No classes found in response, trying alternative endpoint');
+  //       try {
+  //         const allClassesResponse = await axios.get(
+  //           `${API_URL}/api/admin/auth/get-all-classes`,
+  //           {
+  //             headers: {
+  //               Authorization: `Bearer ${localStorage.getItem("token")}`,
+  //             },
+  //           }
+  //         );
           
-          console.log('Alternative endpoint response:', allClassesResponse.data);
+  //         console.log('Alternative endpoint response:', allClassesResponse.data);
           
-          if (Array.isArray(allClassesResponse.data)) {
-            classesData = allClassesResponse.data;
-          } else if (allClassesResponse.data && Array.isArray(allClassesResponse.data.classes)) {
-            classesData = allClassesResponse.data.classes;
-          } else if (allClassesResponse.data && Array.isArray(allClassesResponse.data.data)) {
-            classesData = allClassesResponse.data.data;
-          }
-        } catch (error) {
-          console.error("Error fetching from alternative endpoint:", error);
-        }
-      }
+  //         if (Array.isArray(allClassesResponse.data)) {
+  //           classesData = allClassesResponse.data;
+  //         } else if (allClassesResponse.data && Array.isArray(allClassesResponse.data.classes)) {
+  //           classesData = allClassesResponse.data.classes;
+  //         } else if (allClassesResponse.data && Array.isArray(allClassesResponse.data.data)) {
+  //           classesData = allClassesResponse.data.data;
+  //         }
+  //       } catch (error) {
+  //         console.error("Error fetching from alternative endpoint:", error);
+  //       }
+  //     }
 
-      if (classesData.length > 0) {
-        // Sort classes by name
-        const sortedClasses = [...classesData].sort((a, b) => {
-          const numA = parseInt(a.className, 10);
-          const numB = parseInt(b.className, 10);
-          if (!isNaN(numA) && !isNaN(numB)) {
-            if (numA !== numB) return numA - numB;
-            const letterA = a.className.replace(numA.toString(), "");
-            const letterB = b.className.replace(numB.toString(), "");
-            return letterA.localeCompare(letterB);
-          } else if (!isNaN(numA)) {
-            return -1;
-          } else if (!isNaN(numB)) {
-            return 1;
-          } else {
-            return a.className.localeCompare(b.className);
-          }
-        });
+  //     if (classesData.length > 0) {
+  //       // Sort classes by name
+  //       const sortedClasses = [...classesData].sort((a, b) => {
+  //         const numA = parseInt(a.className, 10);
+  //         const numB = parseInt(b.className, 10);
+  //         if (!isNaN(numA) && !isNaN(numB)) {
+  //           if (numA !== numB) return numA - numB;
+  //           const letterA = a.className.replace(numA.toString(), "");
+  //           const letterB = b.className.replace(numB.toString(), "");
+  //           return letterA.localeCompare(letterB);
+  //         } else if (!isNaN(numA)) {
+  //           return -1;
+  //         } else if (!isNaN(numB)) {
+  //           return 1;
+  //         } else {
+  //           return a.className.localeCompare(b.className);
+  //         }
+  //       });
 
-        console.log('Final sorted classes:', sortedClasses);
-        setClasses(sortedClasses);
-        setError("");
-      } else {
-        console.error('No classes found in any response');
-        toast.error("No classes found");
-      }
-    } catch (error) {
-      console.error("Error fetching classes:", error);
-      if (error.response) {
-        console.error("Error response:", error.response);
-        toast.error(error.response.data.message || "Failed to fetch classes");
-      } else {
-        toast.error("Failed to fetch classes");
-      }
-    } finally {
-      setLoading(false);
+  //       console.log('Final sorted classes:', sortedClasses);
+  //       setClasses(sortedClasses);
+  //       setError("");
+  //     } else {
+  //       console.error('No classes found in any response');
+  //       toast.error("No classes found");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching classes:", error);
+  //     if (error.response) {
+  //       console.error("Error response:", error.response);
+  //       toast.error(error.response.data.message || "Failed to fetch classes");
+  //     } else {
+  //       toast.error("Failed to fetch classes");
+  //     }
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+const fetchClasses = async () => {
+  try {
+    setLoading(true);
+    setError("");
+    const response = await adminApi.getAllClasses();
+    const classesData = response?.classes || response?.data || response || [];
+    if (!Array.isArray(classesData) || classesData.length === 0) {
+      toast.error("No classes found");
+      return;
     }
-  };
+    // sort + set
+    const sortedClasses = [...classesData].sort((a, b) => a.className.localeCompare(b.className));
+    setClasses(sortedClasses);
+  } catch (error) {
+    toast.error(error?.message || "Failed to fetch classes");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     console.log('Current classes state:', classes);
@@ -199,219 +221,233 @@ const ManageClassFees = () => {
     }
   };
 
-  const fetchStudents = async (classId) => {
-    try {
-      setLoading(true);
-      console.log('Fetching students for class:', classId);
-      
-      const response = await axios.get(
-        `${API_URL}/api/admin/auth/students/class/${classId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      
-      console.log('Students API Response:', response.data);
-      console.log('Response data structure:', {
-        hasData: !!response.data,
-        hasDataArray: !!response.data.data,
-        dataLength: response.data.data?.length,
-        firstStudent: response.data.data?.[0]
-      });
-      
-      const currentClass = classes.find(c => c._id === classId);
-      
-      if (!currentClass) {
-        throw new Error("Class data not found");
-      }
-
-      if (!response.data) {
-        toast.error('No data received from server.');
-        setStudents([]);
-        return;
-      }
-
-      if (!Array.isArray(response.data.data)) {
-        console.error('Invalid response format:', response.data);
-        toast.error('Invalid API response format. Please try refreshing.');
-        setStudents([]);
-        return;
-      }
-
-      if (response.data.data.length === 0) {
-        console.log('No students found for class:', classId);
-        toast.info(`No students found in ${currentClass.className}. Please add students to this class first.`);
-        setStudents([]);
-        return;
-      }
-
-      const updatedStudents = response.data.data.map(student => {
-        // The backend now returns feeDetails directly, not wrapped in an object
-        const feeDetails = student.feeDetails || {
-          status: 'pending',
-          lastUpdated: new Date().toISOString(),
-          monthlyFee: currentClass.baseFee ? currentClass.baseFee / 12 : 0,
-          totalAmount: currentClass.baseFee || 0,
-          dueDate: currentClass.feeDueDate,
-          lateFeePerDay: currentClass.lateFeePerDay || 0
-        };
-        
-        return {
-          ...student,
-          classId: currentClass.classId,
-          feeDetails: feeDetails
-        };
-      });
-      
-      console.log('Updated Students with Fee Details:', updatedStudents);
-      console.log('Sample student fee details:', updatedStudents[0]?.feeDetails);
-      setStudents(updatedStudents);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      toast.error("Failed to fetch students");
+const fetchStudents = async (classId) => {
+  try {
+    setLoading(true);
+    const response = await adminApi.getStudentsByClass(classId);
+    const studentsData = response?.data || [];
+    if (!Array.isArray(studentsData)) {
+      toast.error("Invalid response format for students");
       setStudents([]);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+    setStudents(studentsData);
+  } catch (err) {
+    toast.error(err?.message || "Failed to fetch students");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Helper to update all current month Fee records for the class
   const updateCurrentMonthFeesForClass = async () => {
-    if (!selectedClass) return;
-    try {
-      setUpdating(true);
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
-      // Fetch all current month fee records for the class
-      const feeRes = await axios.get(
-        `${API_URL}/api/fees/class/${selectedClass._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const feeRecords = feeRes.data || [];
-      // For each fee record for the current month/year, PATCH it
-      await Promise.all(feeRecords.map(async (fee) => {
+  if (!selectedClass) return;
+  try {
+    setUpdating(true);
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    // Fetch all current month fee records for the class
+    const feeRes = await feeApi.getClassFees(selectedClass._id);
+    const feeRecords = Array.isArray(feeRes.data) ? feeRes.data : feeRes.data.data || [];
+
+    await Promise.all(
+      feeRecords.map(async (fee) => {
         const feeDate = new Date(fee.dueDate);
         if (
           feeDate.getMonth() + 1 === currentMonth &&
           feeDate.getFullYear() === currentYear
         ) {
-          await axios.patch(
-            `${API_URL}/api/fees/${fee._id}`,
-            {
-              amount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
-              totalAmount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
-              dueDate: feeSettings.feeDueDate,
-              // Optionally update lateFeePerDay if stored in Fee model
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
+          await feeApi.updateFeeRecord(fee._id, {
+            amount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
+            totalAmount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
+            dueDate: feeSettings.feeDueDate,
+          });
         }
-      }));
-      toast.success("All current month fee records updated to match new settings");
-      await fetchClassFeeRecords(selectedClass._id);
-      await fetchStudents(selectedClass._id);
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update current month fee records");
-    } finally {
-      setUpdating(false);
-    }
-  };
+      })
+    );
+
+    toast.success("All current month fee records updated");
+    await fetchClassFeeRecords(selectedClass._id);
+    await fetchStudents(selectedClass._id);
+  } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to update fee records");
+  } finally {
+    setUpdating(false);
+  }
+};
+
+  // const updateCurrentMonthFeesForClass = async () => {
+  //   if (!selectedClass) return;
+  //   try {
+  //     setUpdating(true);
+  //     const now = new Date();
+  //     const currentMonth = now.getMonth() + 1;
+  //     const currentYear = now.getFullYear();
+  //     // Fetch all current month fee records for the class
+  //     const feeRes = await axios.get(
+  //       `${API_URL}/api/fees/class/${selectedClass._id}`,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${localStorage.getItem("token")}`,
+  //         },
+  //       }
+  //     );
+  //     const feeRecords = feeRes.data || [];
+  //     // For each fee record for the current month/year, PATCH it
+  //     await Promise.all(feeRecords.map(async (fee) => {
+  //       const feeDate = new Date(fee.dueDate);
+  //       if (
+  //         feeDate.getMonth() + 1 === currentMonth &&
+  //         feeDate.getFullYear() === currentYear
+  //       ) {
+  //         await axios.patch(
+  //           `${API_URL}/api/fees/${fee._id}`,
+  //           {
+  //             amount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
+  //             totalAmount: feeSettings.baseFee ? Number(feeSettings.baseFee) / 12 : 0,
+  //             dueDate: feeSettings.feeDueDate,
+  //             // Optionally update lateFeePerDay if stored in Fee model
+  //           },
+  //           {
+  //             headers: {
+  //               Authorization: `Bearer ${localStorage.getItem("token")}`,
+  //             },
+  //           }
+  //         );
+  //       }
+  //     }));
+  //     toast.success("All current month fee records updated to match new settings");
+  //     await fetchClassFeeRecords(selectedClass._id);
+  //     await fetchStudents(selectedClass._id);
+  //   } catch (error) {
+  //     toast.error(error.response?.data?.message || "Failed to update current month fee records");
+  //   } finally {
+  //     setUpdating(false);
+  //   }
+  // };
 
   const handleFeeUpdate = async (e) => {
-    e.preventDefault();
-    if (!selectedClass) {
-      toast.error("Please select a class first");
-      return;
-    }
+  e.preventDefault();
+  if (!selectedClass) {
+    toast.error("Please select a class first");
+    return;
+  }
 
-    // Validate required fields
-    if (!feeSettings.baseFee || feeSettings.baseFee <= 0) {
-      toast.error("Base fee must be greater than 0");
-      return;
-    }
+  try {
+    setUpdating(true);
+    await feeApi.updateClassFeeSettings({
+      classId: selectedClass._id,
+      baseFee: Number(feeSettings.baseFee),
+      lateFeePerDay: Number(feeSettings.lateFeePerDay),
+      feeDueDate: feeSettings.feeDueDate,
+    });
 
-    if (!feeSettings.lateFeePerDay || feeSettings.lateFeePerDay < 0) {
-      toast.error("Late fee per day cannot be negative");
-      return;
-    }
+    const updatedClass = {
+      ...selectedClass,
+      baseFee: Number(feeSettings.baseFee),
+      lateFeePerDay: Number(feeSettings.lateFeePerDay),
+      feeDueDate: feeSettings.feeDueDate,
+    };
 
-    if (!feeSettings.feeDueDate) {
-      toast.error("Fee due date is required");
-      return;
-    }
+    setClasses(classes.map(c => (c._id === selectedClass._id ? updatedClass : c)));
+    setSelectedClass(updatedClass);
 
-    try {
-      setUpdating(true);
-      // Update class fee settings
-      const response = await axios.post(
-        `${API_URL}/api/fees/class-fee/update`,
-        {
-          classId: selectedClass._id,
-          baseFee: Number(feeSettings.baseFee),
-          lateFeePerDay: Number(feeSettings.lateFeePerDay),
-          feeDueDate: feeSettings.feeDueDate
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+    toast.success(`Fee settings updated for ${selectedClass.className}`);
+    await updateCurrentMonthFeesForClass();
+  } catch (error) {
+    toast.error(error?.message || "Failed to update fee settings");
+  } finally {
+    setUpdating(false);
+  }
+};
 
-      if (response && response.data) {
-        const updatedClass = {
-          ...selectedClass,
-          baseFee: Number(feeSettings.baseFee),
-          lateFeePerDay: Number(feeSettings.lateFeePerDay),
-          feeDueDate: feeSettings.feeDueDate
-        };
-        setClasses(classes.map(c => 
-          c._id === selectedClass._id ? updatedClass : c
-        ));
-        // Update student fee details locally
-        const updatedStudents = students.map(student => {
-          const existingFeeDetails = student.feeDetails || {};
-          return {
-            ...student,
-            feeDetails: {
-              ...existingFeeDetails,
-              status: existingFeeDetails.status || 'pending',
-              lastUpdated: new Date().toISOString()
-            }
-          };
-        });
-        setStudents(updatedStudents);
-        setSelectedClass(updatedClass);
-        toast.success(`Fee settings updated successfully for ${selectedClass.className}. ${students.length} students affected.`);
-        // Automatically update all current month Fee records for the class
-        await updateCurrentMonthFeesForClass();
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (error) {
-      console.error("Error updating fee settings:", error);
-      if (error.response) {
-        toast.error(error.response.data.message || "Failed to update fee settings");
-      } else if (error.message) {
-        toast.error(error.message);
-      } else {
-        toast.error("Failed to update fee settings");
-      }
-    } finally {
-      setUpdating(false);
-    }
-  };
+  // const handleFeeUpdate = async (e) => {
+  //   e.preventDefault();
+  //   if (!selectedClass) {
+  //     toast.error("Please select a class first");
+  //     return;
+  //   }
+
+  //   // Validate required fields
+  //   if (!feeSettings.baseFee || feeSettings.baseFee <= 0) {
+  //     toast.error("Base fee must be greater than 0");
+  //     return;
+  //   }
+
+  //   if (!feeSettings.lateFeePerDay || feeSettings.lateFeePerDay < 0) {
+  //     toast.error("Late fee per day cannot be negative");
+  //     return;
+  //   }
+
+  //   if (!feeSettings.feeDueDate) {
+  //     toast.error("Fee due date is required");
+  //     return;
+  //   }
+
+  //   try {
+  //     setUpdating(true);
+  //     // Update class fee settings
+  //     const response = await axios.post(
+  //       `${API_URL}/api/fees/class-fee/update`,
+  //       {
+  //         classId: selectedClass._id,
+  //         baseFee: Number(feeSettings.baseFee),
+  //         lateFeePerDay: Number(feeSettings.lateFeePerDay),
+  //         feeDueDate: feeSettings.feeDueDate
+  //       },
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${localStorage.getItem("token")}`,
+  //         },
+  //       }
+  //     );
+
+  //     if (response && response.data) {
+  //       const updatedClass = {
+  //         ...selectedClass,
+  //         baseFee: Number(feeSettings.baseFee),
+  //         lateFeePerDay: Number(feeSettings.lateFeePerDay),
+  //         feeDueDate: feeSettings.feeDueDate
+  //       };
+  //       setClasses(classes.map(c => 
+  //         c._id === selectedClass._id ? updatedClass : c
+  //       ));
+  //       // Update student fee details locally
+  //       const updatedStudents = students.map(student => {
+  //         const existingFeeDetails = student.feeDetails || {};
+  //         return {
+  //           ...student,
+  //           feeDetails: {
+  //             ...existingFeeDetails,
+  //             status: existingFeeDetails.status || 'pending',
+  //             lastUpdated: new Date().toISOString()
+  //           }
+  //         };
+  //       });
+  //       setStudents(updatedStudents);
+  //       setSelectedClass(updatedClass);
+  //       toast.success(`Fee settings updated successfully for ${selectedClass.className}. ${students.length} students affected.`);
+  //       // Automatically update all current month Fee records for the class
+  //       await updateCurrentMonthFeesForClass();
+  //     } else {
+  //       throw new Error("Invalid response from server");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error updating fee settings:", error);
+  //     if (error.response) {
+  //       toast.error(error.response.data.message || "Failed to update fee settings");
+  //     } else if (error.message) {
+  //       toast.error(error.message);
+  //     } else {
+  //       toast.error("Failed to update fee settings");
+  //     }
+  //   } finally {
+  //     setUpdating(false);
+  //   }
+  // };
 
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
@@ -614,27 +650,16 @@ const ManageClassFees = () => {
   };
 
   // Fetch fee records for the selected class
-  const fetchClassFeeRecords = async (classId) => {
-    try {
-      const response = await axios.get(
-        `${API_URL}/api/fees/class/${classId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      if (Array.isArray(response.data)) {
-        setClassFeeRecords(response.data);
-      } else if (Array.isArray(response.data.data)) {
-        setClassFeeRecords(response.data.data);
-      } else {
-        setClassFeeRecords([]);
-      }
-    } catch (error) {
-      setClassFeeRecords([]);
-    }
-  };
+const fetchClassFeeRecords = async (classId) => {
+  try {
+    const response = await feeApi.getClassFees(classId);
+    const records = Array.isArray(response.data) ? response.data : response.data.data || [];
+    setClassFeeRecords(records);
+  } catch (error) {
+    setClassFeeRecords([]);
+  }
+};
+
 
   // Fetch students and fee records when class changes
   useEffect(() => {
@@ -716,41 +741,38 @@ const ManageClassFees = () => {
   };
 
   // Helper to generate a missing fee record for a student
-  const generateFeeForStudent = async (studentId) => {
-    if (!selectedClass) return;
-    try {
-      setLoading(true);
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
-      const dueDate = new Date(currentYear, now.getMonth(), selectedClass.feeDueDate ? new Date(selectedClass.feeDueDate).getDate() : 15);
-      await axios.post(
-        `${API_URL}/api/fees/`,
-        {
-          student: studentId,
-          class: selectedClass._id,
-          academicYear: currentYear.toString(),
-          feeType: "monthly",
-          amount: selectedClass.baseFee ? selectedClass.baseFee / 12 : 0,
-          dueDate,
-          status: "pending",
-          totalAmount: selectedClass.baseFee ? selectedClass.baseFee / 12 : 0,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      toast.success("Fee record generated for student");
-      await fetchClassFeeRecords(selectedClass._id);
-      await fetchStudents(selectedClass._id);
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to generate fee record");
-    } finally {
-      setLoading(false);
-    }
-  };
+const generateFeeForStudent = async (studentId) => {
+  if (!selectedClass) return;
+  try {
+    setLoading(true);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const dueDate = new Date(
+      currentYear,
+      now.getMonth(),
+      selectedClass.feeDueDate ? new Date(selectedClass.feeDueDate).getDate() : 15
+    );
+
+    await feeApi.generateStudentFee({
+      student: studentId,
+      class: selectedClass._id,
+      academicYear: currentYear.toString(),
+      feeType: "monthly",
+      amount: selectedClass.baseFee ? selectedClass.baseFee / 12 : 0,
+      dueDate,
+      status: "pending",
+      totalAmount: selectedClass.baseFee ? selectedClass.baseFee / 12 : 0,
+    });
+
+    toast.success("Fee record generated for student");
+    await fetchClassFeeRecords(selectedClass._id);
+    await fetchStudents(selectedClass._id);
+  } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to generate fee record");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading && !selectedClass) {
     return (

@@ -1,4 +1,3 @@
-import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
 import { FaArrowLeft } from "react-icons/fa";
@@ -7,79 +6,70 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./EditClass.css";
 
+import {
+  getTeachers,
+  getClassById,
+  updateClass, // 🔹 we'll add this in adminApi.js
+} from "../../api/adminApi";
+
 const EditClass = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
 
   const [className, setClassName] = useState("");
-  const [subjects, setSubjects] = useState([]); // Array of { subjectName, teacherId, subjectCode }
-  const [teachers, setTeachers] = useState([]); // Teacher list for dropdown
+  const [subjects, setSubjects] = useState([]); // [{ subjectName, teacherId, subjectCode }]
+  const [teachers, setTeachers] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Fetch teacher list for dropdown
+  // Fetch teacher list
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/admin/auth/teachers`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        // API returns { message, data: [...] }
-        setTeachers(res.data.data || []);
+        const res = await getTeachers();
+        setTeachers(res.data || res.teachers || []); // adjust based on backend shape
       } catch (error) {
         console.error("Error fetching teachers", error);
         setTeachers([]);
       }
     };
     fetchTeachers();
-  }, [API_URL]);
+  }, []);
 
-  // Fetch class details (including subjects) by classId
+  // Fetch class details
   useEffect(() => {
     const fetchClassDetails = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(
-          `${API_URL}/api/admin/auth/classes/${classId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
+        const res = await getClassById(classId);
 
-        if (!res.data || !res.data.class) {
+        if (!res || !res.class) {
           throw new Error("Invalid response format");
         }
 
-        const classData = res.data.class;
-        const subjectData = res.data.subjects || [];
-        
+        const classData = res.class;
+        const subjectData = res.subjects || [];
+
         setClassName(classData.className);
-        
+
         // Map subjects with their assigned teachers
         const mappedSubjects = subjectData.map((subj) => ({
           subjectName: subj.subjectName,
           subjectCode: subj.subjectCode || "",
-          teacherId: subj.assignedTeachers && subj.assignedTeachers.length > 0
-            ? subj.assignedTeachers[0].teacherID
-            : "",
+          teacherId:
+            subj.assignedTeachers && subj.assignedTeachers.length > 0
+              ? subj.assignedTeachers[0].teacherID
+              : "",
         }));
-        
+
         setSubjects(mappedSubjects);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching class details:", error);
         setErrorMessage(
-          error.response?.data?.message || 
-          error.message || 
-          "Failed to fetch class details. Please try again."
+          error.response?.data?.message ||
+            error.message ||
+            "Failed to fetch class details. Please try again."
         );
         setLoading(false);
       }
@@ -88,18 +78,17 @@ const EditClass = () => {
     if (classId) {
       fetchClassDetails();
     }
-  }, [API_URL, classId]);
+  }, [classId]);
 
+  // Controlled inputs
   const handleClassNameChange = (e) => setClassName(e.target.value);
 
-  // Handle changes in the subject cards
   const handleSubjectChange = (index, field, value) => {
     const newSubjects = [...subjects];
     newSubjects[index][field] = value;
     setSubjects(newSubjects);
   };
 
-  // Add a new subject card
   const addSubjectCard = () => {
     setSubjects([
       ...subjects,
@@ -107,20 +96,21 @@ const EditClass = () => {
     ]);
   };
 
-  // Remove a subject card at the given index
   const removeSubjectCard = (index) => {
     const newSubjects = [...subjects];
     newSubjects.splice(index, 1);
     setSubjects(newSubjects);
   };
 
-  // Handle form submission
+  // Save class
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!className) {
       setErrorMessage("Please provide a class name.");
       return;
     }
+
     for (let subj of subjects) {
       if (!subj.subjectName || !subj.teacherId) {
         setErrorMessage(
@@ -129,29 +119,20 @@ const EditClass = () => {
         return;
       }
     }
+
     try {
-      // Deduplicate teacher IDs from subjects
       const uniqueTeachers = [...new Set(subjects.map((s) => s.teacherId))];
       const payload = {
         className,
         subjects,
         teachers: uniqueTeachers,
       };
-      await axios.put(
-        `${API_URL}/api/admin/auth/classes/${classId}`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+
+      await updateClass(classId, payload); // ✅ using adminApi
       toast.success("Class updated successfully!");
       navigate("/admin/class-management");
     } catch (error) {
-      const errMsg = error.response
-        ? error.response.data.message
-        : "Server error";
+      const errMsg = error.response?.data?.message || "Server error";
       setErrorMessage(errMsg);
       toast.error(errMsg);
     }

@@ -44,7 +44,7 @@ const AdminRoutes = ({ isLoggedIn, userRole }) => {
 
   return (
     <Routes>
-      <Route path="admin-dashboard" element={<AdminDashboardPage />} />
+      <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
       {/* Admin Profile Route */}
       <Route path="/profile" element={<AdminProfileManage />} />
       <Route path="/class-management" element={<ClassManagement />} />

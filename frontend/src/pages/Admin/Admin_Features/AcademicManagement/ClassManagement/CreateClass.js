@@ -5,13 +5,14 @@
 //On successful submission, the user is redirected to the manage classes page
 //Error and success messages are displayed using toast notifications
 
-import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./CreateClass.css";
+
+import adminApi from "../../api/adminApi"; // ✅ use centralized admin service
 
 const CreateClass = () => {
   const [standardName, setStandardName] = useState("");
@@ -26,49 +27,30 @@ const CreateClass = () => {
 
   const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
-  // Fetch teachers for the dropdown
+  // ✅ Fetch teachers for dropdown
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/admin/auth/teachers`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        // Adjusted to use res.data.data as per the provided response structure
+        const res = await adminApi.getTeachers();
         setTeachers(res.data.data || []);
       } catch (error) {
         console.error("Error fetching teachers", error);
-        setTeachers([]); // Ensure teachers is always an array
+        setTeachers([]);
+        toast.error("Failed to fetch teachers");
       }
     };
     fetchTeachers();
-  }, [API_URL]);
+  }, []);
 
-  // Enhanced section fetching logic
+  // ✅ Fetch available sections for a given standard
   const fetchAvailableSections = async (standard) => {
     if (!standard) return;
-
     try {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await axios.get(
-        `${API_URL}/api/admin/auth/available-sections/${standardName}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      const availableSecs = response.data.availableSections || [];
-      setAvailableSections(availableSecs);
+      const response = await adminApi.getAvailableSections(standard);
+      setAvailableSections(response.data.availableSections || []);
       setSection("");
     } catch (error) {
       console.error("Error fetching sections:", error);
@@ -80,30 +62,28 @@ const CreateClass = () => {
     }
   };
 
-  // Enhanced standard name change handler
+  // ✅ Standard change handler
   const handleStandardNameChange = (e) => {
     const value = e.target.value.trim();
     setStandardName(value);
 
     if (value && !isNaN(value) && parseInt(value) > 0) {
-      fetchAvailableSections(value); // ✅ Pass value here
+      fetchAvailableSections(value);
     } else {
       setAvailableSections([]);
       setSection("");
     }
   };
 
-  // Handle class strength change
   const handleClassStrengthChange = (e) => setClassStrength(e.target.value);
 
-  // Handle dynamic subject input changes
+  // ✅ Dynamic subject handling
   const handleSubjectChange = (index, field, value) => {
     const newSubjects = [...subjects];
     newSubjects[index][field] = value;
     setSubjects(newSubjects);
   };
 
-  // Add a new subject card
   const addSubjectCard = () => {
     setSubjects([
       ...subjects,
@@ -111,23 +91,21 @@ const CreateClass = () => {
     ]);
   };
 
-  // Remove a subject card at a given index
   const removeSubjectCard = (index) => {
     const newSubjects = [...subjects];
     newSubjects.splice(index, 1);
     setSubjects(newSubjects);
   };
 
-  // Handle form submission
+  // ✅ Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate class-level fields
     if (!standardName || !classStrength) {
       setErrorMessage("Please provide both standard name and class strength.");
       return;
     }
-    // Validate each subject
+
     for (let subj of subjects) {
       if (!subj.subjectName || !subj.teacherId) {
         setErrorMessage(
@@ -136,6 +114,7 @@ const CreateClass = () => {
         return;
       }
     }
+
     try {
       const payload = {
         className: `Class ${standardName.trim()}`,
@@ -143,18 +122,11 @@ const CreateClass = () => {
         section: section.trim(),
         classStrength: parseInt(classStrength, 10),
         subjects,
-        teachers: subjects.map((subj) => subj.teacherId), // Collect all teacherIds from subjects
+        teachers: subjects.map((subj) => subj.teacherId),
       };
 
-      const response = await axios.post(
-        `${API_URL}/api/admin/auth/createclass`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await adminApi.createClass(payload);
+
       if (response.status === 201) {
         setSuccessMessage("Class created successfully!");
         toast.success("Class created successfully!");
@@ -162,7 +134,7 @@ const CreateClass = () => {
         setStandardName("");
         setClassStrength("");
         setSubjects([]);
-        // Redirect to manage classes page (or reset form)
+
         setTimeout(() => {
           navigate("/admin/class-management");
         }, 2000);
@@ -241,9 +213,7 @@ const CreateClass = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="classStrength">
-            Class Strength (No. of Students):
-          </label>
+          <label htmlFor="classStrength">Class Strength (No. of Students):</label>
           <input
             type="number"
             id="classStrength"

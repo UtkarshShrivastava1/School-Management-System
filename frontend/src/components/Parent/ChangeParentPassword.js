@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { Button, Form, Modal, Spinner, Alert } from "react-bootstrap";
-import axios from "axios";
 import { toast } from "react-toastify";
+import api from "../../api/axiosInstance"; // ✅ centralized axios instance
 
 const ChangeParentPassword = ({ show, handleClose }) => {
   const [formData, setFormData] = useState({
-    parentID: "",
     newPassword: "",
     confirmNewPassword: "",
   });
@@ -13,11 +12,6 @@ const ChangeParentPassword = ({ show, handleClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,21 +21,16 @@ const ChangeParentPassword = ({ show, handleClose }) => {
     }));
   };
 
+  // ✅ password rules
   const validatePassword = (password) => {
-    // At least 8 characters, one number, one special character
     const hasNumber = /\d/.test(password);
     const hasSpecial = /[!@#$%^&*]/.test(password);
     const hasMinLength = password.length >= 8;
 
-    if (!hasMinLength) {
-      return "Password must be at least 8 characters long";
-    }
-    if (!hasNumber) {
-      return "Password must contain at least one number";
-    }
-    if (!hasSpecial) {
+    if (!hasMinLength) return "Password must be at least 8 characters long";
+    if (!hasNumber) return "Password must contain at least one number";
+    if (!hasSpecial)
       return "Password must contain at least one special character (!@#$%^&*)";
-    }
 
     return null;
   };
@@ -53,26 +42,14 @@ const ChangeParentPassword = ({ show, handleClose }) => {
     setSuccess("");
 
     try {
-      // Get parentID from localStorage
+      // ✅ get parentID from localStorage
       const parentInfo = JSON.parse(localStorage.getItem("parentInfo") || "{}");
       const parentID = parentInfo.parentID;
-      
+
       if (!parentID) {
         throw new Error("Parent ID not found. Please log in again.");
       }
-      
-      const passwordData = {
-        parentID: parentID,
-        newPassword: formData.newPassword,
-        confirmNewPassword: formData.confirmNewPassword
-      };
-      
-      console.log("Password change data prepared:", { 
-        parentID, 
-        passwordLength: formData.newPassword?.length 
-      });
 
-      // Password validation
       if (formData.newPassword !== formData.confirmNewPassword) {
         setError("Passwords do not match");
         setLoading(false);
@@ -86,44 +63,31 @@ const ChangeParentPassword = ({ show, handleClose }) => {
         return;
       }
 
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Authentication token is missing. Please log in again.");
-      }
+      // ✅ call API using centralized instance
+      const response = await api.put(`/parent/auth/changeparentpassword`, {
+        parentID,
+        newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmNewPassword,
+      });
 
-      const response = await axios.put(
-        `${API_URL}/api/parent/auth/changeparentpassword`,
-        passwordData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      setSuccess("Password changed successfully!");
+      setSuccess(response.data?.message || "Password changed successfully!");
       toast.success("Password changed successfully!");
-      
-      // Reset the form
+
+      // reset form
       setFormData({
-        parentID: "",
         newPassword: "",
         confirmNewPassword: "",
       });
-      
-      // Close the modal after a short delay
-      setTimeout(() => {
-        handleClose();
-      }, 2000);
+
+      setTimeout(() => handleClose(), 1500);
     } catch (err) {
-      const errorMessage = 
-        err.response?.data?.message || 
-        err.message || 
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
         "Failed to change password";
       setError(errorMessage);
       toast.error(errorMessage);
-      console.error("Error changing password:", err);
+      console.error("Error changing parent password:", err);
     } finally {
       setLoading(false);
     }
@@ -150,8 +114,8 @@ const ChangeParentPassword = ({ show, handleClose }) => {
               required
             />
             <Form.Text className="text-muted">
-              Password must be at least 8 characters long, contain at least one
-              number and one special character.
+              Password must be at least 8 characters, include a number and a
+              special character.
             </Form.Text>
           </Form.Group>
 
@@ -168,7 +132,12 @@ const ChangeParentPassword = ({ show, handleClose }) => {
           </Form.Group>
 
           <div className="d-flex justify-content-end">
-            <Button variant="secondary" onClick={handleClose} className="me-2">
+            <Button
+              variant="secondary"
+              onClick={handleClose}
+              className="me-2"
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
@@ -181,4 +150,4 @@ const ChangeParentPassword = ({ show, handleClose }) => {
   );
 };
 
-export default ChangeParentPassword; 
+export default ChangeParentPassword;

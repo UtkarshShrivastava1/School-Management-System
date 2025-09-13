@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import axiosInstance from "../..//axiosInstance"; // ✅ centralized axios instance
 import "./TrackStudentProfile.css";
 
 const TrackStudentProfile = () => {
@@ -19,35 +19,26 @@ const TrackStudentProfile = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
+  // ✅ Fetch Students with filters
   const fetchStudents = async () => {
     try {
-      let queryString = "?";
+      const queryParams = [];
 
-      if (name) queryString += `name=${name}&`;
-      if (studentID) queryString += `studentID=${studentID}&`;
-      if (className) queryString += `className=${className}&`;
-      if (gender) queryString += `gender=${gender}&`;
-      if (category) queryString += `category=${category}&`;
-      if (religion) queryString += `religion=${religion}&`;
-      if (selectedDate)
-        queryString += `selectedDate=${
-          selectedDate.toISOString().split("T")[0]
-        }&`;
+      if (name) queryParams.push(`name=${encodeURIComponent(name)}`);
+      if (studentID) queryParams.push(`studentID=${encodeURIComponent(studentID)}`);
+      if (className) queryParams.push(`className=${encodeURIComponent(className)}`);
+      if (gender) queryParams.push(`gender=${gender}`);
+      if (category) queryParams.push(`category=${category}`);
+      if (religion) queryParams.push(`religion=${encodeURIComponent(religion)}`);
+      if (selectedDate) {
+        const formattedDate = selectedDate.toISOString().split("T")[0];
+        queryParams.push(`selectedDate=${formattedDate}`);
+      }
 
-      if (queryString.endsWith("&")) queryString = queryString.slice(0, -1);
+      const queryString = queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
 
-      const response = await axios.get(
-        `${API_URL}/api/admin/auth/students/search${queryString}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+      const response = await axiosInstance.get(
+        `/api/admin/auth/students/search${queryString}`
       );
 
       setStudents(response.data.data || []);
@@ -66,6 +57,7 @@ const TrackStudentProfile = () => {
     <div className="Get-profile-container">
       <h1>Track Student Profile</h1>
 
+      {/* Back Button */}
       <div className="back-button">
         <FaArrowLeft
           onClick={handleBack}
@@ -167,9 +159,7 @@ const TrackStudentProfile = () => {
                 <tr key={student.studentID}>
                   <td>
                     <img
-                      src={`${API_URL}/uploads/Admin/${
-                        student?.photo || "default-photo.jpg"
-                      }`}
+                      src={`/uploads/Admin/${student?.photo || "default-photo.jpg"}`}
                       alt={`${student.studentName}'s profile`}
                       className="table-profile-image"
                     />

@@ -1,58 +1,43 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./AssignSubjectToClass.css";
-import { FaArrowLeft } from "react-icons/fa"; // Importing the back arrow icon
+import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import {
+  getAllClasses,
+  getAllSubjects,
+  assignSubjectsToClass,
+} from "../../api/adminApi";
 
 const AssignSubjectToClass = () => {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
-  const navigate = useNavigate(); // for navigation after success
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
-  // Fetch all classes and subjects on component mount
+  // ✅ Fetch all classes and subjects on mount
   useEffect(() => {
     const fetchClassesAndSubjects = async () => {
       try {
-        // Fetch classes
-        const classResponse = await axios.get(
-          `${API_URL}/api/admin/auth/classes`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-
-        // Fetch subjects
-        const subjectResponse = await axios.get(
-          `${API_URL}/api/admin/auth/subjects`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-
-        setClasses(classResponse.data.classes || []);
-        setSubjects(subjectResponse.data.subjects || []);
+        const [classRes, subjectRes] = await Promise.all([
+          getAllClasses(),
+          getAllSubjects(),
+        ]);
+        setClasses(classRes.classes || []);
+        setSubjects(subjectRes.subjects || []);
       } catch (error) {
+        console.error("Fetch error:", error);
         toast.error("Failed to fetch classes or subjects.");
       }
     };
 
     fetchClassesAndSubjects();
-  }, [API_URL]);
+  }, []);
 
-  // Handle assigning subjects to a class
+  // ✅ Assign subjects to class
   const handleAssignSubjects = async () => {
     if (!selectedClass) {
       toast.error("Please select a class.");
@@ -65,34 +50,32 @@ const AssignSubjectToClass = () => {
     }
 
     try {
-      const response = await axios.post(
-        `${API_URL}/api/admin/auth/class/${selectedClass}/assign-subjects`,
-        { subjectIds: selectedSubjects },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      setLoading(true);
+      const res = await assignSubjectsToClass(selectedClass, selectedSubjects);
 
-      toast.success(response.data.message || "Subjects assigned successfully.");
-      // Optionally reset selections
+      toast.success(res.message || "Subjects assigned successfully.");
       setSelectedClass("");
       setSelectedSubjects([]);
     } catch (error) {
+      console.error("Assign subjects error:", error);
       toast.error(
         error.response?.data?.message || "Failed to assign subjects."
       );
+    } finally {
+      setLoading(false);
     }
   };
-  // Handle back button click
+
+  // ✅ Back button
   const handleBack = () => {
-    navigate(-1); // Navigate back to the previous page
+    navigate(-1);
   };
+
   return (
     <div className="admin-manage-classes-container">
       <h1>Manage Class Assignments</h1>
-      {/* Back button with icon */}
+
+      {/* Back button */}
       <div className="back-button" style={{ marginBottom: "20px" }}>
         <FaArrowLeft
           onClick={handleBack}
@@ -111,6 +94,7 @@ const AssignSubjectToClass = () => {
           Back
         </span>
       </div>
+
       {/* Class Dropdown */}
       <div className="form-group">
         <label htmlFor="classDropdown">Select Class:</label>
@@ -118,6 +102,7 @@ const AssignSubjectToClass = () => {
           id="classDropdown"
           value={selectedClass}
           onChange={(e) => setSelectedClass(e.target.value)}
+          disabled={loading}
         >
           <option value="">-- Select Class --</option>
           {classes.map((cls) => (
@@ -140,6 +125,7 @@ const AssignSubjectToClass = () => {
               Array.from(e.target.selectedOptions, (option) => option.value)
             )
           }
+          disabled={loading}
         >
           {subjects.map((subj) => (
             <option key={subj.subjectId} value={subj.subjectId}>
@@ -150,8 +136,12 @@ const AssignSubjectToClass = () => {
       </div>
 
       {/* Assign Button */}
-      <button className="assign-btn" onClick={handleAssignSubjects}>
-        Assign Subjects to Class
+      <button
+        className="assign-btn"
+        onClick={handleAssignSubjects}
+        disabled={loading}
+      >
+        {loading ? "Assigning..." : "Assign Subjects to Class"}
       </button>
 
       <ToastContainer />

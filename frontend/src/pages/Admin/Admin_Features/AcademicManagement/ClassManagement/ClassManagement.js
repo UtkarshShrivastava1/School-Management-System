@@ -1,7 +1,16 @@
-import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import React, { useEffect, useState } from "react";
-import { Button, Card, ListGroup, Modal, Table, Badge, Row, Col, Spinner } from "react-bootstrap";
+import {
+  Button,
+  Card,
+  ListGroup,
+  Modal,
+  Table,
+  Badge,
+  Row,
+  Col,
+  Spinner,
+} from "react-bootstrap";
 import {
   FaArrowLeft,
   FaBook,
@@ -15,6 +24,7 @@ import {
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import adminApi from "../../api/adminApi"; // ✅ centralized axios instance
 import "./ClassManagement.css";
 
 const ClassManagement = () => {
@@ -26,26 +36,20 @@ const ClassManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-  // Define API_URL based on environment variables
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
+// ✅ Fetch all classes
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/admin/auth/classes`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        if (!res.data || !Array.isArray(res.data.classes)) {
+        const data = await adminApi.getAllClasses(); // returns res.data
+        if (!data || !Array.isArray(data.classes)) {
           throw new Error("Invalid API response format");
         }
-        // Sort classes:
-        // If className begins with digits, extract and compare those; otherwise, compare full className.
-        const sortedClasses = [...res.data.classes].sort((a, b) => {
+
+        // ✅ Sort classes
+        const sortedClasses = [...data.classes].sort((a, b) => {
           const numA = parseInt(a.className, 10);
           const numB = parseInt(b.className, 10);
+
           if (!isNaN(numA) && !isNaN(numB)) {
             if (numA !== numB) return numA - numB;
             const letterA = a.className.replace(numA.toString(), "");
@@ -59,6 +63,7 @@ const ClassManagement = () => {
             return a.className.localeCompare(b.className);
           }
         });
+
         setClasses(sortedClasses);
         setError("");
       } catch (err) {
@@ -68,20 +73,15 @@ const ClassManagement = () => {
         setLoading(false);
       }
     };
+
     fetchClasses();
-  }, [API_URL]);
+  }, []);
 
-  // Navigation handlers
-  const handleAddClass = () => {
-    navigate("/admin/create-class");
-  };
-
+  // ✅ View class details
   const handleViewDetails = async (classId) => {
     try {
-      const res = await axios.get(`${API_URL}/api/admin/auth/classes/${classId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      setSelectedClass(res.data);
+      const data = await adminApi.getClassById(classId);
+      setSelectedClass(data);
       setShowDetailsModal(true);
     } catch (error) {
       console.error("Error fetching class details:", error);
@@ -89,19 +89,12 @@ const ClassManagement = () => {
     }
   };
 
-  const handleEdit = (classId) => {
-    navigate(`/admin/edit-class/${classId}`);
-  };
-
+  // ✅ Delete class
   const handleDelete = async (classId) => {
     if (window.confirm("Are you sure you want to delete this class?")) {
       try {
-        await axios.delete(`${API_URL}/api/admin/auth/classes/${classId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        setClasses((prevClasses) =>
-          prevClasses.filter((cls) => cls.classId !== classId)
-        );
+        await adminApi.deleteClass(classId);
+        setClasses((prev) => prev.filter((cls) => cls.classId !== classId));
         toast.success("Class deleted successfully!");
       } catch (err) {
         console.error("Error deleting class:", err);
@@ -116,9 +109,7 @@ const ClassManagement = () => {
     });
   };
 
-  // Function to get group key from className.
-  // For classNames that start with digits, we extract the number and group as "Class X".
-  // For those starting with "KG", we group them under "Kindergarten".
+  // Grouping logic
   const getGroupKey = (cls) => {
     const name = cls.className;
     if (!name) return "Unknown";
@@ -132,12 +123,12 @@ const ClassManagement = () => {
     return name;
   };
 
-  const filteredClasses = classes.filter(cls => 
-    cls.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.classId.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredClasses = classes.filter(
+    (cls) =>
+      cls.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cls.classId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Group classes based on the group key
   const groupedClasses = filteredClasses.reduce((acc, cls) => {
     const key = getGroupKey(cls);
     if (!acc[key]) acc[key] = [];
@@ -145,15 +136,12 @@ const ClassManagement = () => {
     return acc;
   }, {});
 
-  // Sort classes within each group by section
-  Object.keys(groupedClasses).forEach(groupKey => {
-    groupedClasses[groupKey].sort((a, b) => {
-      // Sort by section (A, B, C, etc.)
-      return a.section.localeCompare(b.section);
-    });
+  Object.keys(groupedClasses).forEach((groupKey) => {
+    groupedClasses[groupKey].sort((a, b) =>
+      a.section.localeCompare(b.section)
+    );
   });
 
-  // Function to handle modal close
   const handleCloseModal = () => {
     setShowDetailsModal(false);
     setSelectedClass(null);
@@ -226,15 +214,19 @@ const ClassManagement = () => {
                             ID: {cls.classId}
                           </Card.Subtitle>
                         </div>
-                        
+
                         <div className="class-stats">
                           <div className="stat-item">
                             <FaBook />
-                            <span>{cls.subjects ? cls.subjects.length : 0} Subjects</span>
+                            <span>
+                              {cls.subjects ? cls.subjects.length : 0} Subjects
+                            </span>
                           </div>
                           <div className="stat-item">
                             <FaUsers />
-                            <span>{cls.teachers ? cls.teachers.length : 0} Teachers</span>
+                            <span>
+                              {cls.teachers ? cls.teachers.length : 0} Teachers
+                            </span>
                           </div>
                         </div>
 
@@ -286,9 +278,12 @@ const ClassManagement = () => {
                 <h3>{selectedClass.class.className}</h3>
                 <Badge bg="info">ID: {selectedClass.class.classId}</Badge>
               </div>
-              
+
               <div className="details-section">
-                <h4><FaBook className="me-2" />Subjects</h4>
+                <h4>
+                  <FaBook className="me-2" />
+                  Subjects
+                </h4>
                 <Table striped bordered hover responsive>
                   <thead>
                     <tr>
@@ -301,15 +296,18 @@ const ClassManagement = () => {
                     {selectedClass.subjects.map((subject, index) => (
                       <tr key={index}>
                         <td>{subject.subjectName}</td>
-                        <td>{subject.subjectCode || 'N/A'}</td>
+                        <td>{subject.subjectCode || "N/A"}</td>
                         <td>
-                          {subject.assignedTeachers && subject.assignedTeachers.length > 0 ? (
+                          {subject.assignedTeachers &&
+                          subject.assignedTeachers.length > 0 ? (
                             <div className="teacher-badges">
-                              {subject.assignedTeachers.map((teacher, tIndex) => (
-                                <Badge key={tIndex} bg="info" className="me-1">
-                                  {teacher.name}
-                                </Badge>
-                              ))}
+                              {subject.assignedTeachers.map(
+                                (teacher, tIndex) => (
+                                  <Badge key={tIndex} bg="info" className="me-1">
+                                    {teacher.name}
+                                  </Badge>
+                                )
+                              )}
                             </div>
                           ) : (
                             <Badge bg="warning">No teacher assigned</Badge>
@@ -322,7 +320,10 @@ const ClassManagement = () => {
               </div>
 
               <div className="details-section">
-                <h4><FaUsers className="me-2" />Class Teachers</h4>
+                <h4>
+                  <FaUsers className="me-2" />
+                  Class Teachers
+                </h4>
                 <Table striped bordered hover responsive>
                   <thead>
                     <tr>
@@ -331,7 +332,8 @@ const ClassManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedClass.class.teachers && selectedClass.class.teachers.length > 0 ? (
+                    {selectedClass.class.teachers &&
+                    selectedClass.class.teachers.length > 0 ? (
                       selectedClass.class.teachers.map((teacher, index) => (
                         <tr key={index}>
                           <td>{teacher.teacherID}</td>
@@ -340,7 +342,9 @@ const ClassManagement = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="2" className="text-center">No teachers assigned</td>
+                        <td colSpan="2" className="text-center">
+                          No teachers assigned
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -353,8 +357,8 @@ const ClassManagement = () => {
           <Button variant="secondary" onClick={handleCloseModal}>
             Close
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => {
               handleCloseModal();
               handleEdit(selectedClass.class.classId);

@@ -143,6 +143,7 @@ const handleValidationErrors = (req, res, next) => {
 // Route: Validate the admin token (verify token in request header)
 router.post("/validate", verifyAdminToken, async (req, res) => {
   try {
+    console.log(req.admin);
     const user = req.admin; // The admin info attached to the request
     if (user) {
       // Return user details from the decoded token

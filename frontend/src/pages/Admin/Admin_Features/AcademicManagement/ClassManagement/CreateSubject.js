@@ -1,23 +1,18 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaArrowLeft } from "react-icons/fa"; // Importing the back arrow icon
+import { FaArrowLeft } from "react-icons/fa";
+import adminApi from "../../api/adminApi"; // ✅ centralized API
 import "./CreateSubject.css";
 
 const CreateSubject = () => {
-  const [subjectName, setSubjectName] = useState(""); // Corrected from standardName
+  const [subjectName, setSubjectName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const navigate = useNavigate(); // for navigation after success
+  const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
-  // Handle input change for subjectName
+  // Handle input change
   const handleSubjectNameChange = (e) => {
     setSubjectName(e.target.value);
   };
@@ -26,56 +21,41 @@ const CreateSubject = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate input
     if (!subjectName) {
       setErrorMessage("Please provide a subject name.");
       return;
     }
 
     try {
-      // Updated API URL based on the correct route
-      const response = await axios.post(
-        `${API_URL}/api/admin/auth/createsubject`, // Corrected route
-        { subjectName }, // Pass the correct data
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await adminApi.createSubject({ subjectName }); // ✅ using service
 
-      // Handle success response
       if (response.status === 201) {
         setSuccessMessage("Subject created successfully!");
-        toast.success("Subject created successfully!"); // Show toast on success
-        setErrorMessage(""); // Clear error message
+        toast.success("Subject created successfully!");
+        setErrorMessage("");
         setSubjectName("");
 
-        // Redirect after subject is created
         setTimeout(() => {
-          navigate("/admin/create-subjects"); // Replace with your desired redirect path
+          navigate("/admin/create-subjects"); // redirect after success
         }, 2000);
       }
     } catch (error) {
-      // Handle error response
       setErrorMessage(error.response?.data?.message || "Server error");
-      setSuccessMessage(""); // Clear success message
-      toast.error(
-        error.response?.data?.message || "Server error" // Show toast on error
-      );
+      setSuccessMessage("");
+      toast.error(error.response?.data?.message || "Server error");
     }
   };
 
-  // Handle back button click
+  // Handle back button
   const handleBack = () => {
-    navigate("/admin/class-management"); // Navigate back to the previous page
+    navigate("/admin/class-management");
   };
 
   return (
     <div className="create-subject-container">
       <h1>Create New Subject</h1>
 
-      {/* Back button with icon */}
+      {/* Back button */}
       <div className="back-button" style={{ marginBottom: "20px" }}>
         <FaArrowLeft
           onClick={handleBack}
@@ -101,7 +81,7 @@ const CreateSubject = () => {
         <div className="success-message">{successMessage}</div>
       )}
 
-      {/* Form to create subject */}
+      {/* Form */}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="subjectName">Subject Name</label>
@@ -117,7 +97,6 @@ const CreateSubject = () => {
         <button type="submit">Create Subject</button>
       </form>
 
-      {/* ToastContainer to display the toast notifications */}
       <ToastContainer />
     </div>
   );

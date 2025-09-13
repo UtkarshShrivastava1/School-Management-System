@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { changeAdminPassword } from "../../api/adminApi"; // ✅ use centralized service
 
 const ChangeAdminPassword = () => {
-  // State variables for input fields, messages, error handling, and loading status
+  const { token, role, user } = useAuth();
   const [adminID, setAdminID] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -10,65 +11,51 @@ const ChangeAdminPassword = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL // Production API URL
-      : process.env.REACT_APP_DEVELOPMENT_URL; // Local development API URL
-  /**
-   * Handles the form submission for changing the admin password.
-   * Validates token presence, sends the PUT request, and updates UI based on response.
-   * @param {Object} e - The form submission event object.
-   */
+  // ✅ Pre-fill adminID if logged in as admin
+  useEffect(() => {
+    if (role === "admin" && (user?.adminID || user?.id)) {
+      setAdminID(user.adminID || user.id);
+    }
+  }, [role, user]);
+
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    setMessage(""); // Clear previous messages
-    setError(""); // Clear previous errors
+    setMessage("");
+    setError("");
 
-    console.log("Attempting to change the password..."); // Debugging log
+    if (role !== "admin") {
+      setError("Unauthorized. Only admins can change admin passwords.");
+      return;
+    }
 
-    // Retrieve the JWT token from localStorage
-    const token = localStorage.getItem("token");
     if (!token) {
-      console.error("Token is missing from localStorage."); // Debugging log
-      setError("Authentication token is missing. Please log in.");
+      setError("Authentication token is missing. Please log in again.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match.");
       return;
     }
 
     try {
-      setLoading(true); // Indicate loading state
-      console.log("Sending API request to change password..."); // Debugging log
+      setLoading(true);
 
-      // Send PUT request to the backend API
-      const response = await axios.put(
-        `${API_URL}/api/admin/auth/changeadminpassword`, // Corrected URL with backticks
-        {
-          adminID,
-          newPassword,
-          confirmNewPassword,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      // ✅ Call adminApi instead of raw axios
+      const res = await changeAdminPassword({
+        adminID,
+        newPassword,
+        confirmNewPassword,
+      });
 
-      console.log("Password changed successfully:", response.data); // Debugging log
-      setMessage(response.data.message); // Set success message
-
-      // Reset form fields after successful response
-      setAdminID("");
+      setMessage(res.message || "Password changed successfully!");
       setNewPassword("");
       setConfirmNewPassword("");
-
-      // Close the modal on success
       document.getElementById("closeModal").click();
     } catch (err) {
-      console.error("Error occurred while changing password:", err); // Debugging log
       setError(err.response?.data?.message || "Error occurred");
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
@@ -80,6 +67,7 @@ const ChangeAdminPassword = () => {
         className="btn btn-primary"
         data-bs-toggle="modal"
         data-bs-target="#changePasswordModal"
+        disabled={role !== "admin"}
       >
         Change Password
       </button>
@@ -90,7 +78,7 @@ const ChangeAdminPassword = () => {
         id="changePasswordModal"
         tabIndex="-1"
         aria-labelledby="changePasswordModalLabel"
-        aria-hidden="false"
+        aria-hidden="true"
       >
         <div className="modal-dialog">
           <div className="modal-content">
@@ -117,9 +105,7 @@ const ChangeAdminPassword = () => {
                     id="adminID"
                     className="form-control"
                     value={adminID}
-                    onChange={(e) => setAdminID(e.target.value)}
-                    placeholder="Enter Admin ID"
-                    required
+                    readOnly
                   />
                 </div>
                 <div className="mb-3">
@@ -158,13 +144,12 @@ const ChangeAdminPassword = () => {
                   {loading ? "Changing..." : "Change Password"}
                 </button>
               </form>
-              {/* Display Success Message */}
+
               {message && (
                 <div className="alert alert-success mt-3" role="alert">
                   {message}
                 </div>
               )}
-              {/* Display Error Message */}
               {error && (
                 <div className="alert alert-danger mt-3" role="alert">
                   {error}

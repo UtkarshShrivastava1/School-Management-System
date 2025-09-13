@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { Button, Form, Modal, Spinner, Alert } from "react-bootstrap";
-import axios from "axios";
 import { toast } from "react-toastify";
+import api from "../../api/axiosInstance"; // ✅ centralized axios instance
 
 const ChangeStudentPassword = ({ show, handleClose }) => {
   const [formData, setFormData] = useState({
-    studentID: "",
     newPassword: "",
     confirmNewPassword: "",
   });
@@ -13,11 +12,6 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,21 +21,16 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
     }));
   };
 
+  // ✅ password validation rules
   const validatePassword = (password) => {
-    // At least 8 characters, one number, one special character
     const hasNumber = /\d/.test(password);
     const hasSpecial = /[!@#$%^&*]/.test(password);
     const hasMinLength = password.length >= 8;
 
-    if (!hasMinLength) {
-      return "Password must be at least 8 characters long";
-    }
-    if (!hasNumber) {
-      return "Password must contain at least one number";
-    }
-    if (!hasSpecial) {
+    if (!hasMinLength) return "Password must be at least 8 characters long";
+    if (!hasNumber) return "Password must contain at least one number";
+    if (!hasSpecial)
       return "Password must contain at least one special character (!@#$%^&*)";
-    }
 
     return null;
   };
@@ -53,26 +42,14 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
     setSuccess("");
 
     try {
-      // Get studentID from localStorage
+      // ✅ get studentID from localStorage
       const studentInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
       const studentID = studentInfo.studentID;
-      
+
       if (!studentID) {
         throw new Error("Student ID not found. Please log in again.");
       }
-      
-      const passwordData = {
-        studentID: studentID,
-        newPassword: formData.newPassword,
-        confirmNewPassword: formData.confirmNewPassword
-      };
-      
-      console.log("Password change data prepared:", { 
-        studentID, 
-        passwordLength: formData.newPassword?.length 
-      });
 
-      // Password validation
       if (formData.newPassword !== formData.confirmNewPassword) {
         setError("Passwords do not match");
         setLoading(false);
@@ -86,44 +63,32 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
         return;
       }
 
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Authentication token is missing. Please log in again.");
-      }
+      // ✅ use centralized axios instance
+      const response = await api.put(`/student/auth/changestudentpassword`, {
+        studentID,
+        newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmNewPassword,
+      });
 
-      const response = await axios.put(
-        `${API_URL}/api/student/auth/changestudentpassword`,
-        passwordData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      setSuccess("Password changed successfully!");
+      setSuccess(response.data?.message || "Password changed successfully!");
       toast.success("Password changed successfully!");
-      
-      // Reset the form
+
+      // reset form
       setFormData({
-        studentID: "",
         newPassword: "",
         confirmNewPassword: "",
       });
-      
-      // Close the modal after a short delay
-      setTimeout(() => {
-        handleClose();
-      }, 2000);
+
+      // auto close modal
+      setTimeout(() => handleClose(), 1500);
     } catch (err) {
-      const errorMessage = 
-        err.response?.data?.message || 
-        err.message || 
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
         "Failed to change password";
       setError(errorMessage);
       toast.error(errorMessage);
-      console.error("Error changing password:", err);
+      console.error("Error changing student password:", err);
     } finally {
       setLoading(false);
     }
@@ -150,8 +115,8 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
               required
             />
             <Form.Text className="text-muted">
-              Password must be at least 8 characters long, contain at least one
-              number and one special character.
+              Password must be at least 8 characters, include a number and a
+              special character.
             </Form.Text>
           </Form.Group>
 
@@ -168,7 +133,12 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
           </Form.Group>
 
           <div className="d-flex justify-content-end">
-            <Button variant="secondary" onClick={handleClose} className="me-2">
+            <Button
+              variant="secondary"
+              onClick={handleClose}
+              className="me-2"
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
@@ -181,4 +151,4 @@ const ChangeStudentPassword = ({ show, handleClose }) => {
   );
 };
 
-export default ChangeStudentPassword; 
+export default ChangeStudentPassword;

@@ -1,10 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { FaCheckCircle, FaTimesCircle, FaInfoCircle, FaSpinner, FaClock } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
-import './ManageFeeApprovals.css';
+import React, { useState, useEffect } from "react";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+  FaCheckCircle,
+  FaTimesCircle,
+  FaInfoCircle,
+  FaSpinner,
+  FaClock,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import "./ManageFeeApprovals.css";
+
+// Import from feeApi
+import feeApi from "../api/feeApi";
 
 const ManageFeeApprovals = () => {
   const [pendingFees, setPendingFees] = useState([]);
@@ -12,40 +20,26 @@ const ManageFeeApprovals = () => {
   const [error, setError] = useState(null);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
   const [selectedFee, setSelectedFee] = useState(null);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReason, setRejectionReason] = useState("");
   const [processingFeeId, setProcessingFeeId] = useState(null);
   const navigate = useNavigate();
 
-  const API_URL = process.env.REACT_APP_NODE_ENV === 'production'
-    ? process.env.REACT_APP_PRODUCTION_URL
-    : process.env.REACT_APP_DEVELOPMENT_URL || 'http://localhost:5000';
-
+  // Fetch all pending approvals
   const fetchPendingFees = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Admin not authenticated. Please login.');
-        setLoading(false);
-        return;
-      }
+      const response = await feeApi.getPendingApprovals();
 
-      const response = await axios.get(`${API_URL}/api/fees/pending-approvals`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (response.data.success) {
-        setPendingFees(response.data.fees);
+      if (response.success) {
+        setPendingFees(response.fees || []);
       } else {
-        setError(response.data.message || 'Failed to fetch pending fees.');
-        toast.error(response.data.message || 'Failed to fetch pending fees.');
+        setError(response.message || "Failed to fetch pending fees.");
+        toast.error(response.message || "Failed to fetch pending fees.");
       }
-    } catch (error) {
-      console.error('Error fetching pending fees:', error);
-      setError(error.response?.data?.message || 'Error fetching pending fees.');
-      toast.error(error.response?.data?.message || 'Error fetching pending fees.');
+    } catch (err) {
+      console.error("Error fetching pending fees:", err);
+      setError(err.message || "Error fetching pending fees.");
+      toast.error(err.message || "Error fetching pending fees.");
     } finally {
       setLoading(false);
     }
@@ -55,52 +49,43 @@ const ManageFeeApprovals = () => {
     fetchPendingFees();
   }, []);
 
+  // Approve / Reject
   const handleApprovalAction = async (feeId, action) => {
     setProcessingFeeId(feeId);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Admin not authenticated.');
-        setProcessingFeeId(null);
-        return;
-      }
-
       const payload = { action };
-      if (action === 'reject') {
-        if (!rejectionReason) {
-           toast.error('Please provide a rejection reason.');
-           setProcessingFeeId(null);
-           return;
+
+      if (action === "reject") {
+        if (!rejectionReason.trim()) {
+          toast.error("Please provide a rejection reason.");
+          setProcessingFeeId(null);
+          return;
         }
-        payload.rejectionReason = rejectionReason;
+        payload.rejectionReason = rejectionReason.trim();
       }
 
-      const response = await axios.post(`${API_URL}/api/fees/${feeId}/approve`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await feeApi.approveOrRejectFee(feeId, payload);
 
-      if (response.data.success) {
-        toast.success(response.data.message);
-        setPendingFees(pendingFees.filter(fee => fee._id !== feeId));
+      if (response.success) {
+        toast.success(response.message);
+        setPendingFees((prev) => prev.filter((fee) => fee._id !== feeId));
         setShowRejectionDialog(false);
-        setRejectionReason('');
+        setRejectionReason("");
 
-        // Dispatch event to notify other components about fee status update
-        window.dispatchEvent(new Event('feeStatusUpdated'));
+        // Notify other components
+        window.dispatchEvent(new Event("feeStatusUpdated"));
       } else {
-        toast.error(response.data.message || 'Failed to process approval.');
+        toast.error(response.message || "Failed to process approval.");
       }
-    } catch (error) {
-      console.error('Error processing approval:', error);
-      toast.error(error.response?.data?.message || 'Error processing approval.');
+    } catch (err) {
+      console.error("Error processing approval:", err);
+      toast.error(err.message || "Error processing approval.");
     } finally {
       setProcessingFeeId(null);
     }
   };
 
+  // Reject modal handlers
   const openRejectionDialog = (fee) => {
     setSelectedFee(fee);
     setShowRejectionDialog(true);
@@ -108,16 +93,26 @@ const ManageFeeApprovals = () => {
 
   const closeRejectionDialog = () => {
     setSelectedFee(null);
-    setRejectionReason('');
+    setRejectionReason("");
     setShowRejectionDialog(false);
   };
 
+  // Format dates for display
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    if (!dateString) return "N/A";
+    const options = {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
+  // -------------------------
+  // Render
+  // -------------------------
   if (loading) {
     return <div className="loading-indicator">Loading pending fee approvals...</div>;
   }
@@ -141,30 +136,59 @@ const ManageFeeApprovals = () => {
             <div key={fee._id} className="approval-card">
               <div className="card-header">
                 <h3>Fee Payment Approval</h3>
-                <span className="status-badge pending"><FaClock /> Pending</span>
+                <span className="status-badge pending">
+                  <FaClock /> Pending
+                </span>
               </div>
               <div className="card-details">
-                <p><strong>Student:</strong> {fee.student?.studentName || 'N/A'}</p>
-                <p><strong>Class:</strong> {fee.class?.className || 'N/A'}</p>
-                <p><strong>Fee Type:</strong> {fee.feeType?.charAt(0).toUpperCase() + fee.feeType?.slice(1) || 'N/A'}</p>
-                <p><strong>Amount:</strong> ₹{fee.totalAmount}</p>
-                <p><strong>Transaction ID:</strong> {fee.transactionId || 'N/A'}</p>
-                <p><strong>Submitted On:</strong> {formatDate(fee.paymentDate)}</p>
+                <p>
+                  <strong>Student:</strong>{" "}
+                  {fee.student?.studentName || "N/A"}
+                </p>
+                <p>
+                  <strong>Class:</strong> {fee.class?.className || "N/A"}
+                </p>
+                <p>
+                  <strong>Fee Type:</strong>{" "}
+                  {fee.feeType
+                    ? fee.feeType.charAt(0).toUpperCase() +
+                      fee.feeType.slice(1)
+                    : "N/A"}
+                </p>
+                <p>
+                  <strong>Amount:</strong> ₹{fee.totalAmount}
+                </p>
+                <p>
+                  <strong>Transaction ID:</strong> {fee.transactionId || "N/A"}
+                </p>
+                <p>
+                  <strong>Submitted On:</strong> {formatDate(fee.paymentDate)}
+                </p>
               </div>
               <div className="card-actions">
-                <button 
+                <button
                   className="approve-button"
-                  onClick={() => handleApprovalAction(fee._id, 'approve')}
+                  onClick={() => handleApprovalAction(fee._id, "approve")}
                   disabled={processingFeeId === fee._id}
                 >
-                  {processingFeeId === fee._id ? <FaSpinner className="spinner" /> : <FaCheckCircle />} Approve
+                  {processingFeeId === fee._id ? (
+                    <FaSpinner className="spinner" />
+                  ) : (
+                    <FaCheckCircle />
+                  )}{" "}
+                  Approve
                 </button>
-                <button 
+                <button
                   className="reject-button"
                   onClick={() => openRejectionDialog(fee)}
                   disabled={processingFeeId === fee._id}
                 >
-                  {processingFeeId === fee._id ? <FaSpinner className="spinner" /> : <FaTimesCircle />} Reject
+                  {processingFeeId === fee._id ? (
+                    <FaSpinner className="spinner" />
+                  ) : (
+                    <FaTimesCircle />
+                  )}{" "}
+                  Reject
                 </button>
               </div>
             </div>
@@ -172,6 +196,7 @@ const ManageFeeApprovals = () => {
         </div>
       )}
 
+      {/* Rejection Modal */}
       {showRejectionDialog && (
         <div className="rejection-dialog-overlay">
           <div className="rejection-dialog-content">
@@ -183,13 +208,22 @@ const ManageFeeApprovals = () => {
               placeholder="Enter reason for rejection"
             ></textarea>
             <div className="dialog-actions">
-              <button className="cancel-button" onClick={closeRejectionDialog}>Cancel</button>
-              <button 
+              <button className="cancel-button" onClick={closeRejectionDialog}>
+                Cancel
+              </button>
+              <button
                 className="submit-reject-button"
-                onClick={() => handleApprovalAction(selectedFee._id, 'reject')}
-                disabled={processingFeeId === selectedFee._id || !rejectionReason.trim()}
+                onClick={() => handleApprovalAction(selectedFee._id, "reject")}
+                disabled={
+                  processingFeeId === selectedFee._id ||
+                  !rejectionReason.trim()
+                }
               >
-                 {processingFeeId === selectedFee._id ? <FaSpinner className="spinner" /> : 'Submit'}
+                {processingFeeId === selectedFee._id ? (
+                  <FaSpinner className="spinner" />
+                ) : (
+                  "Submit"
+                )}
               </button>
             </div>
           </div>
@@ -201,4 +235,4 @@ const ManageFeeApprovals = () => {
   );
 };
 
-export default ManageFeeApprovals; 
+export default ManageFeeApprovals;

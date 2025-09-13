@@ -1,4 +1,3 @@
-import axios from "axios";
 import React, { useCallback, useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -6,36 +5,33 @@ import { FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axiosInstance from "../..//axiosInstance"; // ✅ centralized axios instance
 import "./TrackStudentAttendance.css";
 
 const TrackStudentAttendance = () => {
   const [attendance, setAttendance] = useState([]);
-  const [studentID, setStudentID] = useState(""); // Fixed incorrect variable names
+  const [studentID, setStudentID] = useState("");
   const [studentName, setStudentName] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
-
-  // Fetch attendance records based on filters
+  // ✅ Fetch attendance records with filters
   const fetchStudentsAttendanceRecord = useCallback(async () => {
     try {
       const queryParams = [];
 
-      if (studentID.trim()) queryParams.push(`studentID=${encodeURIComponent(studentID.trim())}`);
-      if (studentName.trim()) queryParams.push(`studentName=${encodeURIComponent(studentName.trim())}`);
+      if (studentID.trim())
+        queryParams.push(`studentID=${encodeURIComponent(studentID.trim())}`);
+      if (studentName.trim())
+        queryParams.push(`studentName=${encodeURIComponent(studentName.trim())}`);
       if (month) queryParams.push(`month=${month}`);
       if (year) queryParams.push(`year=${year}`);
       if (selectedDate) {
-        // Format date in local timezone to avoid UTC conversion issues
         const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(selectedDate.getDate()).padStart(2, "0");
         const formattedDate = `${year}-${month}-${day}`;
         queryParams.push(`date=${formattedDate}`);
       }
@@ -43,23 +39,15 @@ const TrackStudentAttendance = () => {
       const queryString =
         queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
 
-      console.log("Selected date:", selectedDate);
-      console.log("Formatted date:", selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : 'None');
       console.log("Fetching attendance with query:", queryString);
 
-      const response = await axios.get(
-        `${API_URL}/api/admin/auth/student-attendance-records${queryString}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+      const response = await axiosInstance.get(
+        `/api/admin/auth/student-attendance-records${queryString}`
       );
 
-      console.log("Attendance response:", response.data);
       setAttendance(response.data.data || []);
-      
-      if (response.data.data && response.data.data.length > 0) {
+
+      if (response.data.data?.length > 0) {
         toast.success(`Found ${response.data.data.length} attendance records!`);
       } else {
         toast.info("No attendance records found for the selected filters.");
@@ -71,12 +59,11 @@ const TrackStudentAttendance = () => {
         error.response?.data?.message || "Failed to fetch attendance records."
       );
     }
-  }, [API_URL, studentID, studentName, month, year, selectedDate]);
+  }, [studentID, studentName, month, year, selectedDate]);
 
   useEffect(() => {
-    // Only fetch on component mount
     fetchStudentsAttendanceRecord();
-  }, []); // Empty dependency array
+  }, []); // run only on mount
 
   const handleBack = () => navigate("/admin/student-attendance");
 
@@ -84,6 +71,7 @@ const TrackStudentAttendance = () => {
     <div className="track-attendance-container">
       <h1>Track Student Attendance</h1>
 
+      {/* Back Button */}
       <div className="back-button">
         <FaArrowLeft
           onClick={handleBack}
@@ -147,13 +135,10 @@ const TrackStudentAttendance = () => {
           />
         </div>
         <div className="filter-actions">
-          <button 
-            onClick={fetchStudentsAttendanceRecord}
-            className="search-btn"
-          >
+          <button onClick={fetchStudentsAttendanceRecord} className="search-btn">
             Search
           </button>
-          <button 
+          <button
             onClick={() => {
               setStudentID("");
               setStudentName("");
@@ -168,7 +153,7 @@ const TrackStudentAttendance = () => {
         </div>
       </div>
 
-      {/* Display Attendance Records */}
+      {/* Attendance Records */}
       <div className="attendance-records">
         <h3>Attendance Records</h3>
         {attendance.length > 0 ? (
@@ -188,7 +173,11 @@ const TrackStudentAttendance = () => {
                 <tr key={index}>
                   <td>{record.student?.studentID || "N/A"}</td>
                   <td>{record.student?.name || "N/A"}</td>
-                  <td>{record.className && record.section ? `${record.className} - Section ${record.section}` : "N/A"}</td>
+                  <td>
+                    {record.className && record.section
+                      ? `${record.className} - Section ${record.section}`
+                      : "N/A"}
+                  </td>
                   <td>{record.status}</td>
                   <td>{record.remarks || "N/A"}</td>
                   <td>{new Date(record.date).toLocaleDateString()}</td>

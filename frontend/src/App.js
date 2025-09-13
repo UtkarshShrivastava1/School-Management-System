@@ -1,166 +1,66 @@
-import React, { useCallback, useEffect, useState } from "react";
-import {
-  Navigate,
-  Route,
-  BrowserRouter as Router,
-  Routes,
-} from "react-router-dom";
+import React from "react";
+import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-dom";
+
 // Page imports
 import About from "./pages/About";
 import Signin from "./pages/Signin";
-import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
 import AdminRoutes from "./Routes/Admin/AdminRoutes";
 import ParentRoutes from "./Routes/Parent/ParentRoutes";
 import StudentRoutes from "./Routes/Student/StudentRoutes";
 import TeacherRoutes from "./Routes/Teacher/TeacherRoutes";
-// import StudentRoutes from "./Routes/Student/StudentRoutes";
-// import ParentRoutes from "./Routes/Parent/ParentRoutes";
 import Navbar from "./components/Navbar";
 import { ToastContainer } from "react-toastify";
 
-const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState(null);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+import { AuthProvider, useAuth } from "./context/useAuth"; // ✅ useAuth is now the context
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
+import "react-toastify/dist/ReactToastify.css";
+import { Spinner } from "react-bootstrap";
 
-  // Wrap validateToken in useCallback to avoid re-creation in useEffect
-  const validateToken = useCallback(
-    async (token) => {
-      console.log("Validating token...");
-      try {
-        // Get the stored role to determine which validation endpoint to use
-        const storedRole = localStorage.getItem("userRole");
-        let validationEndpoint = "/api/admin/auth/validate";
-        
-        if (storedRole === "teacher") {
-          validationEndpoint = "/api/teacher/auth/validate";
-        } else if (storedRole === "student") {
-          validationEndpoint = "/api/student/auth/validate";
-        } else if (storedRole === "parent") {
-          validationEndpoint = "/api/parent/auth/validate";
-        }
-
-        const response = await fetch(`${API_URL}${validationEndpoint}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.ok) {
-          console.log("Token is valid.");
-          const data = await response.json();
-          setIsLoggedIn(true);
-          setUserRole(data.role);
-          setUser(data);
-        } else {
-          console.error("Token validation failed. Logging out.");
-          localStorage.removeItem("token");
-          localStorage.removeItem("userRole");
-          setIsLoggedIn(false);
-          setUser(null);
-          setUserRole(null);
-        }
-      } catch (error) {
-        console.error("Error validating token:", error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("userRole");
-        setIsLoggedIn(false);
-        setUser(null);
-        setUserRole(null);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [API_URL]
-  );
-
-  useEffect(() => {
-    console.log("Checking for token in local storage...");
-    const token = localStorage.getItem("token");
-    if (token) {
-      console.log("Token found, validating...");
-      validateToken(token);
-    } else {
-      console.log("No token found, setting loading to false.");
-      setIsLoggedIn(false);
-      setLoading(false);
-    }
-  }, [validateToken]);
-
-  const handleLogout = () => {
-    console.log("Logging out...");
-    // Clear all state
-    setIsLoggedIn(false);
-    setUserRole(null);
-    setUser(null);
-    
-    // Clear all localStorage items
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("adminInfo");
-    localStorage.removeItem("teacherInfo");
-    localStorage.removeItem("studentInfo");
-    localStorage.removeItem("parentInfo");
-  };
+function AppRoutes() {
+  const { role, token, loading } = useAuth(); // ✅ renamed from userRole/isLoggedIn
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <Spinner animation="border" role="status" />
+        <span className="ms-2">Loading...</span>
+      </div>
+    );
   }
 
+  const isLoggedIn = !!token;
+
   return (
-    <Router>
-      <Navbar
-        isLoggedIn={isLoggedIn}
-        setIsLoggedIn={setIsLoggedIn}
-        userRole={userRole}
-        setUserRole={setUserRole}
-      />
+    <>
+      <Navbar />
       <Routes>
+        {/* Redirect root based on login */}
         <Route
           path="/"
-          element={<Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />}
+          element={
+            isLoggedIn ? (
+              <Navigate to={`/${role}/${role}-dashboard`} replace />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
+          }
         />
-        <Route
-          path="/signin"
-          element={<Signin setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />}
-        />
-        <Route
-          path="/about"
-          element={<About setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole} />}
-        />
-        {isLoggedIn && userRole === "admin" && (
-          <Route
-            path="/admin/*"
-            element={<AdminRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
-          />
+
+        <Route path="/signin" element={<Signin />} />
+        <Route path="/about" element={<About />} />
+
+        {role === "admin" && <Route path="/admin/*" element={<AdminRoutes />} />}
+        {role === "teacher" && (
+          <Route path="/teacher/*" element={<TeacherRoutes />} />
         )}
-        {isLoggedIn && userRole === "teacher" && (
-          <Route
-            path="/teacher/*"
-            element={<TeacherRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
-          />
+        {role === "student" && (
+          <Route path="/student/*" element={<StudentRoutes />} />
         )}
-        {isLoggedIn && userRole === "student" && (
-          <Route
-            path="/student/*"
-            element={<StudentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
-          />
-        )}
-        {isLoggedIn && userRole === "parent" && (
-          <Route
-            path="/parent/*"
-            element={<ParentRoutes isLoggedIn={isLoggedIn} userRole={userRole} />}
-          />
+        {role === "parent" && (
+          <Route path="/parent/*" element={<ParentRoutes />} />
         )}
       </Routes>
+
       <ToastContainer
         position="top-right"
         autoClose={5000}
@@ -174,8 +74,16 @@ const App = () => {
         theme="colored"
         toastStyle={{ color: "white" }}
       />
-    </Router>
+    </>
   );
-};
+}
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
+  );
+}

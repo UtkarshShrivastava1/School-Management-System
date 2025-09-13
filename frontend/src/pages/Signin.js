@@ -1,12 +1,27 @@
 import { useState } from "react";
-import { Alert, Button, Card, Container, Form, InputGroup } from "react-bootstrap";
-import { FaChalkboardTeacher, FaEye, FaEyeSlash, FaUserGraduate, FaUsers, FaUserShield } from "react-icons/fa";
+import {
+  Alert,
+  Button,
+  Card,
+  Container,
+  Form,
+  InputGroup,
+} from "react-bootstrap";
+import {
+  FaChalkboardTeacher,
+  FaEye,
+  FaEyeSlash,
+  FaUserGraduate,
+  FaUsers,
+  FaUserShield,
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axiosInstance from '../utils/axiosConfig';
+import { useAuth } from "../context/useAuth"; // ✅ Only context
 import "./Signin.css";
-const Signin = ({ setIsLoggedIn, setUserRole }) => {
+
+const Signin = () => {
   const [loggingUser, setLoggingUser] = useState("Admin");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
@@ -14,12 +29,9 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
 
-  const API_URL =
-    process.env.REACT_APP_NODE_ENV === "production"
-      ? process.env.REACT_APP_PRODUCTION_URL
-      : process.env.REACT_APP_DEVELOPMENT_URL;
+  const navigate = useNavigate();
+  const { login } = useAuth(); // ✅ from context
 
   const roleNames = {
     admin: "Admin",
@@ -62,85 +74,27 @@ const Signin = ({ setIsLoggedIn, setUserRole }) => {
     }
 
     try {
-      const roleEndpoints = {
-        admin: "/api/admin/auth/login",
-        teacher: "/api/teacher/auth/login",
-        student: "/api/student/auth/login",
-        parent: "/api/parent/auth/login",
-      };
-
-      const loginEndpoint = roleEndpoints[role];
-      console.log('Attempting login with:', {
-        url: loginEndpoint,
-        data: { [`${role}ID`]: userId }
-      });
-
-      // First test if server is reachable
-      try {
-        const testResponse = await axiosInstance.get('/api/test');
-        console.log('Server test response:', testResponse.data);
-      } catch (testError) {
-        console.error('Server test failed:', testError);
-        throw new Error('Server is not reachable. Please check if the backend is running.');
-      }
-
-      const response = await axiosInstance.post(loginEndpoint, {
-        [`${role}ID`]: userId,
-        password,
-      });
-
-      console.log('Login response:', response.data);
-
-      // Store token and role
-      const token = response.data.token;
-      if (!token) {
-        throw new Error("No token received from server");
-      }
-
-      // Store authentication data
-      localStorage.setItem("token", token);
-      localStorage.setItem("userRole", role);
-      
-      // Store user info
-      const userInfo = response.data[role] || response.data.data;
-      if (userInfo) {
-        const enhancedUserInfo = {
-          ...userInfo,
-          [`${role}ID`]: userId
-        };
-        
-        console.log(`Storing ${role} info:`, enhancedUserInfo);
-        localStorage.setItem(`${role}Info`, JSON.stringify(enhancedUserInfo));
-      }
-
-      // Update app state
-      setIsLoggedIn(true);
-      setUserRole(role);
+      // ✅ Call context login
+      await login(role, userId, password);
 
       toast.success("Login successful!", {
         position: "top-center",
         autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
         theme: "colored",
       });
 
-      // Navigate to appropriate dashboard
+      // ✅ Navigate to role dashboard
       navigate(`/${role}/${role}-dashboard`);
     } catch (err) {
       console.error("Login error:", err);
       setError(
-        err.response?.data?.message || err.message || "Login failed. Please try again."
+        err.response?.data?.message ||
+          err.message ||
+          "Login failed. Please try again."
       );
       toast.error("Failed to Login.", {
         position: "top-center",
         autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
         theme: "colored",
       });
     } finally {
