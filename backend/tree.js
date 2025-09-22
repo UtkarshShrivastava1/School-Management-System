@@ -10,7 +10,7 @@ const path = require("path");
 const argv = require("minimist")(process.argv.slice(2), {
   string: ["out", "exclude"],
   alias: { o: "out", d: "depth", e: "exclude" },
-  default: { out: "tree.txt", depth: 5, exclude: "node_modules,uploads" },
+  default: { out: "tree.txt", depth: 5, exclude: "node_modules,uploads,.git" },
 });
 
 const OUT_FILE = argv.out;

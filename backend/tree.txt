@@ -1,5 +1,5 @@
-2025-09-10 08:38:44.993Z   Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
-Exclude: node_modules, uploads; MaxDepth: 5
+2025-09-11 09:46:51.175Z   Project tree (root: D:\UTKARSH\Projects\MERN Stack Projects\School-Management-System\backend)
+Exclude: node_modules, uploads, .git; MaxDepth: 5
 
 ├── archive
 │   ├── model_rename_backups
@@ -168,5 +168,6 @@ Exclude: node_modules, uploads; MaxDepth: 5
 ├── test-db.js
 ├── test-fee-api.js
 ├── tree.js
+├── tree.txt
 
 Finished writing tree to tree.txt
